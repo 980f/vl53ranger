@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright © 2016, STMicroelectronics International N.V.
+ * Copyright ï¿½ 2016, STMicroelectronics International N.V.
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -487,7 +487,7 @@ VL53L0X_Error enable_spad_bit(uint8_t spadArray[], uint32_t size,
 
 VL53L0X_Error count_enabled_spads(uint8_t spadArray[],
 		uint32_t byteCount, uint32_t maxSpads,
-		uint32_t *pTotalSpadsEnabled, uint8_t *pIsAperture)
+		uint32_t *pTotalSpadsEnabled, uint8_t *pIsAperture) //BUG: bad way to return a value due to NONstructured programming habits.
 {
 	VL53L0X_Error status = VL53L0X_ERROR_NONE;
 	uint32_t cSpadsPerByte = 8;
@@ -535,7 +535,7 @@ VL53L0X_Error count_enabled_spads(uint8_t spadArray[],
 	 */
 	tempByte = spadArray[lastByte];
 
-	for (bitIndex = 0; bitIndex <= lastBit; bitIndex++) {
+	for (bitIndex = 0; bitIndex <= lastBit; bitIndex++) {//BUG: index is not used in loop, counts lsb multiple times ignoring other bits.
 		if ((tempByte & 0x01) == 1)
 			(*pTotalSpadsEnabled)++;
 	}
