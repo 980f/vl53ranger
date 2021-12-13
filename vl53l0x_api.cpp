@@ -2094,8 +2094,7 @@ VL53L0X_Error VL53L0X_GetMeasurementDataReady(VL53L0X_DEV Dev,uint8_t *pMeasurem
   uint32_t InterruptMask;
   LOG_FUNCTION_START("");
 
-  InterruptConfig =
-    VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, Pin0GpioFunctionality);
+  InterruptConfig = VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, Pin0GpioFunctionality);
 
   if (InterruptConfig == VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY) {
     Status = VL53L0X_GetInterruptMaskStatus(Dev, &InterruptMask);
@@ -2105,8 +2104,7 @@ VL53L0X_Error VL53L0X_GetMeasurementDataReady(VL53L0X_DEV Dev,uint8_t *pMeasurem
       *pMeasurementDataReady = 0;
     }
   } else {
-    Status = VL53L0X_RdByte(Dev, VL53L0X_REG_RESULT_RANGE_STATUS,
-        &SysRangeStatusRegister);
+    Status = VL53L0X_RdByte(Dev, VL53L0X_REG_RESULT_RANGE_STATUS, &SysRangeStatusRegister);
     if (Status == VL53L0X_ERROR_NONE) {
       if (SysRangeStatusRegister & 0x01) {
         *pMeasurementDataReady = 1;
@@ -2168,14 +2166,12 @@ VL53L0X_Error VL53L0X_GetRangingMeasurementData(VL53L0X_DEV Dev,VL53L0X_RangingM
 
     pRangingMeasurementData->MeasurementTimeUsec = 0;
 
-    SignalRate = VL53L0X_FIXPOINT97TOFIXPOINT1616(
-      VL53L0X_MAKEUINT16(localBuffer[7], localBuffer[6]));
+    SignalRate = VL53L0X_FIXPOINT97TOFIXPOINT1616( VL53L0X_MAKEUINT16(localBuffer[7], localBuffer[6]));
     /* peak_signal_count_rate_rtn_mcps */
     pRangingMeasurementData->SignalRateRtnMegaCps = SignalRate;
 
     AmbientRate = VL53L0X_MAKEUINT16(localBuffer[9], localBuffer[8]);
-    pRangingMeasurementData->AmbientRateRtnMegaCps =
-      VL53L0X_FIXPOINT97TOFIXPOINT1616(AmbientRate);
+    pRangingMeasurementData->AmbientRateRtnMegaCps = VL53L0X_FIXPOINT97TOFIXPOINT1616(AmbientRate);
 
     EffectiveSpadRtnCount = VL53L0X_MAKEUINT16(localBuffer[3], localBuffer[2]);
     /* EffectiveSpadRtnCount is 8.8 format */
@@ -2190,31 +2186,22 @@ VL53L0X_Error VL53L0X_GetRangingMeasurementData(VL53L0X_DEV Dev,VL53L0X_RangingM
     RangeFractionalEnable = PALDevDataGet(Dev, RangeFractionalEnable);
 
     if (LinearityCorrectiveGain != 1000) {
-
-      tmpuint16 =
-        (uint16_t)((LinearityCorrectiveGain * tmpuint16 + 500) / 1000);
+      tmpuint16 = (uint16_t)((LinearityCorrectiveGain * tmpuint16 + 500) / 1000);
 
       /* Implement Xtalk */
-      VL53L0X_GETPARAMETERFIELD(Dev, XTalkCompensationRateMegaCps,
-        XTalkCompensationRateMegaCps);
-      VL53L0X_GETPARAMETERFIELD(Dev, XTalkCompensationEnable,
-        XTalkCompensationEnable);
+      VL53L0X_GETPARAMETERFIELD(Dev, XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
+      VL53L0X_GETPARAMETERFIELD(Dev, XTalkCompensationEnable, XTalkCompensationEnable);
 
       if (XTalkCompensationEnable) {
 
-        if ((SignalRate -
-          ((XTalkCompensationRateMegaCps * EffectiveSpadRtnCount) >> 8)) <=
-          0) {
+        if ((SignalRate - ((XTalkCompensationRateMegaCps * EffectiveSpadRtnCount) >> 8)) <= 0) {
           if (RangeFractionalEnable) {
             XtalkRangeMilliMeter = 8888;
           } else {
             XtalkRangeMilliMeter = 8888 << 2;
           }
         } else {
-          XtalkRangeMilliMeter =
-            (tmpuint16 * SignalRate) /
-            (SignalRate -
-            ((XTalkCompensationRateMegaCps * EffectiveSpadRtnCount) >> 8));
+          XtalkRangeMilliMeter = (tmpuint16 * SignalRate) / (SignalRate - ((XTalkCompensationRateMegaCps * EffectiveSpadRtnCount) >> 8));
         }
 
         tmpuint16 = XtalkRangeMilliMeter;
@@ -2236,9 +2223,7 @@ VL53L0X_Error VL53L0X_GetRangingMeasurementData(VL53L0X_DEV Dev,VL53L0X_RangingM
      * The range status depends on the device so call a device
      * specific function to obtain the right Status.
      */
-    Status |= VL53L0X_get_pal_range_status(
-      Dev, DeviceRangeStatus, SignalRate, EffectiveSpadRtnCount,
-      pRangingMeasurementData, &PalRangeStatus);
+    Status |= VL53L0X_get_pal_range_status( Dev, DeviceRangeStatus, SignalRate, EffectiveSpadRtnCount, pRangingMeasurementData, &PalRangeStatus);
 
     if (Status == VL53L0X_ERROR_NONE) {
       pRangingMeasurementData->RangeStatus = PalRangeStatus;
@@ -2249,20 +2234,13 @@ VL53L0X_Error VL53L0X_GetRangingMeasurementData(VL53L0X_DEV Dev,VL53L0X_RangingM
     /* Copy last read data into Dev buffer */
     LastRangeDataBuffer = PALDevDataGet(Dev, LastRangeMeasure);
 
-    LastRangeDataBuffer.RangeMilliMeter =
-      pRangingMeasurementData->RangeMilliMeter;
-    LastRangeDataBuffer.RangeFractionalPart =
-      pRangingMeasurementData->RangeFractionalPart;
-    LastRangeDataBuffer.RangeDMaxMilliMeter =
-      pRangingMeasurementData->RangeDMaxMilliMeter;
-    LastRangeDataBuffer.MeasurementTimeUsec =
-      pRangingMeasurementData->MeasurementTimeUsec;
-    LastRangeDataBuffer.SignalRateRtnMegaCps =
-      pRangingMeasurementData->SignalRateRtnMegaCps;
-    LastRangeDataBuffer.AmbientRateRtnMegaCps =
-      pRangingMeasurementData->AmbientRateRtnMegaCps;
-    LastRangeDataBuffer.EffectiveSpadRtnCount =
-      pRangingMeasurementData->EffectiveSpadRtnCount;
+    LastRangeDataBuffer.RangeMilliMeter =  pRangingMeasurementData->RangeMilliMeter;
+    LastRangeDataBuffer.RangeFractionalPart =  pRangingMeasurementData->RangeFractionalPart;
+    LastRangeDataBuffer.RangeDMaxMilliMeter =  pRangingMeasurementData->RangeDMaxMilliMeter;
+    LastRangeDataBuffer.MeasurementTimeUsec =  pRangingMeasurementData->MeasurementTimeUsec;
+    LastRangeDataBuffer.SignalRateRtnMegaCps =  pRangingMeasurementData->SignalRateRtnMegaCps;
+    LastRangeDataBuffer.AmbientRateRtnMegaCps = pRangingMeasurementData->AmbientRateRtnMegaCps;
+    LastRangeDataBuffer.EffectiveSpadRtnCount = pRangingMeasurementData->EffectiveSpadRtnCount;
     LastRangeDataBuffer.RangeStatus = pRangingMeasurementData->RangeStatus;
 
     PALDevDataSet(Dev, LastRangeMeasure, LastRangeDataBuffer);
@@ -2417,8 +2395,7 @@ VL53L0X_Error VL53L0X_SetGpioConfig(VL53L0X_DEV Dev, uint8_t Pin,VL53L0X_DeviceM
     }
 
     if (Status == VL53L0X_ERROR_NONE) {
-      Status =
-        VL53L0X_WrByte(Dev, VL53L0X_REG_SYSTEM_INTERRUPT_CONFIG_GPIO, data);
+      Status = VL53L0X_WrByte(Dev, VL53L0X_REG_SYSTEM_INTERRUPT_CONFIG_GPIO, data);
     }
 
     if (Status == VL53L0X_ERROR_NONE) {
@@ -2428,13 +2405,11 @@ VL53L0X_Error VL53L0X_SetGpioConfig(VL53L0X_DEV Dev, uint8_t Pin,VL53L0X_DeviceM
         data = (uint8_t)(1 << 4);
       }
 
-      Status = VL53L0X_UpdateByte(Dev, VL53L0X_REG_GPIO_HV_MUX_ACTIVE_HIGH,
-          0xEF, data);
+      Status = VL53L0X_UpdateByte(Dev, VL53L0X_REG_GPIO_HV_MUX_ACTIVE_HIGH, 0xEF, data);
     }
 
     if (Status == VL53L0X_ERROR_NONE) {
-      VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, Pin0GpioFunctionality,
-        Functionality);
+      VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, Pin0GpioFunctionality, Functionality);
     }
 
     if (Status == VL53L0X_ERROR_NONE) {
@@ -2461,8 +2436,7 @@ VL53L0X_Error VL53L0X_GetGpioConfig(VL53L0X_DEV Dev, uint8_t Pin,VL53L0X_DeviceM
     if (Pin != 0) {
       Status = VL53L0X_ERROR_GPIO_NOT_EXISTING;
     } else {
-      Status =
-        VL53L0X_RdByte(Dev, VL53L0X_REG_SYSTEM_INTERRUPT_CONFIG_GPIO, &data);
+      Status = VL53L0X_RdByte(Dev, VL53L0X_REG_SYSTEM_INTERRUPT_CONFIG_GPIO, &data);
     }
   }
 
@@ -2502,8 +2476,7 @@ VL53L0X_Error VL53L0X_GetGpioConfig(VL53L0X_DEV Dev, uint8_t Pin,VL53L0X_DeviceM
 
   if (Status == VL53L0X_ERROR_NONE) {
     *pFunctionality = GpioFunctionality;
-    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, Pin0GpioFunctionality,
-      GpioFunctionality);
+    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, Pin0GpioFunctionality, GpioFunctionality);
   }
 
   LOG_FUNCTION_END(Status);
@@ -2596,8 +2569,7 @@ VL53L0X_Error VL53L0X_ClearInterruptMask(VL53L0X_DEV Dev,uint32_t InterruptMask)
     Status |= VL53L0X_WrByte(Dev, VL53L0X_REG_SYSTEM_INTERRUPT_CLEAR, 0x00);
     Status |= VL53L0X_RdByte(Dev, VL53L0X_REG_RESULT_INTERRUPT_STATUS, &Byte);
     LoopCount++;
-  } while (((Byte & 0x07) != 0x00) && (LoopCount < 3) &&
-    (Status == VL53L0X_ERROR_NONE));
+  } while (((Byte & 0x07) != 0x00) && (LoopCount < 3) && (Status == VL53L0X_ERROR_NONE));
 
   if (LoopCount >= 3) {
     Status = VL53L0X_ERROR_INTERRUPT_NOT_CLEARED;
@@ -2722,8 +2694,7 @@ VL53L0X_Error VL53L0X_PerformRefSpadManagement(VL53L0X_DEV Dev,uint32_t *refSpad
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   LOG_FUNCTION_START("");
 
-  Status =
-    VL53L0X_perform_ref_spad_management(Dev, refSpadCount, isApertureSpads);
+  Status = VL53L0X_perform_ref_spad_management(Dev, refSpadCount, isApertureSpads);
 
   LOG_FUNCTION_END(Status);
 

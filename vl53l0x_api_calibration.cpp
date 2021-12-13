@@ -801,7 +801,7 @@ VL53L0X_Error VL53L0X_perform_ref_spad_management(VL53L0X_DEV Dev,uint32_t *refS
           Status = set_ref_spad_map(Dev, lastSpadArray);
           memcpy(Dev->Data.SpadData.RefSpadEnables, lastSpadArray, spadArraySize);
 
-          (refSpadCount_int)--;
+          --refSpadCount_int;
         }
         complete = 1;
       } else {

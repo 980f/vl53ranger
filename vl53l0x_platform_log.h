@@ -74,11 +74,9 @@ enum {
 
 extern uint32_t _trace_level;
 
-int32_t VL53L0X_trace_config(char *filename, uint32_t modules, uint32_t level,
-                             uint32_t functions);
+int32_t VL53L0X_trace_config(char *filename, uint32_t modules, uint32_t level, uint32_t functions);
 
-void trace_print_module_function(uint32_t module, uint32_t level,
-                                 uint32_t function, const char *format, ...);
+void trace_print_module_function(uint32_t module, uint32_t level, uint32_t function, const char *format, ...);
 
 // extern FILE * log_file;
 
