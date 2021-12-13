@@ -31,7 +31,9 @@
 #include "vl53l0x_api_core.h"
 
 #ifndef __KERNEL__
+
 #include <stdlib.h>
+
 #endif
 
 #define LOG_FUNCTION_START(fmt, ...)  _LOG_FUNCTION_START(TRACE_MODULE_API, fmt, ## __VA_ARGS__)
@@ -44,7 +46,9 @@
 
 uint32_t refArrayQuadrants[4] = {REF_ARRAY_SPAD_10, REF_ARRAY_SPAD_5, REF_ARRAY_SPAD_0, REF_ARRAY_SPAD_5};
 
-VL53L0X_Error VL53L0X_perform_xtalk_calibration(VL53L0X_DEV Dev, FixPoint1616_t XTalkCalDistance,FixPoint1616_t *pXTalkCompensationRateMegaCps){
+const uint32_t cSpadsPerByte = 8;
+
+VL53L0X_Error VL53L0X_perform_xtalk_calibration(VL53L0X_DEV Dev, FixPoint1616_t XTalkCalDistance, FixPoint1616_t *pXTalkCompensationRateMegaCps) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint16_t sum_ranging = 0;
   uint16_t sum_spads = 0;
@@ -71,7 +75,7 @@ VL53L0X_Error VL53L0X_perform_xtalk_calibration(VL53L0X_DEV Dev, FixPoint1616_t 
 
   /* Disable the RIT */
   if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckEnable( Dev, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
+    Status = VL53L0X_SetLimitCheckEnable(Dev, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
   }
 
   /* Perform 50 measurements and compute the averages */
@@ -105,8 +109,8 @@ VL53L0X_Error VL53L0X_perform_xtalk_calibration(VL53L0X_DEV Dev, FixPoint1616_t 
   if (Status == VL53L0X_ERROR_NONE) {
     /* FixPoint1616_t / uint16_t = FixPoint1616_t */
     xTalkStoredMeanSignalRate = sum_signalRate / total_count;
-    xTalkStoredMeanRange = (FixPoint1616_t)((uint32_t)(sum_ranging << 16) / total_count);
-    xTalkStoredMeanRtnSpads = (FixPoint1616_t)((uint32_t)(sum_spads << 16) / total_count);
+    xTalkStoredMeanRange = (FixPoint1616_t) ((uint32_t) (sum_ranging << 16) / total_count);
+    xTalkStoredMeanRtnSpads = (FixPoint1616_t) ((uint32_t) (sum_spads << 16) / total_count);
 
     /* Round Mean Spads to Whole Number.
      * Typically the calculated mean SPAD count is a whole number
@@ -160,14 +164,14 @@ VL53L0X_Error VL53L0X_perform_xtalk_calibration(VL53L0X_DEV Dev, FixPoint1616_t 
 
     /* Enable the XTalk compensation */
     if (Status == VL53L0X_ERROR_NONE) {
-      Status = VL53L0X_SetXTalkCompensationRateMegaCps( Dev, XTalkCompensationRateMegaCps);
+      Status = VL53L0X_SetXTalkCompensationRateMegaCps(Dev, XTalkCompensationRateMegaCps);
     }
   }
 
   return Status;
 } // VL53L0X_perform_xtalk_calibration
 
-VL53L0X_Error VL53L0X_perform_offset_calibration(VL53L0X_DEV Dev,FixPoint1616_t CalDistanceMilliMeter,int32_t *pOffsetMicroMeter){
+VL53L0X_Error VL53L0X_perform_offset_calibration(VL53L0X_DEV Dev, FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint16_t sum_ranging = 0;
   FixPoint1616_t total_count = 0;
@@ -198,7 +202,7 @@ VL53L0X_Error VL53L0X_perform_offset_calibration(VL53L0X_DEV Dev,FixPoint1616_t 
 
   /* Disable the RIT */
   if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckEnable( Dev, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
+    Status = VL53L0X_SetLimitCheckEnable(Dev, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
   }
 
   /* Perform 50 measurements and compute the averages */
@@ -225,7 +229,7 @@ VL53L0X_Error VL53L0X_perform_offset_calibration(VL53L0X_DEV Dev,FixPoint1616_t 
 
   if (Status == VL53L0X_ERROR_NONE) {
     /* FixPoint1616_t / uint16_t = FixPoint1616_t */
-    StoredMeanRange = (FixPoint1616_t)((uint32_t)(sum_ranging << 16) / total_count);
+    StoredMeanRange = (FixPoint1616_t) ((uint32_t) (sum_ranging << 16) / total_count);
 
     StoredMeanRangeAsInt = (StoredMeanRange + 0x8000) >> 16;
 
@@ -253,7 +257,7 @@ VL53L0X_Error VL53L0X_perform_offset_calibration(VL53L0X_DEV Dev,FixPoint1616_t 
   return Status;
 } // VL53L0X_perform_offset_calibration
 
-VL53L0X_Error VL53L0X_set_offset_calibration_data_micro_meter(VL53L0X_DEV Dev, int32_t OffsetCalibrationDataMicroMeter){
+VL53L0X_Error VL53L0X_set_offset_calibration_data_micro_meter(VL53L0X_DEV Dev, int32_t OffsetCalibrationDataMicroMeter) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   int32_t cMaxOffsetMicroMeter = 511000;
   int32_t cMinOffsetMicroMeter = -512000;
@@ -284,7 +288,7 @@ VL53L0X_Error VL53L0X_set_offset_calibration_data_micro_meter(VL53L0X_DEV Dev, i
   return Status;
 } // VL53L0X_set_offset_calibration_data_micro_meter
 
-VL53L0X_Error VL53L0X_get_offset_calibration_data_micro_meter(VL53L0X_DEV Dev, int32_t *pOffsetCalibrationDataMicroMeter){
+VL53L0X_Error VL53L0X_get_offset_calibration_data_micro_meter(VL53L0X_DEV Dev, int32_t *pOffsetCalibrationDataMicroMeter) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint16_t RangeOffsetRegister;
   int16_t cMaxOffset = 2047;
@@ -299,16 +303,16 @@ VL53L0X_Error VL53L0X_get_offset_calibration_data_micro_meter(VL53L0X_DEV Dev, i
 
     /* Apply 12 bit 2's compliment conversion */
     if (RangeOffsetRegister > cMaxOffset) {
-      *pOffsetCalibrationDataMicroMeter = (int16_t)(RangeOffsetRegister - cOffsetRange) * 250;
+      *pOffsetCalibrationDataMicroMeter = (int16_t) (RangeOffsetRegister - cOffsetRange) * 250;
     } else {
-      *pOffsetCalibrationDataMicroMeter = (int16_t)RangeOffsetRegister * 250;
+      *pOffsetCalibrationDataMicroMeter = (int16_t) RangeOffsetRegister * 250;
     }
   }
 
   return Status;
 } // VL53L0X_get_offset_calibration_data_micro_meter
 
-VL53L0X_Error VL53L0X_apply_offset_adjustment(VL53L0X_DEV Dev){
+VL53L0X_Error VL53L0X_apply_offset_adjustment(VL53L0X_DEV Dev) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   int32_t CorrectedOffsetMicroMeters;
   int32_t CurrentOffsetMicroMeters;
@@ -319,7 +323,7 @@ VL53L0X_Error VL53L0X_apply_offset_adjustment(VL53L0X_DEV Dev){
 
   /* Read back current device offset */
   if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_GetOffsetCalibrationDataMicroMeter( Dev, &CurrentOffsetMicroMeters);
+    Status = VL53L0X_GetOffsetCalibrationDataMicroMeter(Dev, &CurrentOffsetMicroMeters);
   }
 
   /* Apply Offset Adjustment derived from 400mm measurements */
@@ -328,9 +332,9 @@ VL53L0X_Error VL53L0X_apply_offset_adjustment(VL53L0X_DEV Dev){
     /* Store initial device offset */
     PALDevDataSet(Dev, Part2PartOffsetNVMMicroMeter, CurrentOffsetMicroMeters);
 
-    CorrectedOffsetMicroMeters = CurrentOffsetMicroMeters + (int32_t)PALDevDataGet(Dev, Part2PartOffsetAdjustmentNVMMicroMeter);
+    CorrectedOffsetMicroMeters = CurrentOffsetMicroMeters + (int32_t) PALDevDataGet(Dev, Part2PartOffsetAdjustmentNVMMicroMeter);
 
-    Status = VL53L0X_SetOffsetCalibrationDataMicroMeter( Dev, CorrectedOffsetMicroMeters);
+    Status = VL53L0X_SetOffsetCalibrationDataMicroMeter(Dev, CorrectedOffsetMicroMeters);
 
     /* store current, adjusted offset */
     if (Status == VL53L0X_ERROR_NONE) {
@@ -341,15 +345,7 @@ VL53L0X_Error VL53L0X_apply_offset_adjustment(VL53L0X_DEV Dev){
   return Status;
 } // VL53L0X_apply_offset_adjustment
 
-void get_next_good_spad(uint8_t goodSpadArray[], uint32_t size, uint32_t curr,int32_t *next){
-  uint32_t startIndex;
-  uint32_t fineOffset;
-  uint32_t cSpadsPerByte = 8;
-  uint32_t coarseIndex;
-  uint32_t fineIndex;
-  uint8_t dataByte;
-  uint8_t success = 0;
-
+void get_next_good_spad(uint8_t goodSpadArray[], uint32_t size, uint32_t curr, int32_t *next) {
   /*
    * Starting with the current good spad, loop through the array to find
    * the next. i.e. the next bit set in the sequence.
@@ -357,16 +353,12 @@ void get_next_good_spad(uint8_t goodSpadArray[], uint32_t size, uint32_t curr,in
    * The coarse index is the byte index of the array and the fine index is
    * the index of the bit within each byte.
    */
+  unsigned startIndex = curr / cSpadsPerByte;
+  unsigned fineOffset = curr % cSpadsPerByte;
 
-  *next = -1;
-
-  startIndex = curr / cSpadsPerByte;
-  fineOffset = curr % cSpadsPerByte;
-
-  for (coarseIndex = startIndex; ((coarseIndex < size) && !success);
-    coarseIndex++) {
-    fineIndex = 0;
-    dataByte = goodSpadArray[coarseIndex];
+  for (unsigned coarseIndex = startIndex; coarseIndex < size; coarseIndex++) {
+    unsigned fineIndex = 0;
+    uint8_t dataByte = goodSpadArray[coarseIndex];
 
     if (coarseIndex == startIndex) {
       /* locate the bit position of the provided current
@@ -376,80 +368,61 @@ void get_next_good_spad(uint8_t goodSpadArray[], uint32_t size, uint32_t curr,in
     }
 
     while (fineIndex < cSpadsPerByte) {
-      if ((dataByte & 0x1) == 1) {
-        success = 1;
+      if (dataByte & 0x1) {
         *next = coarseIndex * cSpadsPerByte + fineIndex;
-        break;
+        return;
       }
       dataByte >>= 1;
       fineIndex++;
     }
   }
+  *next = -1;
 } // get_next_good_spad
 
-uint8_t is_aperture(uint32_t spadIndex){
+uint8_t is_aperture(uint32_t spadIndex) {
   /*
    * This function reports if a given spad index is an aperture SPAD by
    * deriving the quadrant.
    */
-  uint32_t quadrant;
-  uint8_t isAperture = 1;
-  quadrant = spadIndex >> 6;
-  if (refArrayQuadrants[quadrant] == REF_ARRAY_SPAD_0) {
-    isAperture = 0;
-  }
+  return refArrayQuadrants[spadIndex >> 6] != REF_ARRAY_SPAD_0;
+}
 
-  return isAperture;
-} // is_aperture
-
-VL53L0X_Error enable_spad_bit(uint8_t spadArray[], uint32_t size,uint32_t spadIndex){
-  VL53L0X_Error status = VL53L0X_ERROR_NONE;
-  uint32_t cSpadsPerByte = 8;
-  uint32_t coarseIndex;
-  uint32_t fineIndex;
-
-  coarseIndex = spadIndex / cSpadsPerByte;
-  fineIndex = spadIndex % cSpadsPerByte;
+VL53L0X_Error enable_spad_bit(uint8_t spadArray[], uint32_t size, uint32_t spadIndex) {
+  uint32_t coarseIndex = spadIndex / cSpadsPerByte;
+  uint32_t fineIndex = spadIndex % cSpadsPerByte;
   if (coarseIndex >= size) {
-    status = VL53L0X_ERROR_REF_SPAD_INIT;
-  } else {
-    spadArray[coarseIndex] |= (1 << fineIndex);
+    return VL53L0X_ERROR_REF_SPAD_INIT;
   }
-
-  return status;
+  spadArray[coarseIndex] |= (1 << fineIndex);
+  return VL53L0X_ERROR_NONE;
 } // enable_spad_bit
 
-VL53L0X_Error count_enabled_spads(uint8_t spadArray[], uint32_t byteCount,uint32_t maxSpads,uint32_t *pTotalSpadsEnabled,uint8_t *pIsAperture){
+VL53L0X_Error count_enabled_spads(uint8_t spadArray[], uint32_t byteCount, uint32_t maxSpads, uint32_t *pTotalSpadsEnabled, uint8_t *pIsAperture) {
   VL53L0X_Error status = VL53L0X_ERROR_NONE;
-  uint32_t cSpadsPerByte = 8;
-  uint32_t lastByte;
-  uint32_t lastBit;
-  uint32_t byteIndex = 0;
-  uint32_t bitIndex = 0;
-  uint8_t tempByte;
   uint8_t spadTypeIdentified = 0;
 
   /* The entire array will not be used for spads, therefore the last
    * byte and last bit is determined from the max spads value.
    */
-
-  lastByte = maxSpads / cSpadsPerByte;
-  lastBit = maxSpads % cSpadsPerByte;
+  unsigned lastByte = maxSpads / cSpadsPerByte;
+  unsigned lastBit = maxSpads % cSpadsPerByte;
 
   /* Check that the max spads value does not exceed the array bounds. */
   if (lastByte >= byteCount) {
     status = VL53L0X_ERROR_REF_SPAD_INIT;
+    //BUG: SERIOUS either bail out or clip to given byteCount
   }
 
+  //stupid: use a local to count and do a single assignment when done. Updating the result as we go precludes the compiler from using a register.
   *pTotalSpadsEnabled = 0;
 
   /* Count the bits enabled in the whole bytes */
-  for (byteIndex = 0; byteIndex <= (lastByte - 1); byteIndex++) {
-    tempByte = spadArray[byteIndex];
+  for (unsigned byteIndex = 0; byteIndex <= (lastByte - 1); byteIndex++) {
+    uint8_t tempByte = spadArray[byteIndex];
 
-    for (bitIndex = 0; bitIndex <= cSpadsPerByte; bitIndex++) {
+    for (unsigned bitIndex = 0; bitIndex <= cSpadsPerByte; bitIndex++) {
       if ((tempByte & 0x01) == 1) {
-        (*pTotalSpadsEnabled)++;
+        ++*pTotalSpadsEnabled;
 
         if (!spadTypeIdentified) {
           *pIsAperture = 1;
@@ -462,32 +435,31 @@ VL53L0X_Error count_enabled_spads(uint8_t spadArray[], uint32_t byteCount,uint32
       tempByte >>= 1;
     }
   }
-
   /* Count the number of bits enabled in the last byte accounting
    * for the fact that not all bits in the byte may be used.
    */
-  tempByte = spadArray[lastByte];
+  uint8_t tempByte = spadArray[lastByte];
 
-  for (bitIndex = 0; bitIndex <= lastBit; bitIndex++) {
+  for (unsigned bitIndex = 0; bitIndex <= lastBit; bitIndex++) {
     if ((tempByte & 0x01) == 1) {
-      (*pTotalSpadsEnabled)++;
+      ++*pTotalSpadsEnabled;
     }
+    //BUG: this is the bug that triggered rewriting of this whole application, forgot to shift the tempByte while counting its bits.
+    //... the real fix is to not bother with this since the unused bits will be zero and we inspect them without harm.
   }
 
   return status;
 } // count_enabled_spads
 
-VL53L0X_Error set_ref_spad_map(VL53L0X_DEV Dev, uint8_t *refSpadArray){
-  VL53L0X_Error status = VL53L0X_WriteMulti( Dev, VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_0, refSpadArray, 6);
-  return status;
+VL53L0X_Error set_ref_spad_map(VL53L0X_DEV Dev, uint8_t *refSpadArray) {
+  return VL53L0X_WriteMulti(Dev, VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_0, refSpadArray, 6);
 }
 
-VL53L0X_Error get_ref_spad_map(VL53L0X_DEV Dev, uint8_t *refSpadArray){
-  VL53L0X_Error status = VL53L0X_ReadMulti( Dev, VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_0, refSpadArray, 6);
-  return status;
+VL53L0X_Error get_ref_spad_map(VL53L0X_DEV Dev, uint8_t *refSpadArray) {
+  return VL53L0X_ReadMulti(Dev, VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_0, refSpadArray, 6);
 }
 
-VL53L0X_Error enable_ref_spads(VL53L0X_DEV Dev, uint8_t apertureSpads,uint8_t goodSpadArray[], uint8_t spadArray[],uint32_t size, uint32_t start, uint32_t offset,uint32_t spadCount, uint32_t *lastSpad){
+VL53L0X_Error enable_ref_spads(VL53L0X_DEV Dev, uint8_t apertureSpads, uint8_t goodSpadArray[], uint8_t spadArray[], uint32_t size, uint32_t start, uint32_t offset, uint32_t spadCount, uint32_t *lastSpad) {
   VL53L0X_Error status = VL53L0X_ERROR_NONE;
   uint32_t index;
   uint32_t i;
@@ -522,7 +494,7 @@ VL53L0X_Error enable_ref_spads(VL53L0X_DEV Dev, uint8_t apertureSpads,uint8_t go
       status = VL53L0X_ERROR_REF_SPAD_INIT;
       break;
     }
-    currentSpad = (uint32_t)nextGoodSpad;
+    currentSpad = (uint32_t) nextGoodSpad;
     enable_spad_bit(spadArray, size, currentSpad);
     currentSpad++;
   }
@@ -549,54 +521,36 @@ VL53L0X_Error enable_ref_spads(VL53L0X_DEV Dev, uint8_t apertureSpads,uint8_t go
   return status;
 } // enable_ref_spads
 
-VL53L0X_Error perform_ref_signal_measurement(VL53L0X_DEV Dev,uint16_t *refSignalRate){
-  VL53L0X_Error status = VL53L0X_ERROR_NONE;
-  VL53L0X_RangingMeasurementData_t rangingMeasurementData;
-
-  uint8_t SequenceConfig = 0;
-
+VL53L0X_Error perform_ref_signal_measurement(VL53L0X_DEV Dev, uint16_t *refSignalRate) {
   /* store the value of the sequence config,
    * this will be reset before the end of the function
    */
-
-  SequenceConfig = PALDevDataGet(Dev, SequenceConfig);
-
+  uint8_t SequenceConfig = PALDevDataGet(Dev, SequenceConfig);
   /*
    * This function performs a reference signal rate measurement.
    */
-  if (status == VL53L0X_ERROR_NONE) {
-    status = VL53L0X_WrByte(Dev, VL53L0X_REG_SYSTEM_SEQUENCE_CONFIG, 0xC0);
-  }
+  VL53L0X_Error Error = VL53L0X_WrByte(Dev, VL53L0X_REG_SYSTEM_SEQUENCE_CONFIG, 0xC0);
+  ERROR_OUT;
 
-  if (status == VL53L0X_ERROR_NONE) {
-    status = VL53L0X_PerformSingleRangingMeasurement(Dev, &rangingMeasurementData);
-  }
+  VL53L0X_RangingMeasurementData_t rangingMeasurementData;
+  Error = VL53L0X_PerformSingleRangingMeasurement(Dev, &rangingMeasurementData);
+  //BUG: object ignored above.
+  ERROR_OUT;
+  Error = VL53L0X_WrByte(Dev, 0xFF, 0x01);
+  ERROR_OUT;
+  Error = VL53L0X_RdWord(Dev, VL53L0X_REG_RESULT_PEAK_SIGNAL_RATE_REF, refSignalRate);
+  ERROR_OUT;
+  Error = VL53L0X_WrByte(Dev, 0xFF, 0x00);
+  ERROR_OUT;
+  /* restore the previous Sequence Config */
+  Error = VL53L0X_WrByte(Dev, VL53L0X_REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
+  ERROR_OUT;
+  PALDevDataSet(Dev, SequenceConfig, SequenceConfig);
 
-  if (status == VL53L0X_ERROR_NONE) {
-    status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
-  }
-
-  if (status == VL53L0X_ERROR_NONE) {
-    status = VL53L0X_RdWord(Dev, VL53L0X_REG_RESULT_PEAK_SIGNAL_RATE_REF, refSignalRate);
-  }
-
-  if (status == VL53L0X_ERROR_NONE) {
-    status = VL53L0X_WrByte(Dev, 0xFF, 0x00);
-  }
-
-  if (status == VL53L0X_ERROR_NONE) {
-    /* restore the previous Sequence Config */
-    status = VL53L0X_WrByte(Dev, VL53L0X_REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
-    if (status == VL53L0X_ERROR_NONE) {
-      PALDevDataSet(Dev, SequenceConfig, SequenceConfig);
-    }
-  }
-
-  return status;
+  return Error;
 } // perform_ref_signal_measurement
 
-VL53L0X_Error VL53L0X_perform_ref_spad_management(VL53L0X_DEV Dev,uint32_t *refSpadCount,uint8_t *isApertureSpads){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
+VL53L0X_Error VL53L0X_perform_ref_spad_management(VL53L0X_DEV Dev, uint32_t *refSpadCount, uint8_t *isApertureSpads) {
   uint8_t lastSpadArray[6];
   uint8_t startSelect = 0xB4;
   uint32_t minimumSpadCount = 3;
@@ -614,8 +568,7 @@ VL53L0X_Error VL53L0X_perform_ref_spad_management(VL53L0X_DEV Dev,uint32_t *refS
   uint8_t complete = 0;
   uint8_t VhvSettings = 0;
   uint8_t PhaseCal = 0;
-  uint32_t refSpadCount_int = 0;
-  uint8_t isApertureSpads_int = 0;
+
 
   /*
    * The reference SPAD initialization procedure determines the minimum
@@ -653,94 +606,78 @@ VL53L0X_Error VL53L0X_perform_ref_spad_management(VL53L0X_DEV Dev,uint32_t *refS
     Dev->Data.SpadData.RefSpadEnables[index] = 0;
   }
 
-  Status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
-
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_WrByte(Dev, VL53L0X_REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
-  }
-
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_WrByte( Dev, VL53L0X_REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
-  }
-
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_WrByte(Dev, 0xFF, 0x00);
-  }
-
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_WrByte(Dev, VL53L0X_REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect);
-  }
-
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_WrByte(Dev, VL53L0X_REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
-  }
-
+  VL53L0X_Error Error = VL53L0X_WrByte(Dev, 0xFF, 0x01);
+  ERROR_OUT;
+  Error = VL53L0X_WrByte(Dev, VL53L0X_REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
+  ERROR_OUT;
+  Error = VL53L0X_WrByte(Dev, VL53L0X_REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
+  ERROR_OUT;
+  Error = VL53L0X_WrByte(Dev, 0xFF, 0x00);
+  ERROR_OUT;
+  Error = VL53L0X_WrByte(Dev, VL53L0X_REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect);
+  ERROR_OUT;
+  Error = VL53L0X_WrByte(Dev, VL53L0X_REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
+  ERROR_OUT;
   /* Perform ref calibration */
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_perform_ref_calibration(Dev, &VhvSettings, &PhaseCal, 0);
-  }
+  Error = VL53L0X_perform_ref_calibration(Dev, &VhvSettings, &PhaseCal, 0);
+  ERROR_OUT;
+  /* Enable Minimum NON-APERTURE Spads */
+  currentSpadIndex = 0;
+  lastSpadIndex = currentSpadIndex;
+  needAptSpads = 0;
+  Error = enable_ref_spads(Dev, needAptSpads, Dev->Data.SpadData.RefGoodSpadMap, Dev->Data.SpadData.RefSpadEnables, spadArraySize, startSelect, currentSpadIndex, minimumSpadCount, &lastSpadIndex);
+  ERROR_OUT;
+  currentSpadIndex = lastSpadIndex;
 
-  if (Status == VL53L0X_ERROR_NONE) {
-    /* Enable Minimum NON-APERTURE Spads */
-    currentSpadIndex = 0;
-    lastSpadIndex = currentSpadIndex;
-    needAptSpads = 0;
-    Status = enable_ref_spads( Dev, needAptSpads, Dev->Data.SpadData.RefGoodSpadMap, Dev->Data.SpadData.RefSpadEnables, spadArraySize, startSelect, currentSpadIndex, minimumSpadCount, &lastSpadIndex);
-  }
+  Error = perform_ref_signal_measurement(Dev, &peakSignalRateRef);
+  ERROR_OUT;
 
-  if (Status == VL53L0X_ERROR_NONE) {
-    currentSpadIndex = lastSpadIndex;
+  uint8_t isApertureSpads_int = 0;
+  uint32_t refSpadCount_int = 0;
 
-    Status = perform_ref_signal_measurement(Dev, &peakSignalRateRef);
-    if ((Status == VL53L0X_ERROR_NONE) && (peakSignalRateRef > targetRefRate)) {
-      /* Signal rate measurement too high,
-       * switch to APERTURE SPADs */
-
-      for (index = 0; index < spadArraySize; index++) {
-        Dev->Data.SpadData.RefSpadEnables[index] = 0;
-      }
-
-      /* Increment to the first APERTURE spad */
-      while ((is_aperture(startSelect + currentSpadIndex) == 0) &&
-        (currentSpadIndex < maxSpadCount)) {
-        currentSpadIndex++;
-      }
-
-      needAptSpads = 1;
-
-      Status = enable_ref_spads( Dev, needAptSpads, Dev->Data.SpadData.RefGoodSpadMap, Dev->Data.SpadData.RefSpadEnables, spadArraySize, startSelect, currentSpadIndex, minimumSpadCount, &lastSpadIndex);
-
-      if (Status == VL53L0X_ERROR_NONE) {
-        currentSpadIndex = lastSpadIndex;
-        Status = perform_ref_signal_measurement(Dev, &peakSignalRateRef);
-
-        if ((Status == VL53L0X_ERROR_NONE) &&
-          (peakSignalRateRef > targetRefRate)) {
-          /* Signal rate still too high after
-           * setting the minimum number of
-           * APERTURE spads. Can do no more
-           * therefore set the min number of
-           * aperture spads as the result.
-           */
-          isApertureSpads_int = 1;
-          refSpadCount_int = minimumSpadCount;
-        }
-      }
-    } else {
-      needAptSpads = 0;
+  if (peakSignalRateRef > targetRefRate) { /* Signal rate measurement too high, switch to APERTURE SPADs */
+    for (index = 0; index < spadArraySize; index++) {
+      Dev->Data.SpadData.RefSpadEnables[index] = 0;
     }
-  }
 
-  if ((Status == VL53L0X_ERROR_NONE) && (peakSignalRateRef < targetRefRate)) {
-    /* At this point, the minimum number of either aperture
-     * or non-aperture spads have been set. Proceed to add
-     * spads and perform measurements until the target
-     * reference is reached.
-     */
+    /* Increment to the first APERTURE spad */
+    while (!is_aperture(startSelect + currentSpadIndex) && (currentSpadIndex < maxSpadCount)) {
+      currentSpadIndex++;
+    }
+    needAptSpads = 1;
+    Error = enable_ref_spads(Dev, needAptSpads, Dev->Data.SpadData.RefGoodSpadMap, Dev->Data.SpadData.RefSpadEnables, spadArraySize, startSelect, currentSpadIndex, minimumSpadCount, &lastSpadIndex);
+
+    if (Error == VL53L0X_ERROR_NONE) {
+      currentSpadIndex = lastSpadIndex;
+      Error = perform_ref_signal_measurement(Dev, &peakSignalRateRef);
+
+      if ((Error == VL53L0X_ERROR_NONE) &&
+          (peakSignalRateRef > targetRefRate)) {
+        /* Signal rate still too high after
+         * setting the minimum number of
+         * APERTURE spads. Can do no more
+         * therefore set the min number of
+         * aperture spads as the result.
+         */
+        isApertureSpads_int = 1;
+        refSpadCount_int = minimumSpadCount;
+      }
+    }
+  } else {
+    needAptSpads = 0;
+  }
+  ERROR_OUT;
+  if (peakSignalRateRef < targetRefRate) {
+/* At this point, the minimum number of either aperture
+ * or non-aperture spads have been set. Proceed to add
+ * spads and perform measurements until the target
+ * reference is reached.
+ */
     isApertureSpads_int = needAptSpads;
     refSpadCount_int = minimumSpadCount;
 
-    memcpy(lastSpadArray, Dev->Data.SpadData.RefSpadEnables, spadArraySize);
+    memcpy(lastSpadArray, Dev
+      ->Data.SpadData.RefSpadEnables, spadArraySize);
     lastSignalRateDiff = abs(peakSignalRateRef - targetRefRate);
     complete = 0;
 
@@ -748,78 +685,56 @@ VL53L0X_Error VL53L0X_perform_ref_spad_management(VL53L0X_DEV Dev,uint32_t *refS
       get_next_good_spad(Dev->Data.SpadData.RefGoodSpadMap, spadArraySize, currentSpadIndex, &nextGoodSpad);
 
       if (nextGoodSpad == -1) {
-        Status = VL53L0X_ERROR_REF_SPAD_INIT;
-        break;
+        return VL53L0X_ERROR_REF_SPAD_INIT;
       }
+      ++refSpadCount_int;
 
-      (refSpadCount_int)++;
-
-      /* Cannot combine Aperture and Non-Aperture spads, so
-       * ensure the current spad is of the correct type.
-       */
-      if (is_aperture((uint32_t)startSelect + nextGoodSpad) != needAptSpads) {
-        Status = VL53L0X_ERROR_REF_SPAD_INIT;
-        break;
+/* Cannot combine Aperture and Non-Aperture spads, so
+ * ensure the current spad is of the correct type.
+ */
+      if (is_aperture((uint32_t) startSelect + nextGoodSpad) != needAptSpads) {
+        return VL53L0X_ERROR_REF_SPAD_INIT;
       }
 
       currentSpadIndex = nextGoodSpad;
-      Status = enable_spad_bit(Dev->Data.SpadData.RefSpadEnables, spadArraySize, currentSpadIndex);
+      Error = enable_spad_bit(Dev->Data.SpadData.RefSpadEnables, spadArraySize, currentSpadIndex);
+      ERROR_OUT;
+      currentSpadIndex++;
+/* Proceed to apply the additional spad and
+ * perform measurement. */
+      Error = set_ref_spad_map(Dev, Dev->Data.SpadData.RefSpadEnables);
 
-      if (Status == VL53L0X_ERROR_NONE) {
-        currentSpadIndex++;
-        /* Proceed to apply the additional spad and
-         * perform measurement. */
-        Status = set_ref_spad_map(Dev, Dev->Data.SpadData.RefSpadEnables);
-      }
-
-      if (Status != VL53L0X_ERROR_NONE) {
-        break;
-      }
-
-      Status = perform_ref_signal_measurement(Dev, &peakSignalRateRef);
-
-      if (Status != VL53L0X_ERROR_NONE) {
-        break;
-      }
-
+      ERROR_OUT;
+      Error = perform_ref_signal_measurement(Dev, &peakSignalRateRef);
+      ERROR_OUT;
       signalRateDiff = abs(peakSignalRateRef - targetRefRate);
 
-      if (peakSignalRateRef > targetRefRate) {
-        /* Select the spad map that provides the
-         * measurement closest to the target rate,
-         * either above or below it.
-         */
-        if (signalRateDiff > lastSignalRateDiff) {
-          /* Previous spad map produced a closer
-           * measurement, so choose this. */
-          Status = set_ref_spad_map(Dev, lastSpadArray);
+      if (peakSignalRateRef > targetRefRate) { /* Select the spad map that provides the measurement closest to the target rate, either above or below it. */
+        if (signalRateDiff > lastSignalRateDiff) { /* Previous spad map produced a closer measurement, so choose this. */
+          Error = set_ref_spad_map(Dev, lastSpadArray);
           memcpy(Dev->Data.SpadData.RefSpadEnables, lastSpadArray, spadArraySize);
-
           --refSpadCount_int;
         }
         complete = 1;
-      } else {
-        /* Continue to add spads */
+      } else { /* Continue to add spads */
         lastSignalRateDiff = signalRateDiff;
         memcpy(lastSpadArray, Dev->Data.SpadData.RefSpadEnables, spadArraySize);
       }
-
     } /* while */
   }
 
-  if (Status == VL53L0X_ERROR_NONE) {
-    *refSpadCount = refSpadCount_int;
-    *isApertureSpads = isApertureSpads_int;
+  ERROR_OUT;
+  *refSpadCount = refSpadCount_int;
+  *isApertureSpads = isApertureSpads_int;
 
-    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, RefSpadsInitialised, 1);
-    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount, (uint8_t)(*refSpadCount));
-    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadType, *isApertureSpads);
-  }
+  VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, RefSpadsInitialised, 1);
+  VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount, (uint8_t) (*refSpadCount));
+  VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadType, *isApertureSpads);
 
-  return Status;
+  return VL53L0X_ERROR_NONE;
 } // VL53L0X_perform_ref_spad_management
 
-VL53L0X_Error VL53L0X_set_reference_spads(VL53L0X_DEV Dev, uint32_t count,uint8_t isApertureSpads){
+VL53L0X_Error VL53L0X_set_reference_spads(VL53L0X_DEV Dev, uint32_t count, uint8_t isApertureSpads) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint32_t currentSpadIndex = 0;
   uint8_t startSelect = 0xB4;
@@ -842,7 +757,7 @@ VL53L0X_Error VL53L0X_set_reference_spads(VL53L0X_DEV Dev, uint32_t count,uint8_
   }
 
   if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_WrByte( Dev, VL53L0X_REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
+    Status = VL53L0X_WrByte(Dev, VL53L0X_REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
   }
 
   if (Status == VL53L0X_ERROR_NONE) {
@@ -867,14 +782,14 @@ VL53L0X_Error VL53L0X_set_reference_spads(VL53L0X_DEV Dev, uint32_t count,uint8_
 
   if (Status == VL53L0X_ERROR_NONE) {
     VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, RefSpadsInitialised, 1);
-    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount, (uint8_t)(count));
+    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount, (uint8_t) (count));
     VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadType, isApertureSpads);
   }
 
   return Status;
 } // VL53L0X_set_reference_spads
 
-VL53L0X_Error VL53L0X_get_reference_spads(VL53L0X_DEV Dev, uint32_t *pSpadCount,uint8_t *pIsApertureSpads){
+VL53L0X_Error VL53L0X_get_reference_spads(VL53L0X_DEV Dev, uint32_t *pSpadCount, uint8_t *pIsApertureSpads) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint8_t refSpadsInitialised;
   uint8_t refSpadArray[6];
@@ -886,7 +801,7 @@ VL53L0X_Error VL53L0X_get_reference_spads(VL53L0X_DEV Dev, uint32_t *pSpadCount,
   refSpadsInitialised = VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, RefSpadsInitialised);
 
   if (refSpadsInitialised == 1) {
-    *pSpadCount = (uint32_t)VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount);
+    *pSpadCount = (uint32_t) VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount);
     *pIsApertureSpads = VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadType);
   } else {
     /* obtain spad info from device.*/
@@ -902,7 +817,7 @@ VL53L0X_Error VL53L0X_get_reference_spads(VL53L0X_DEV Dev, uint32_t *pSpadCount,
         *pSpadCount = spadsEnabled;
         *pIsApertureSpads = isApertureSpads;
         VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, RefSpadsInitialised, 1);
-        VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount, (uint8_t)spadsEnabled);
+        VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount, (uint8_t) spadsEnabled);
         VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadType, isApertureSpads);
       }
     }
@@ -911,29 +826,17 @@ VL53L0X_Error VL53L0X_get_reference_spads(VL53L0X_DEV Dev, uint32_t *pSpadCount,
   return Status;
 } // VL53L0X_get_reference_spads
 
-VL53L0X_Error VL53L0X_perform_single_ref_calibration(VL53L0X_DEV Dev,uint8_t vhv_init_byte){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
-
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_WrByte(Dev, VL53L0X_REG_SYSRANGE_START, VL53L0X_REG_SYSRANGE_MODE_START_STOP | vhv_init_byte);
-  }
-
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_measurement_poll_for_completion(Dev);
-  }
-
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_ClearInterruptMask(Dev, 0);
-  }
-
-  if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_WrByte(Dev, VL53L0X_REG_SYSRANGE_START, 0x00);
-  }
-
-  return Status;
+VL53L0X_Error VL53L0X_perform_single_ref_calibration(VL53L0X_DEV Dev, uint8_t vhv_init_byte) {
+  VL53L0X_Error Error = VL53L0X_WrByte(Dev, VL53L0X_REG_SYSRANGE_START, VL53L0X_REG_SYSRANGE_MODE_START_STOP | vhv_init_byte);
+  ERROR_OUT;
+  Error = VL53L0X_measurement_poll_for_completion(Dev);
+  ERROR_OUT;
+  Error = VL53L0X_ClearInterruptMask(Dev, 0);
+  ERROR_OUT;
+  return VL53L0X_WrByte(Dev, VL53L0X_REG_SYSRANGE_START, 0x00);
 } // VL53L0X_perform_single_ref_calibration
 
-VL53L0X_Error VL53L0X_ref_calibration_io(VL53L0X_DEV Dev, uint8_t read_not_write, uint8_t VhvSettings,uint8_t PhaseCal, uint8_t *pVhvSettings, uint8_t *pPhaseCal,const uint8_t vhv_enable, const uint8_t phase_enable){
+VL53L0X_Error VL53L0X_ref_calibration_io(VL53L0X_DEV Dev, uint8_t read_not_write, uint8_t VhvSettings, uint8_t PhaseCal, uint8_t *pVhvSettings, uint8_t *pPhaseCal, const uint8_t vhv_enable, const uint8_t phase_enable) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint8_t PhaseCalint = 0;
 
@@ -962,12 +865,12 @@ VL53L0X_Error VL53L0X_ref_calibration_io(VL53L0X_DEV Dev, uint8_t read_not_write
   Status |= VL53L0X_WrByte(Dev, 0x00, 0x01);
   Status |= VL53L0X_WrByte(Dev, 0xFF, 0x00);
 
-  *pPhaseCal = (uint8_t)(PhaseCalint & 0xEF);
+  *pPhaseCal = (uint8_t) (PhaseCalint & 0xEF);
 
   return Status;
 } // VL53L0X_ref_calibration_io
 
-VL53L0X_Error VL53L0X_perform_vhv_calibration(VL53L0X_DEV Dev,uint8_t *pVhvSettings,const uint8_t get_data_enable,const uint8_t restore_config){
+VL53L0X_Error VL53L0X_perform_vhv_calibration(VL53L0X_DEV Dev, uint8_t *pVhvSettings, const uint8_t get_data_enable, const uint8_t restore_config) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint8_t SequenceConfig = 0;
   uint8_t VhvSettings = 0;
@@ -1007,7 +910,7 @@ VL53L0X_Error VL53L0X_perform_vhv_calibration(VL53L0X_DEV Dev,uint8_t *pVhvSetti
   return Status;
 } // VL53L0X_perform_vhv_calibration
 
-VL53L0X_Error VL53L0X_perform_phase_calibration(VL53L0X_DEV Dev,uint8_t *pPhaseCal,const uint8_t get_data_enable,const uint8_t restore_config){
+VL53L0X_Error VL53L0X_perform_phase_calibration(VL53L0X_DEV Dev, uint8_t *pPhaseCal, const uint8_t get_data_enable, const uint8_t restore_config) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint8_t SequenceConfig = 0;
   uint8_t VhvSettings = 0;
@@ -1047,7 +950,7 @@ VL53L0X_Error VL53L0X_perform_phase_calibration(VL53L0X_DEV Dev,uint8_t *pPhaseC
   return Status;
 } // VL53L0X_perform_phase_calibration
 
-VL53L0X_Error VL53L0X_perform_ref_calibration(VL53L0X_DEV Dev,uint8_t *pVhvSettings,uint8_t *pPhaseCal,uint8_t get_data_enable){
+VL53L0X_Error VL53L0X_perform_ref_calibration(VL53L0X_DEV Dev, uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint8_t SequenceConfig = 0;
 
@@ -1076,7 +979,7 @@ VL53L0X_Error VL53L0X_perform_ref_calibration(VL53L0X_DEV Dev,uint8_t *pVhvSetti
   return Status;
 } // VL53L0X_perform_ref_calibration
 
-VL53L0X_Error VL53L0X_set_ref_calibration(VL53L0X_DEV Dev, uint8_t VhvSettings,uint8_t PhaseCal){
+VL53L0X_Error VL53L0X_set_ref_calibration(VL53L0X_DEV Dev, uint8_t VhvSettings, uint8_t PhaseCal) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint8_t pVhvSettings;
   uint8_t pPhaseCal;
@@ -1086,7 +989,7 @@ VL53L0X_Error VL53L0X_set_ref_calibration(VL53L0X_DEV Dev, uint8_t VhvSettings,u
   return Status;
 }
 
-VL53L0X_Error VL53L0X_get_ref_calibration(VL53L0X_DEV Dev,uint8_t *pVhvSettings,uint8_t *pPhaseCal){
+VL53L0X_Error VL53L0X_get_ref_calibration(VL53L0X_DEV Dev, uint8_t *pVhvSettings, uint8_t *pPhaseCal) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   uint8_t VhvSettings = 0;
   uint8_t PhaseCal = 0;

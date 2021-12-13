@@ -1,14 +1,16 @@
-#include "vl53l0x_def.h"
 #include "vl53l0x_i2c_platform.h"
+
+//bug: module presumes endianess mismatch
+//BUG: errors can be detected and most of them will be rather fatal, but all are ignored
 
 //#define I2C_DEBUG
 
 int VL53L0X_i2c_init(TwoWire *i2c) {
   i2c->begin();
-  return VL53L0X_ERROR_NONE;
+  return 0;
 }
 
-int VL53L0X_write_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata,uint32_t count, TwoWire *i2c) {
+int VL53L0X_write_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, uint32_t count, TwoWire *i2c) {
   i2c->beginTransmission(deviceAddress);
   i2c->write(index);
 #ifdef I2C_DEBUG
@@ -18,20 +20,18 @@ int VL53L0X_write_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata,uin
   Serial.print(index, HEX);
   Serial.print(": ");
 #endif
-  while (count--) {
-    i2c->write((uint8_t)pdata[0]);
+  i2c->write(pdata,count);//980f: why reinvent such a simple wheel?
 #ifdef I2C_DEBUG
     Serial.print("0x");
     Serial.print(pdata[0], HEX);
     Serial.print(", ");
 #endif
-    pdata++;
-  }
+
 #ifdef I2C_DEBUG
   Serial.println();
 #endif
   i2c->endTransmission();
-  return VL53L0X_ERROR_NONE;
+  return 0;
 }
 
 int VL53L0X_read_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, uint32_t count, TwoWire *i2c) {
@@ -48,18 +48,17 @@ int VL53L0X_read_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, uin
 #endif
 
   while (count--) {
-    pdata[0] = i2c->read();
+    *pdata++ = i2c->read();
 #ifdef I2C_DEBUG
     Serial.print("0x");
-    Serial.print(pdata[0], HEX);
+    Serial.print(pdata[-1], HEX);
     Serial.print(", ");
 #endif
-    pdata++;
   }
 #ifdef I2C_DEBUG
   Serial.println();
 #endif
-  return VL53L0X_ERROR_NONE;
+  return 0;
 }
 
 int VL53L0X_write_byte(uint8_t deviceAddress, uint8_t index, uint8_t data, TwoWire *i2c) {

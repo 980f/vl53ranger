@@ -2412,29 +2412,20 @@ VL53L0X_Error VL53L0X_ClearInterruptMask(VL53L0X_DEV Dev,uint32_t InterruptMask)
 } // VL53L0X_ClearInterruptMask
 
 VL53L0X_Error VL53L0X_GetInterruptMaskStatus(VL53L0X_DEV Dev,uint32_t *pInterruptMaskStatus){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
-  uint8_t Byte;
   LOG_FUNCTION_START("");
-
-  Status = VL53L0X_RdByte(Dev, VL53L0X_REG_RESULT_INTERRUPT_STATUS, &Byte);
+  uint8_t Byte;
+  VL53L0X_Error Status = VL53L0X_RdByte(Dev, VL53L0X_REG_RESULT_INTERRUPT_STATUS, &Byte);
   *pInterruptMaskStatus = Byte & 0x07;
 
-  if (Byte & 0x18) {
+  if (Byte & 0x18) {//if either bit? what are each of them?
     Status = VL53L0X_ERROR_RANGE_ERROR;
   }
-
   LOG_FUNCTION_END(Status);
   return Status;
 } // VL53L0X_GetInterruptMaskStatus
 
 VL53L0X_Error VL53L0X_EnableInterruptMask(VL53L0X_DEV Dev,uint32_t InterruptMask){
-  VL53L0X_Error Status = VL53L0X_ERROR_NOT_IMPLEMENTED;
-  LOG_FUNCTION_START("");
-
-  /* not implemented for VL53L0X */
-
-  LOG_FUNCTION_END(Status);
-  return Status;
+  return VL53L0X_ERROR_NOT_IMPLEMENTED;
 }
 
 /* End Group PAL Interrupt Functions */
@@ -2442,50 +2433,37 @@ VL53L0X_Error VL53L0X_EnableInterruptMask(VL53L0X_DEV Dev,uint32_t InterruptMask
 /* Group SPAD functions */
 
 VL53L0X_Error VL53L0X_SetSpadAmbientDamperThreshold(VL53L0X_DEV Dev,uint16_t SpadAmbientDamperThreshold){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   LOG_FUNCTION_START("");
-
-  Status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
+  VL53L0X_Error Status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
   Status |= VL53L0X_WrWord(Dev, 0x40, SpadAmbientDamperThreshold);
   Status |= VL53L0X_WrByte(Dev, 0xFF, 0x00);
-
   LOG_FUNCTION_END(Status);
   return Status;
 } // VL53L0X_SetSpadAmbientDamperThreshold
 
 VL53L0X_Error VL53L0X_GetSpadAmbientDamperThreshold(VL53L0X_DEV Dev,uint16_t *pSpadAmbientDamperThreshold){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   LOG_FUNCTION_START("");
-
-  Status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
+  VL53L0X_Error Status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
   Status |= VL53L0X_RdWord(Dev, 0x40, pSpadAmbientDamperThreshold);
   Status |= VL53L0X_WrByte(Dev, 0xFF, 0x00);
-
   LOG_FUNCTION_END(Status);
   return Status;
 } // VL53L0X_GetSpadAmbientDamperThreshold
 
 VL53L0X_Error VL53L0X_SetSpadAmbientDamperFactor(VL53L0X_DEV Dev,uint16_t SpadAmbientDamperFactor){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
-  uint8_t Byte;
   LOG_FUNCTION_START("");
-
-  Byte = (uint8_t)(SpadAmbientDamperFactor & 0x00FF);
-
-  Status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
-  Status |= VL53L0X_WrByte(Dev, 0x42, Byte);
+  VL53L0X_Error Status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
+  Status |= VL53L0X_WrByte(Dev, 0x42, (uint8_t) (SpadAmbientDamperFactor & 0x00FF));
   Status |= VL53L0X_WrByte(Dev, 0xFF, 0x00);
-
   LOG_FUNCTION_END(Status);
   return Status;
 } // VL53L0X_SetSpadAmbientDamperFactor
 
 VL53L0X_Error VL53L0X_GetSpadAmbientDamperFactor(VL53L0X_DEV Dev,uint16_t *pSpadAmbientDamperFactor){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
-  uint8_t Byte;
   LOG_FUNCTION_START("");
 
-  Status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
+  VL53L0X_Error Status = VL53L0X_WrByte(Dev, 0xFF, 0x01);
+  uint8_t Byte;
   Status |= VL53L0X_RdByte(Dev, 0x42, &Byte);
   Status |= VL53L0X_WrByte(Dev, 0xFF, 0x00);
   *pSpadAmbientDamperFactor = (uint16_t)Byte;
@@ -2501,34 +2479,22 @@ VL53L0X_Error VL53L0X_GetSpadAmbientDamperFactor(VL53L0X_DEV Dev,uint16_t *pSpad
 *****************************************************************************/
 
 VL53L0X_Error VL53L0X_SetReferenceSpads(VL53L0X_DEV Dev, uint32_t count,uint8_t isApertureSpads){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   LOG_FUNCTION_START("");
-
-  Status = VL53L0X_set_reference_spads(Dev, count, isApertureSpads);
-
+  VL53L0X_Error Status = VL53L0X_set_reference_spads(Dev, count, isApertureSpads);
   LOG_FUNCTION_END(Status);
-
   return Status;
 }
 
 VL53L0X_Error VL53L0X_GetReferenceSpads(VL53L0X_DEV Dev, uint32_t *pSpadCount,uint8_t *pIsApertureSpads){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   LOG_FUNCTION_START("");
-
-  Status = VL53L0X_get_reference_spads(Dev, pSpadCount, pIsApertureSpads);
-
+  VL53L0X_Error Status = VL53L0X_get_reference_spads(Dev, pSpadCount, pIsApertureSpads);
   LOG_FUNCTION_END(Status);
-
   return Status;
 }
 
 VL53L0X_Error VL53L0X_PerformRefSpadManagement(VL53L0X_DEV Dev,uint32_t *refSpadCount,uint8_t *isApertureSpads){
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   LOG_FUNCTION_START("");
-
-  Status = VL53L0X_perform_ref_spad_management(Dev, refSpadCount, isApertureSpads);
-
+  VL53L0X_Error Status = VL53L0X_perform_ref_spad_management(Dev, refSpadCount, isApertureSpads);
   LOG_FUNCTION_END(Status);
-
   return Status;
 } // VL53L0X_PerformRefSpadManagement

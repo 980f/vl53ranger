@@ -35,7 +35,6 @@
  *
  */
 #include "vl53l0x_platform.h"
-#include "vl53l0x_api.h"
 #include "vl53l0x_i2c_platform.h"
 
 #define LOG_FUNCTION_START(fmt, ...)   _LOG_FUNCTION_START(TRACE_MODULE_PLATFORM, fmt, ## __VA_ARGS__)
@@ -177,6 +176,7 @@ VL53L0X_Error VL53L0X_RdDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t *data) {
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_RdDWord
 
+//BUG: below is a parameter that must be tuned per platform, but is buried deep in the source:
 #define VL53L0X_POLLINGDELAY_LOOPNB 250
 
 VL53L0X_Error VL53L0X_PollingDelay(VL53L0X_DEV Dev) {

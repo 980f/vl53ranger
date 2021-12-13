@@ -164,6 +164,12 @@ typedef int8_t VL53L0X_Error;
 #define VL53L0X_ERROR_NOT_IMPLEMENTED ((VL53L0X_Error)-99)
 /*!< Tells requested functionality has not been implemented yet or
  * not compatible with the device */
+
+/** ERROR_OUT is useful for when there will be no common exit code on an error that terminates a sequence of steps other than returning the first such error.
+ * To use it name the VL53L0X_Error member Error (instead of Status), which also allows for if(!Error) which is more readable than if(Status != VL53L0X_ERROR_NONE)
+ * */
+#define ERROR_OUT if(Error) return Error
+
 /** @} VL53L0X_define_Error_group */
 
 /** @defgroup VL53L0X_define_DeviceModes_group Defines Device modes

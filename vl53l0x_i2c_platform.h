@@ -1,6 +1,11 @@
 #include "Arduino.h"
 #include "Wire.h"
 
+
+/**
+ * The implementation of all of these methods return 0.
+ *
+ * */
 // initialize I2C
 int VL53L0X_i2c_init(TwoWire *i2c);
 int VL53L0X_write_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, uint32_t count, TwoWire *i2c);
