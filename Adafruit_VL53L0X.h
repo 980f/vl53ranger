@@ -1,19 +1,19 @@
 /*!
  * @file Adafruit_VL53L0X.h
-
-  This is a library for the Adafruit VL53L0X Sensor Breakout
-
-  Designed specifically to work with the VL53L0X sensor from Adafruit
-  ----> https://www.adafruit.com/products/3317
-
-  These sensors use I2C to communicate, 2 pins are required to
-  interface
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing
-  products from Adafruit!
-
-  Written by Limor Fried/Ladyada for Adafruit Industries.
-  BSD license, all text above must be included in any redistribution
+ *
+ *  This is a library for the Adafruit VL53L0X Sensor Breakout
+ *
+ *  Designed specifically to work with the VL53L0X sensor from Adafruit
+ *  ----> https://www.adafruit.com/products/3317
+ *
+ *  These sensors use I2C to communicate, 2 pins are required to
+ *  interface
+ *  Adafruit invests time and resources providing this open source code,
+ *  please support Adafruit and open-source hardware by purchasing
+ *  products from Adafruit!
+ *
+ *  Written by Limor Fried/Ladyada for Adafruit Industries.
+ *  BSD license, all text above must be included in any redistribution
  ****************************************************/
 
 #ifndef ADAFRUIT_VL53L0X_H
@@ -34,9 +34,9 @@
 
 /**************************************************************************/
 /*!
-    @brief  Class that stores state and functions for interacting with VL53L0X
-   time-of-flight sensor chips
-*/
+ *   @brief  Class that stores state and functions for interacting with VL53L0X
+ *  time-of-flight sensor chips
+ */
 /**************************************************************************/
 class Adafruit_VL53L0X {
 public:
@@ -55,17 +55,17 @@ public:
 
   /**************************************************************************/
   /*!
-      @brief  get a ranging measurement from the device
-      @param  pRangingMeasurementData the pointer to the struct the data will be
-     stored in
-      @param debug Optional debug flag. If true debug information will print via
-     Serial.print during execution. Defaults to false.
-      @returns True if address was set successfully, False otherwise
-  */
+   *   @brief  get a ranging measurement from the device
+   *   @param  pRangingMeasurementData the pointer to the struct the data will be
+   *  stored in
+   *   @param debug Optional debug flag. If true debug information will print via
+   *  Serial.print during execution. Defaults to false.
+   *   @returns True if address was set successfully, False otherwise
+   */
   /**************************************************************************/
-  VL53L0X_Error rangingTest(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData, boolean debug = false) {
+  VL53L0X_Error rangingTest(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData, boolean debug = false){
     return getSingleRangingMeasurement(pRangingMeasurementData, debug);
-  };
+  }
 
   VL53L0X_Error getSingleRangingMeasurement(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData, boolean debug = false);
   void printRangeStatus(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData);
@@ -88,11 +88,11 @@ public:
   // uint16_t getTimeout(void) { return io_timeout; }
   /**************************************************************************/
   /*!
-      @brief  timeout status
-      @returns True if timeout has occurred, False otherwise
-  */
+   *   @brief  timeout status
+   *   @returns True if timeout has occurred, False otherwise
+   */
   /**************************************************************************/
-  boolean timeoutOccurred(void) {
+  boolean timeoutOccurred(void){
     return false;
   }
 
@@ -118,6 +118,6 @@ private:
   VL53L0X_Dev_t *pMyDevice = &MyDevice;
   VL53L0X_DeviceInfo_t DeviceInfo;
   uint8_t _rangeStatus;
-};
+}; // class Adafruit_VL53L0X
 
-#endif
+#endif // ifndef ADAFRUIT_VL53L0X_H
