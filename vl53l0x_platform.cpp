@@ -110,8 +110,7 @@ VL53L0X_Error VL53L0X_UnlockSequenceAccess(VL53L0X_DEV Dev) {
 }
 
 // the ranging_sensor_comms.dll will take care of the page selection
-VL53L0X_Error VL53L0X_WriteMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata,
-                                 uint32_t count) {
+VL53L0X_Error VL53L0X_WriteMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, uint32_t count) {
 
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   int32_t status_int = 0;
@@ -123,18 +122,17 @@ VL53L0X_Error VL53L0X_WriteMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata,
 
   deviceAddress = Dev->I2cDevAddr;
 
-  status_int =
-      VL53L0X_write_multi(deviceAddress, index, pdata, count, Dev->i2c);
+  status_int = VL53L0X_write_multi(deviceAddress, index, pdata, count, Dev->i2c);
 
-  if (status_int != 0)
+  if (status_int != 0) {
     Status = VL53L0X_ERROR_CONTROL_INTERFACE;
+  }
 
   return Status;
 }
 
 // the ranging_sensor_comms.dll will take care of the page selection
-VL53L0X_Error VL53L0X_ReadMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata,
-                                uint32_t count) {
+VL53L0X_Error VL53L0X_ReadMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, uint32_t count) {
   VL53L0X_I2C_USER_VAR
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   int32_t status_int;
@@ -148,8 +146,9 @@ VL53L0X_Error VL53L0X_ReadMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata,
 
   status_int = VL53L0X_read_multi(deviceAddress, index, pdata, count, Dev->i2c);
 
-  if (status_int != 0)
+  if (status_int != 0) {
     Status = VL53L0X_ERROR_CONTROL_INTERFACE;
+  }
 
   return Status;
 }
@@ -163,8 +162,9 @@ VL53L0X_Error VL53L0X_WrByte(VL53L0X_DEV Dev, uint8_t index, uint8_t data) {
 
   status_int = VL53L0X_write_byte(deviceAddress, index, data, Dev->i2c);
 
-  if (status_int != 0)
+  if (status_int != 0) {
     Status = VL53L0X_ERROR_CONTROL_INTERFACE;
+  }
 
   return Status;
 }
@@ -178,8 +178,9 @@ VL53L0X_Error VL53L0X_WrWord(VL53L0X_DEV Dev, uint8_t index, uint16_t data) {
 
   status_int = VL53L0X_write_word(deviceAddress, index, data, Dev->i2c);
 
-  if (status_int != 0)
+  if (status_int != 0) {
     Status = VL53L0X_ERROR_CONTROL_INTERFACE;
+  }
 
   return Status;
 }
@@ -193,14 +194,14 @@ VL53L0X_Error VL53L0X_WrDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t data) {
 
   status_int = VL53L0X_write_dword(deviceAddress, index, data, Dev->i2c);
 
-  if (status_int != 0)
+  if (status_int != 0) {
     Status = VL53L0X_ERROR_CONTROL_INTERFACE;
+  }
 
   return Status;
 }
 
-VL53L0X_Error VL53L0X_UpdateByte(VL53L0X_DEV Dev, uint8_t index,
-                                 uint8_t AndData, uint8_t OrData) {
+VL53L0X_Error VL53L0X_UpdateByte(VL53L0X_DEV Dev, uint8_t index, uint8_t AndData, uint8_t OrData) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   int32_t status_int;
   uint8_t deviceAddress;
@@ -210,8 +211,9 @@ VL53L0X_Error VL53L0X_UpdateByte(VL53L0X_DEV Dev, uint8_t index,
 
   status_int = VL53L0X_read_byte(deviceAddress, index, &data, Dev->i2c);
 
-  if (status_int != 0)
+  if (status_int != 0) {
     Status = VL53L0X_ERROR_CONTROL_INTERFACE;
+  }
 
   if (Status == VL53L0X_ERROR_NONE) {
     data = (data & AndData) | OrData;

@@ -78,8 +78,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetVersion(VL53L0X_Version_t *pVersion);
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error
-VL53L0X_GetPalSpecVersion(VL53L0X_Version_t *pPalSpecVersion);
+VL53L0X_API VL53L0X_Error VL53L0X_GetPalSpecVersion(VL53L0X_Version_t *pPalSpecVersion);
 
 /**
  * @brief Reads the Product Revision for a for given Device
@@ -95,9 +94,7 @@ VL53L0X_GetPalSpecVersion(VL53L0X_Version_t *pPalSpecVersion);
  * @return  VL53L0X_ERROR_NONE      Success
  * @return  "Other error code"  See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error
-VL53L0X_GetProductRevision(VL53L0X_DEV Dev, uint8_t *pProductRevisionMajor,
-                           uint8_t *pProductRevisionMinor);
+VL53L0X_API VL53L0X_Error VL53L0X_GetProductRevision(VL53L0X_DEV Dev, uint8_t *pProductRevisionMajor, uint8_t *pProductRevisionMinor);
 
 /**
  * @brief Reads the Device information for given Device
@@ -110,8 +107,7 @@ VL53L0X_GetProductRevision(VL53L0X_DEV Dev, uint8_t *pProductRevisionMajor,
  * @return  VL53L0X_ERROR_NONE   Success
  * @return  "Other error code"  See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetDeviceInfo(
-    VL53L0X_DEV Dev, VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo);
+VL53L0X_API VL53L0X_Error VL53L0X_GetDeviceInfo(VL53L0X_DEV Dev, VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo);
 
 /**
  * @brief Read current status of the error register for the selected device
@@ -123,8 +119,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetDeviceInfo(
  * @return  VL53L0X_ERROR_NONE     Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetDeviceErrorStatus(
-    VL53L0X_DEV Dev, VL53L0X_DeviceError *pDeviceErrorStatus);
+VL53L0X_API VL53L0X_Error VL53L0X_GetDeviceErrorStatus(VL53L0X_DEV Dev, VL53L0X_DeviceError *pDeviceErrorStatus);
 
 /**
  * @brief Human readable Range Status string for a given RangeStatus
@@ -137,8 +132,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetDeviceErrorStatus(
  * @return  VL53L0X_ERROR_NONE   Success
  * @return  "Other error code"  See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error
-VL53L0X_GetRangeStatusString(uint8_t RangeStatus, char *pRangeStatusString);
+VL53L0X_API VL53L0X_Error VL53L0X_GetRangeStatusString(uint8_t RangeStatus, char *pRangeStatusString);
 
 /**
  * @brief Human readable error string for a given Error Code
@@ -151,8 +145,7 @@ VL53L0X_GetRangeStatusString(uint8_t RangeStatus, char *pRangeStatusString);
  * @return  VL53L0X_ERROR_NONE   Success
  * @return  "Other error code"  See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetDeviceErrorString(
-    VL53L0X_DeviceError ErrorCode, char *pDeviceErrorString);
+VL53L0X_API VL53L0X_Error VL53L0X_GetDeviceErrorString(    VL53L0X_DeviceError ErrorCode, char *pDeviceErrorString);
 
 /**
  * @brief Human readable error string for current PAL error status
@@ -922,8 +915,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetInterMeasurementPeriodMilliSeconds(
  *  to be set 0=disabled else = enabled
  * @return  VL53L0X_ERROR_NOT_IMPLEMENTED   Not implemented
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetXTalkCompensationEnable(
-    VL53L0X_DEV Dev, uint8_t XTalkCompensationEnable);
+VL53L0X_API VL53L0X_Error VL53L0X_SetXTalkCompensationEnable( VL53L0X_DEV Dev, uint8_t XTalkCompensationEnable);
 
 /**
  * @brief Get Cross talk compensation rate
@@ -937,8 +929,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetXTalkCompensationEnable(
  *  state 0=disabled or 1 = enabled
  * @return  VL53L0X_ERROR_NOT_IMPLEMENTED   Not implemented
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetXTalkCompensationEnable(
-    VL53L0X_DEV Dev, uint8_t *pXTalkCompensationEnable);
+VL53L0X_API VL53L0X_Error VL53L0X_GetXTalkCompensationEnable( VL53L0X_DEV Dev, uint8_t *pXTalkCompensationEnable);
 
 /**
  * @brief Set Cross talk compensation rate
@@ -954,8 +945,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetXTalkCompensationEnable(
  * @return  VL53L0X_ERROR_NONE              Success
  * @return  "Other error code"             See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetXTalkCompensationRateMegaCps(
-    VL53L0X_DEV Dev, FixPoint1616_t XTalkCompensationRateMegaCps);
+VL53L0X_API VL53L0X_Error VL53L0X_SetXTalkCompensationRateMegaCps( VL53L0X_DEV Dev, FixPoint1616_t XTalkCompensationRateMegaCps);
 
 /**
  * @brief Get Cross talk compensation rate
@@ -971,8 +961,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetXTalkCompensationRateMegaCps(
  * @return  VL53L0X_ERROR_NONE              Success
  * @return  "Other error code"             See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetXTalkCompensationRateMegaCps(
-    VL53L0X_DEV Dev, FixPoint1616_t *pXTalkCompensationRateMegaCps);
+VL53L0X_API VL53L0X_Error VL53L0X_GetXTalkCompensationRateMegaCps( VL53L0X_DEV Dev, FixPoint1616_t *pXTalkCompensationRateMegaCps);
 
 /**
  * @brief Set Reference Calibration Parameters
@@ -988,9 +977,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetXTalkCompensationRateMegaCps(
  * @return  VL53L0X_ERROR_NONE              Success
  * @return  "Other error code"             See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetRefCalibration(VL53L0X_DEV Dev,
-                                                    uint8_t VhvSettings,
-                                                    uint8_t PhaseCal);
+VL53L0X_API VL53L0X_Error VL53L0X_SetRefCalibration(VL53L0X_DEV Dev, uint8_t VhvSettings, uint8_t PhaseCal);
 
 /**
  * @brief Get Reference Calibration Parameters
@@ -1006,9 +993,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetRefCalibration(VL53L0X_DEV Dev,
  * @return  VL53L0X_ERROR_NONE              Success
  * @return  "Other error code"             See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetRefCalibration(VL53L0X_DEV Dev,
-                                                    uint8_t *pVhvSettings,
-                                                    uint8_t *pPhaseCal);
+VL53L0X_API VL53L0X_Error VL53L0X_GetRefCalibration(VL53L0X_DEV Dev, uint8_t *pVhvSettings, uint8_t *pPhaseCal);
 
 /**
  * @brief  Get the number of the check limit managed by a given Device
@@ -1022,8 +1007,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetRefCalibration(VL53L0X_DEV Dev,
  * @return  VL53L0X_ERROR_NONE             Success
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error
-VL53L0X_GetNumberOfLimitCheck(uint16_t *pNumberOfLimitCheck);
+VL53L0X_API VL53L0X_Error VL53L0X_GetNumberOfLimitCheck(uint16_t *pNumberOfLimitCheck);
 
 /**
  * @brief  Return a description string for a given limit check number
@@ -1044,9 +1028,7 @@ VL53L0X_GetNumberOfLimitCheck(uint16_t *pNumberOfLimitCheck);
  returned when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckInfo(VL53L0X_DEV Dev,
-                                                    uint16_t LimitCheckId,
-                                                    char *pLimitCheckString);
+VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckInfo(VL53L0X_DEV Dev, uint16_t LimitCheckId, char *pLimitCheckString);
 
 /**
  * @brief  Return a the Status of the specified check limit
@@ -1072,8 +1054,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckInfo(VL53L0X_DEV Dev,
  returned when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckStatus(
-    VL53L0X_DEV Dev, uint16_t LimitCheckId, uint8_t *pLimitCheckStatus);
+VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckStatus( VL53L0X_DEV Dev, uint16_t LimitCheckId, uint8_t *pLimitCheckStatus);
 
 /**
  * @brief  Enable/Disable a specific limit check
@@ -1096,9 +1077,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckStatus(
  *  when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetLimitCheckEnable(VL53L0X_DEV Dev,
-                                                      uint16_t LimitCheckId,
-                                                      uint8_t LimitCheckEnable);
+VL53L0X_API VL53L0X_Error VL53L0X_SetLimitCheckEnable(VL53L0X_DEV Dev, uint16_t LimitCheckId, uint8_t LimitCheckEnable);
 
 /**
  * @brief  Get specific limit check enable state
@@ -1123,8 +1102,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetLimitCheckEnable(VL53L0X_DEV Dev,
  *  when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckEnable(
-    VL53L0X_DEV Dev, uint16_t LimitCheckId, uint8_t *pLimitCheckEnable);
+VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckEnable( VL53L0X_DEV Dev, uint16_t LimitCheckId, uint8_t *pLimitCheckEnable);
 
 /**
  * @brief  Set a specific limit check value
@@ -1145,8 +1123,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckEnable(
  *  LimitCheckId or LimitCheckValue value is out of range.
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetLimitCheckValue(
-    VL53L0X_DEV Dev, uint16_t LimitCheckId, FixPoint1616_t LimitCheckValue);
+VL53L0X_API VL53L0X_Error VL53L0X_SetLimitCheckValue( VL53L0X_DEV Dev, uint16_t LimitCheckId, FixPoint1616_t LimitCheckValue);
 
 /**
  * @brief  Get a specific limit check value
@@ -1168,8 +1145,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetLimitCheckValue(
  *  when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckValue(
-    VL53L0X_DEV Dev, uint16_t LimitCheckId, FixPoint1616_t *pLimitCheckValue);
+VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckValue( VL53L0X_DEV Dev, uint16_t LimitCheckId, FixPoint1616_t *pLimitCheckValue);
 
 /**
  * @brief  Get the current value of the signal used for the limit check
@@ -1192,8 +1168,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckValue(
  * LimitCheckId value is out of range.
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckCurrent(
-    VL53L0X_DEV Dev, uint16_t LimitCheckId, FixPoint1616_t *pLimitCheckCurrent);
+VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckCurrent( VL53L0X_DEV Dev, uint16_t LimitCheckId, FixPoint1616_t *pLimitCheckCurrent);
 
 /**
  * @brief  Enable (or disable) Wrap around Check
@@ -1206,8 +1181,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetLimitCheckCurrent(
  * @return  VL53L0X_ERROR_NONE      Success
  * @return  "Other error code"     See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetWrapAroundCheckEnable(
-    VL53L0X_DEV Dev, uint8_t WrapAroundCheckEnable);
+VL53L0X_API VL53L0X_Error VL53L0X_SetWrapAroundCheckEnable( VL53L0X_DEV Dev, uint8_t WrapAroundCheckEnable);
 
 /**
  * @brief  Get setup of Wrap around Check
@@ -1223,8 +1197,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetWrapAroundCheckEnable(
  * @return  VL53L0X_ERROR_NONE       Success
  * @return  "Other error code"      See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetWrapAroundCheckEnable(
-    VL53L0X_DEV Dev, uint8_t *pWrapAroundCheckEnable);
+VL53L0X_API VL53L0X_Error VL53L0X_GetWrapAroundCheckEnable( VL53L0X_DEV Dev, uint8_t *pWrapAroundCheckEnable);
 
 /**
  * @brief   Set Dmax Calibration Parameters for a given device
@@ -1239,8 +1212,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetWrapAroundCheckEnable(
  * @return  "Other error code"     See ::VL53L0X_Error
  */
 VL53L0X_API VL53L0X_Error
-VL53L0X_SetDmaxCalParameters(VL53L0X_DEV Dev, uint16_t RangeMilliMeter,
-                             FixPoint1616_t SignalRateRtnMegaCps);
+VL53L0X_SetDmaxCalParameters(VL53L0X_DEV Dev, uint16_t RangeMilliMeter, FixPoint1616_t SignalRateRtnMegaCps);
 
 /**
  * @brief  Get Dmax Calibration Parameters for a given device
@@ -1255,8 +1227,7 @@ VL53L0X_SetDmaxCalParameters(VL53L0X_DEV Dev, uint16_t RangeMilliMeter,
  * @return  "Other error code"      See ::VL53L0X_Error
  */
 VL53L0X_API VL53L0X_Error
-VL53L0X_GetDmaxCalParameters(VL53L0X_DEV Dev, uint16_t *pRangeMilliMeter,
-                             FixPoint1616_t *pSignalRateRtnMegaCps);
+VL53L0X_GetDmaxCalParameters(VL53L0X_DEV Dev, uint16_t *pRangeMilliMeter, FixPoint1616_t *pSignalRateRtnMegaCps);
 
 /** @} VL53L0X_parameters_group */
 
@@ -1307,9 +1278,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_PerformSingleMeasurement(VL53L0X_DEV Dev);
  * @return  VL53L0X_ERROR_NONE    Success
  * @return  "Other error code"   See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_PerformRefCalibration(VL53L0X_DEV Dev,
-                                                        uint8_t *pVhvSettings,
-                                                        uint8_t *pPhaseCal);
+VL53L0X_API VL53L0X_Error VL53L0X_PerformRefCalibration(VL53L0X_DEV Dev, uint8_t *pVhvSettings, uint8_t *pPhaseCal);
 
 /**
  * @brief Perform XTalk Measurement
@@ -1338,9 +1307,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_PerformRefCalibration(VL53L0X_DEV Dev,
  * for this operation. Must not be less than 10PCLKS.
  * @return  "Other error code"   See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_PerformXTalkMeasurement(
-    VL53L0X_DEV Dev, uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad,
-    uint8_t *pAmbientTooHigh);
+VL53L0X_API VL53L0X_Error VL53L0X_PerformXTalkMeasurement( VL53L0X_DEV Dev, uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad, uint8_t *pAmbientTooHigh);
 
 /**
  * @brief Perform XTalk Calibration
@@ -1368,9 +1335,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_PerformXTalkMeasurement(
  * @return  VL53L0X_ERROR_NONE    Success
  * @return  "Other error code"   See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_PerformXTalkCalibration(
-    VL53L0X_DEV Dev, FixPoint1616_t XTalkCalDistance,
-    FixPoint1616_t *pXTalkCompensationRateMegaCps);
+VL53L0X_API VL53L0X_Error VL53L0X_PerformXTalkCalibration( VL53L0X_DEV Dev, FixPoint1616_t XTalkCalDistance, FixPoint1616_t *pXTalkCompensationRateMegaCps);
 
 /**
  * @brief Perform Offset Calibration
@@ -1397,9 +1362,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_PerformXTalkCalibration(
  * @return  VL53L0X_ERROR_NONE    Success
  * @return  "Other error code"   See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_PerformOffsetCalibration(
-    VL53L0X_DEV Dev, FixPoint1616_t CalDistanceMilliMeter,
-    int32_t *pOffsetMicroMeter);
+VL53L0X_API VL53L0X_Error VL53L0X_PerformOffsetCalibration( VL53L0X_DEV Dev, FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter);
 
 /**
  * @brief Start device measurement
@@ -1463,8 +1426,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_StopMeasurement(VL53L0X_DEV Dev);
  * @return  VL53L0X_ERROR_NONE      Success
  * @return  "Other error code"     See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetMeasurementDataReady(
-    VL53L0X_DEV Dev, uint8_t *pMeasurementDataReady);
+VL53L0X_API VL53L0X_Error VL53L0X_GetMeasurementDataReady( VL53L0X_DEV Dev, uint8_t *pMeasurementDataReady);
 
 /**
  * @brief Wait for device ready for a new measurement command.
@@ -1494,8 +1456,7 @@ VL53L0X_WaitDeviceReadyForNewMeasurement(VL53L0X_DEV Dev, uint32_t MaxLoop);
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"       See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetMeasurementRefSignal(
-    VL53L0X_DEV Dev, FixPoint1616_t *pMeasurementRefSignal);
+VL53L0X_API VL53L0X_Error VL53L0X_GetMeasurementRefSignal( VL53L0X_DEV Dev, FixPoint1616_t *pMeasurementRefSignal);
 
 /**
  * @brief Retrieve the measurements from device for a given setup
@@ -1514,8 +1475,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetMeasurementRefSignal(
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"       See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetRangingMeasurementData(
-    VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData);
+VL53L0X_API VL53L0X_Error VL53L0X_GetRangingMeasurementData( VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData);
 
 /**
  * @brief Retrieve the measurements from device for a given setup
@@ -1533,9 +1493,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetRangingMeasurementData(
  * @param   pHistogramMeasurementData   Pointer to the histogram data structure.
  * @return  VL53L0X_ERROR_NOT_IMPLEMENTED   Not implemented
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetHistogramMeasurementData(
-    VL53L0X_DEV Dev,
-    VL53L0X_HistogramMeasurementData_t *pHistogramMeasurementData);
+VL53L0X_API VL53L0X_Error VL53L0X_GetHistogramMeasurementData( VL53L0X_DEV Dev, VL53L0X_HistogramMeasurementData_t *pHistogramMeasurementData);
 
 /**
  * @brief Performs a single ranging measurement and retrieve the ranging
@@ -1559,8 +1517,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetHistogramMeasurementData(
  * @return  VL53L0X_ERROR_NONE         Success
  * @return  "Other error code"        See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_PerformSingleRangingMeasurement(
-    VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData);
+VL53L0X_API VL53L0X_Error VL53L0X_PerformSingleRangingMeasurement( VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData);
 
 /**
  * @brief Performs a single histogram measurement and retrieve the histogram
@@ -1578,9 +1535,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_PerformSingleRangingMeasurement(
  * @param   pHistogramMeasurementData  Pointer to the data structure to fill up.
  * @return  VL53L0X_ERROR_NOT_IMPLEMENTED   Not implemented
  */
-VL53L0X_API VL53L0X_Error VL53L0X_PerformSingleHistogramMeasurement(
-    VL53L0X_DEV Dev,
-    VL53L0X_HistogramMeasurementData_t *pHistogramMeasurementData);
+VL53L0X_API VL53L0X_Error VL53L0X_PerformSingleHistogramMeasurement( VL53L0X_DEV Dev, VL53L0X_HistogramMeasurementData_t *pHistogramMeasurementData);
 
 /**
  * @brief Set the number of ROI Zones to be used for a specific Device
@@ -1598,8 +1553,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_PerformSingleHistogramMeasurement(
  * @return  VL53L0X_ERROR_INVALID_PARAMS   This error is returned if
  * NumberOfROIZones != 1
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetNumberOfROIZones(VL53L0X_DEV Dev,
-                                                      uint8_t NumberOfROIZones);
+VL53L0X_API VL53L0X_Error VL53L0X_SetNumberOfROIZones(VL53L0X_DEV Dev, uint8_t NumberOfROIZones);
 
 /**
  * @brief Get the number of ROI Zones managed by the Device
@@ -1617,8 +1571,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetNumberOfROIZones(VL53L0X_DEV Dev,
  * @param   pNumberOfROIZones     Pointer to the Number of ROI Zones value.
  * @return  VL53L0X_ERROR_NONE     Success
  */
-VL53L0X_API VL53L0X_Error
-VL53L0X_GetNumberOfROIZones(VL53L0X_DEV Dev, uint8_t *pNumberOfROIZones);
+VL53L0X_API VL53L0X_Error VL53L0X_GetNumberOfROIZones(VL53L0X_DEV Dev, uint8_t *pNumberOfROIZones);
 
 /**
  * @brief Get the Maximum number of ROI Zones managed by the Device
@@ -1633,8 +1586,7 @@ VL53L0X_GetNumberOfROIZones(VL53L0X_DEV Dev, uint8_t *pNumberOfROIZones);
  *  of ROI Zones value.
  * @return  VL53L0X_ERROR_NONE      Success
  */
-VL53L0X_API VL53L0X_Error
-VL53L0X_GetMaxNumberOfROIZones(VL53L0X_DEV Dev, uint8_t *pMaxNumberOfROIZones);
+VL53L0X_API VL53L0X_Error VL53L0X_GetMaxNumberOfROIZones(VL53L0X_DEV Dev, uint8_t *pMaxNumberOfROIZones);
 
 /** @} VL53L0X_measurement_group */
 
@@ -1668,10 +1620,7 @@ VL53L0X_GetMaxNumberOfROIZones(VL53L0X_DEV Dev, uint8_t *pMaxNumberOfROIZones);
  *                               VL53L0X_GPIOFUNCTIONALITY_NEW_MEASURE_READY
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetGpioConfig(
-    VL53L0X_DEV Dev, uint8_t Pin, VL53L0X_DeviceModes DeviceMode,
-    VL53L0X_GpioFunctionality Functionality,
-    VL53L0X_InterruptPolarity Polarity);
+VL53L0X_API VL53L0X_Error VL53L0X_SetGpioConfig( VL53L0X_DEV Dev, uint8_t Pin, VL53L0X_DeviceModes DeviceMode, VL53L0X_GpioFunctionality Functionality, VL53L0X_InterruptPolarity Polarity);
 
 /**
  * @brief Get current configuration for GPIO pin for a given device
@@ -1698,10 +1647,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetGpioConfig(
  *                      VL53L0X_GPIOFUNCTIONALITY_NEW_MEASURE_READY
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetGpioConfig(
-    VL53L0X_DEV Dev, uint8_t Pin, VL53L0X_DeviceModes *pDeviceMode,
-    VL53L0X_GpioFunctionality *pFunctionality,
-    VL53L0X_InterruptPolarity *pPolarity);
+VL53L0X_API VL53L0X_Error VL53L0X_GetGpioConfig( VL53L0X_DEV Dev, uint8_t Pin, VL53L0X_DeviceModes *pDeviceMode, VL53L0X_GpioFunctionality *pFunctionality, VL53L0X_InterruptPolarity *pPolarity);
 
 /**
  * @brief Set low and high Interrupt thresholds for a given mode
@@ -1722,9 +1668,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetGpioConfig(
  * @return  VL53L0X_ERROR_NONE    Success
  * @return  "Other error code"   See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetInterruptThresholds(
-    VL53L0X_DEV Dev, VL53L0X_DeviceModes DeviceMode,
-    FixPoint1616_t ThresholdLow, FixPoint1616_t ThresholdHigh);
+VL53L0X_API VL53L0X_Error VL53L0X_SetInterruptThresholds( VL53L0X_DEV Dev, VL53L0X_DeviceModes DeviceMode, FixPoint1616_t ThresholdLow, FixPoint1616_t ThresholdHigh);
 
 /**
  * @brief  Get high and low Interrupt thresholds for a given mode
@@ -1745,9 +1689,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetInterruptThresholds(
  * @return  VL53L0X_ERROR_NONE   Success
  * @return  "Other error code"  See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetInterruptThresholds(
-    VL53L0X_DEV Dev, VL53L0X_DeviceModes DeviceMode,
-    FixPoint1616_t *pThresholdLow, FixPoint1616_t *pThresholdHigh);
+VL53L0X_API VL53L0X_Error VL53L0X_GetInterruptThresholds( VL53L0X_DEV Dev, VL53L0X_DeviceModes DeviceMode, FixPoint1616_t *pThresholdLow, FixPoint1616_t *pThresholdHigh);
 
 /**
  * @brief Return device stop completion status
@@ -1763,8 +1705,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetInterruptThresholds(
  * @return  VL53L0X_ERROR_NONE      Success
  * @return  "Other error code"     See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetStopCompletedStatus(VL53L0X_DEV Dev,
-                                                         uint32_t *pStopStatus);
+VL53L0X_API VL53L0X_Error VL53L0X_GetStopCompletedStatus(VL53L0X_DEV Dev, uint32_t *pStopStatus);
 
 /**
  * @brief Clear given system interrupt condition
@@ -1781,8 +1722,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetStopCompletedStatus(VL53L0X_DEV Dev,
  *
  * @return  "Other error code"   See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_ClearInterruptMask(VL53L0X_DEV Dev,
-                                                     uint32_t InterruptMask);
+VL53L0X_API VL53L0X_Error VL53L0X_ClearInterruptMask(VL53L0X_DEV Dev, uint32_t InterruptMask);
 
 /**
  * @brief Return device interrupt status
@@ -1812,8 +1752,7 @@ VL53L0X_GetInterruptMaskStatus(VL53L0X_DEV Dev, uint32_t *pInterruptMaskStatus);
  *  (0:interrupt disabled or 1: interrupt enabled)
  * @return  VL53L0X_ERROR_NOT_IMPLEMENTED   Not implemented
  */
-VL53L0X_API VL53L0X_Error VL53L0X_EnableInterruptMask(VL53L0X_DEV Dev,
-                                                      uint32_t InterruptMask);
+VL53L0X_API VL53L0X_Error VL53L0X_EnableInterruptMask(VL53L0X_DEV Dev, uint32_t InterruptMask);
 
 /** @} VL53L0X_interrupt_group */
 
@@ -1835,8 +1774,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_EnableInterruptMask(VL53L0X_DEV Dev,
  * @return  VL53L0X_ERROR_NONE             Success
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetSpadAmbientDamperThreshold(
-    VL53L0X_DEV Dev, uint16_t SpadAmbientDamperThreshold);
+VL53L0X_API VL53L0X_Error VL53L0X_SetSpadAmbientDamperThreshold( VL53L0X_DEV Dev, uint16_t SpadAmbientDamperThreshold);
 
 /**
  * @brief  Get the current SPAD Ambient Damper Threshold value
@@ -1852,8 +1790,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetSpadAmbientDamperThreshold(
  * @return  VL53L0X_ERROR_NONE             Success
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetSpadAmbientDamperThreshold(
-    VL53L0X_DEV Dev, uint16_t *pSpadAmbientDamperThreshold);
+VL53L0X_API VL53L0X_Error VL53L0X_GetSpadAmbientDamperThreshold( VL53L0X_DEV Dev, uint16_t *pSpadAmbientDamperThreshold);
 
 /**
  * @brief  Set the SPAD Ambient Damper Factor value
@@ -1868,8 +1805,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetSpadAmbientDamperThreshold(
  * @return  VL53L0X_ERROR_NONE             Success
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetSpadAmbientDamperFactor(
-    VL53L0X_DEV Dev, uint16_t SpadAmbientDamperFactor);
+VL53L0X_API VL53L0X_Error VL53L0X_SetSpadAmbientDamperFactor( VL53L0X_DEV Dev, uint16_t SpadAmbientDamperFactor);
 
 /**
  * @brief  Get the current SPAD Ambient Damper Factor value
@@ -1885,8 +1821,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetSpadAmbientDamperFactor(
  * @return  VL53L0X_ERROR_NONE             Success
  * @return  "Other error code"            See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetSpadAmbientDamperFactor(
-    VL53L0X_DEV Dev, uint16_t *pSpadAmbientDamperFactor);
+VL53L0X_API VL53L0X_Error VL53L0X_GetSpadAmbientDamperFactor( VL53L0X_DEV Dev, uint16_t *pSpadAmbientDamperFactor);
 
 /**
  * @brief Performs Reference Spad Management
@@ -1910,8 +1845,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_GetSpadAmbientDamperFactor(
  * @return  VL53L0X_ERROR_REF_SPAD_INIT   Error in the Ref Spad procedure.
  * @return  "Other error code"           See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_PerformRefSpadManagement(
-    VL53L0X_DEV Dev, uint32_t *refSpadCount, uint8_t *isApertureSpads);
+VL53L0X_API VL53L0X_Error VL53L0X_PerformRefSpadManagement( VL53L0X_DEV Dev, uint32_t *refSpadCount, uint8_t *isApertureSpads);
 
 /**
  * @brief Applies Reference SPAD configuration
@@ -1934,9 +1868,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_PerformRefSpadManagement(
  *                                       spad configuration.
  * @return  "Other error code"           See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_SetReferenceSpads(VL53L0X_DEV Dev,
-                                                    uint32_t refSpadCount,
-                                                    uint8_t isApertureSpads);
+VL53L0X_API VL53L0X_Error VL53L0X_SetReferenceSpads(VL53L0X_DEV Dev, uint32_t refSpadCount, uint8_t isApertureSpads);
 
 /**
  * @brief Retrieves SPAD configuration
@@ -1957,9 +1889,7 @@ VL53L0X_API VL53L0X_Error VL53L0X_SetReferenceSpads(VL53L0X_DEV Dev,
  *                                       spad configuration.
  * @return  "Other error code"           See ::VL53L0X_Error
  */
-VL53L0X_API VL53L0X_Error VL53L0X_GetReferenceSpads(VL53L0X_DEV Dev,
-                                                    uint32_t *refSpadCount,
-                                                    uint8_t *isApertureSpads);
+VL53L0X_API VL53L0X_Error VL53L0X_GetReferenceSpads(VL53L0X_DEV Dev, uint32_t *refSpadCount, uint8_t *isApertureSpads);
 
 /** @} VL53L0X_SPADfunctions_group */
 
