@@ -71,8 +71,7 @@ VL53L0X_Error VL53L0X_perform_xtalk_calibration(VL53L0X_DEV Dev, FixPoint1616_t 
 
   /* Disable the RIT */
   if (Status == VL53L0X_ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckEnable(
-      Dev, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
+    Status = VL53L0X_SetLimitCheckEnable( Dev, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
   }
 
   /* Perform 50 measurements and compute the averages */
@@ -208,11 +207,9 @@ VL53L0X_Error VL53L0X_perform_offset_calibration(VL53L0X_DEV Dev,FixPoint1616_t 
     total_count = 0;
     for (meas = 0; meas < 50; meas++) {
       Status = VL53L0X_PerformSingleRangingMeasurement(Dev, &RangingMeasurementData);
-
       if (Status != VL53L0X_ERROR_NONE) {
         break;
       }
-
       /* The range is valid when RangeStatus = 0 */
       if (RangingMeasurementData.RangeStatus == 0) {
         sum_ranging = sum_ranging + RangingMeasurementData.RangeMilliMeter;
@@ -241,8 +238,7 @@ VL53L0X_Error VL53L0X_perform_offset_calibration(VL53L0X_DEV Dev,FixPoint1616_t 
 
     /* Apply the calculated offset */
     if (Status == VL53L0X_ERROR_NONE) {
-      VL53L0X_SETPARAMETERFIELD(Dev, RangeOffsetMicroMeters,
-        *pOffsetMicroMeter);
+      VL53L0X_SETPARAMETERFIELD(Dev, RangeOffsetMicroMeters, *pOffsetMicroMeter);
       Status = VL53L0X_SetOffsetCalibrationDataMicroMeter(Dev, *pOffsetMicroMeter);
     }
   }
@@ -282,8 +278,7 @@ VL53L0X_Error VL53L0X_set_offset_calibration_data_micro_meter(VL53L0X_DEV Dev, i
     encodedOffsetVal = cOffsetRange + OffsetCalibrationDataMicroMeter / 250;
   }
 
-  Status = VL53L0X_WrWord(Dev, VL53L0X_REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM,
-      encodedOffsetVal);
+  Status = VL53L0X_WrWord(Dev, VL53L0X_REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, encodedOffsetVal);
 
   LOG_FUNCTION_END(Status);
   return Status;
@@ -768,8 +763,7 @@ VL53L0X_Error VL53L0X_perform_ref_spad_management(VL53L0X_DEV Dev,uint32_t *refS
       }
 
       currentSpadIndex = nextGoodSpad;
-      Status = enable_spad_bit(Dev->Data.SpadData.RefSpadEnables, spadArraySize,
-          currentSpadIndex);
+      Status = enable_spad_bit(Dev->Data.SpadData.RefSpadEnables, spadArraySize, currentSpadIndex);
 
       if (Status == VL53L0X_ERROR_NONE) {
         currentSpadIndex++;
@@ -892,7 +886,6 @@ VL53L0X_Error VL53L0X_get_reference_spads(VL53L0X_DEV Dev, uint32_t *pSpadCount,
   refSpadsInitialised = VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, RefSpadsInitialised);
 
   if (refSpadsInitialised == 1) {
-
     *pSpadCount = (uint32_t)VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount);
     *pIsApertureSpads = VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadType);
   } else {
@@ -906,10 +899,8 @@ VL53L0X_Error VL53L0X_get_reference_spads(VL53L0X_DEV Dev, uint32_t *pSpadCount,
       Status = count_enabled_spads(refSpadArray, cSpadArraySize, cMaxSpadCount, &spadsEnabled, &isApertureSpads);
 
       if (Status == VL53L0X_ERROR_NONE) {
-
         *pSpadCount = spadsEnabled;
         *pIsApertureSpads = isApertureSpads;
-
         VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, RefSpadsInitialised, 1);
         VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount, (uint8_t)spadsEnabled);
         VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadType, isApertureSpads);

@@ -179,7 +179,6 @@ VL53L0X_Error VL53L0X_device_read_strobe(VL53L0X_DEV Dev){
       if ((strobe != 0x00) || Status != VL53L0X_ERROR_NONE) {
         break;
       }
-
       LoopNb = LoopNb + 1;
     } while (LoopNb < VL53L0X_DEFAULT_MAX_LOOP);
 
@@ -615,8 +614,7 @@ VL53L0X_Error set_sequence_step_timeout(VL53L0X_DEV Dev,VL53L0X_SequenceStepId S
       }
 
       if (Status == VL53L0X_ERROR_NONE) {
-        Status =
-          VL53L0X_WrWord(Dev, VL53L0X_REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI, PreRangeEncodedTimeOut);
+        Status = VL53L0X_WrWord(Dev, VL53L0X_REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI, PreRangeEncodedTimeOut);
       }
 
       if (Status == VL53L0X_ERROR_NONE) {
@@ -649,11 +647,9 @@ VL53L0X_Error set_sequence_step_timeout(VL53L0X_DEV Dev,VL53L0X_SequenceStepId S
        * (MCLKS) and add PRE-RANGE value
        */
       if (Status == VL53L0X_ERROR_NONE) {
-
         Status = VL53L0X_GetVcselPulsePeriod(Dev, VL53L0X_VCSEL_PERIOD_FINAL_RANGE, &CurrentVCSELPulsePeriodPClk);
       }
       if (Status == VL53L0X_ERROR_NONE) {
-
         FinalRangeTimeOutMClks = VL53L0X_calc_timeout_mclks( Dev, TimeOutMicroSecs, (uint8_t)CurrentVCSELPulsePeriodPClk);
         FinalRangeTimeOutMClks += PreRangeTimeOutMClks;
         FinalRangeEncodedTimeOut = VL53L0X_encode_timeout(FinalRangeTimeOutMClks);
