@@ -549,53 +549,40 @@ typedef uint8_t VL53L0X_SequenceStepId;
  */
 
 /* Defines */
-#define VL53L0X_SETPARAMETERFIELD(Dev, field, value)                           \
-  PALDevDataSet(Dev, CurrentParameters.field, value)
+#define VL53L0X_SETPARAMETERFIELD(Dev, field, value) PALDevDataSet(Dev, CurrentParameters.field, value)
 
-#define VL53L0X_GETPARAMETERFIELD(Dev, field, variable)                        \
-  variable = PALDevDataGet(Dev, CurrentParameters).field
+#define VL53L0X_GETPARAMETERFIELD(Dev, field, variable) variable = PALDevDataGet(Dev, CurrentParameters).field
 
-#define VL53L0X_SETARRAYPARAMETERFIELD(Dev, field, index, value)               \
-  PALDevDataSet(Dev, CurrentParameters.field[index], value)
+#define VL53L0X_SETARRAYPARAMETERFIELD(Dev, field, index, value)   PALDevDataSet(Dev, CurrentParameters.field[index], value)
 
-#define VL53L0X_GETARRAYPARAMETERFIELD(Dev, field, index, variable)            \
-  variable = PALDevDataGet(Dev, CurrentParameters).field[index]
+#define VL53L0X_GETARRAYPARAMETERFIELD(Dev, field, index, variable)  variable = PALDevDataGet(Dev, CurrentParameters).field[index]
 
-#define VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, field, value)                  \
-  PALDevDataSet(Dev, DeviceSpecificParameters.field, value)
+#define VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, field, value) PALDevDataSet(Dev, DeviceSpecificParameters.field, value)
 
-#define VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, field)                         \
-  PALDevDataGet(Dev, DeviceSpecificParameters).field
+#define VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, field)  PALDevDataGet(Dev, DeviceSpecificParameters).field
 
-#define VL53L0X_FIXPOINT1616TOFIXPOINT97(Value)                                \
-  (uint16_t)((Value >> 9) & 0xFFFF)
+#define VL53L0X_FIXPOINT1616TOFIXPOINT97(Value)  (uint16_t)((Value >> 9) & 0xFFFF)
 #define VL53L0X_FIXPOINT97TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 9)
 
-#define VL53L0X_FIXPOINT1616TOFIXPOINT88(Value)                                \
-  (uint16_t)((Value >> 8) & 0xFFFF)
+#define VL53L0X_FIXPOINT1616TOFIXPOINT88(Value)  (uint16_t)((Value >> 8) & 0xFFFF)
 #define VL53L0X_FIXPOINT88TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
 
-#define VL53L0X_FIXPOINT1616TOFIXPOINT412(Value)                               \
-  (uint16_t)((Value >> 4) & 0xFFFF)
+#define VL53L0X_FIXPOINT1616TOFIXPOINT412(Value) (uint16_t)((Value >> 4) & 0xFFFF)
 #define VL53L0X_FIXPOINT412TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 4)
 
-#define VL53L0X_FIXPOINT1616TOFIXPOINT313(Value)                               \
-  (uint16_t)((Value >> 3) & 0xFFFF)
+#define VL53L0X_FIXPOINT1616TOFIXPOINT313(Value) (uint16_t)((Value >> 3) & 0xFFFF)
 #define VL53L0X_FIXPOINT313TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 3)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT08(Value) (uint8_t)((Value >> 8) & 0x00FF)
 #define VL53L0X_FIXPOINT08TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
 
-#define VL53L0X_FIXPOINT1616TOFIXPOINT53(Value)                                \
-  (uint8_t)((Value >> 13) & 0x00FF)
+#define VL53L0X_FIXPOINT1616TOFIXPOINT53(Value)  (uint8_t)((Value >> 13) & 0x00FF)
 #define VL53L0X_FIXPOINT53TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 13)
 
-#define VL53L0X_FIXPOINT1616TOFIXPOINT102(Value)                               \
-  (uint16_t)((Value >> 14) & 0x0FFF)
+#define VL53L0X_FIXPOINT1616TOFIXPOINT102(Value)  (uint16_t)((Value >> 14) & 0x0FFF)
 #define VL53L0X_FIXPOINT102TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 12)
 
-#define VL53L0X_MAKEUINT16(lsb, msb)                                           \
-  (uint16_t)((((uint16_t)msb) << 8) + (uint16_t)lsb)
+#define VL53L0X_MAKEUINT16(lsb, msb)  (uint16_t)((((uint16_t)msb) << 8) + (uint16_t)lsb)
 
 /** @} VL53L0X_define_GeneralMacro_group */
 
