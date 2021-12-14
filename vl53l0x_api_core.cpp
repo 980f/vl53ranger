@@ -31,13 +31,10 @@
 #include "vl53l0x_api_calibration.h"
 
 #ifndef __KERNEL__
-
 #include <stdlib.h>
-
 #endif
-#define LOG_FUNCTION_START(fmt, ...) _LOG_FUNCTION_START(TRACE_MODULE_API, fmt, ## __VA_ARGS__)
-#define LOG_FUNCTION_END(status, ...)  _LOG_FUNCTION_END(TRACE_MODULE_API, status, ## __VA_ARGS__)
-#define LOG_FUNCTION_END_FMT(status, fmt, ...)  _LOG_FUNCTION_END_FMT(TRACE_MODULE_API, status, fmt, ## __VA_ARGS__)
+
+#include "log_api.h"
 
 VL53L0X_Error VL53L0X_reverse_bytes(uint8_t *data, uint32_t size) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
@@ -90,12 +87,7 @@ uint8_t VL53L0X_decode_vcsel_period(uint8_t vcsel_period_reg) {
    * Converts the encoded VCSEL period register value into the real
    * period in PLL clocks
    */
-
-  uint8_t vcsel_period_pclks = 0;
-
-  vcsel_period_pclks = (vcsel_period_reg + 1) << 1;
-
-  return vcsel_period_pclks;
+  return (vcsel_period_reg + 1) << 1;
 }
 
 uint8_t VL53L0X_encode_vcsel_period(uint8_t vcsel_period_pclks) {

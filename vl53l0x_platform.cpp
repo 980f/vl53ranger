@@ -37,9 +37,7 @@
 #include "vl53l0x_platform.h"
 #include "vl53l0x_i2c_platform.h"
 
-#define LOG_FUNCTION_START(fmt, ...)   _LOG_FUNCTION_START(TRACE_MODULE_PLATFORM, fmt, ## __VA_ARGS__)
-#define LOG_FUNCTION_END(status, ...)    _LOG_FUNCTION_END(TRACE_MODULE_PLATFORM, status, ## __VA_ARGS__)
-#define LOG_FUNCTION_END_FMT(status, fmt, ...)     _LOG_FUNCTION_END_FMT(TRACE_MODULE_PLATFORM, status, fmt, ## __VA_ARGS__)
+#include "log_platform.h"
 
 /**
  * @def I2C_BUFFER_CONFIG
@@ -58,7 +56,7 @@
  * VL6180x_GetI2CAccess() \n
  *
  * @li 2 : User defined \n
- *    Per Device potentially dynamic allocated. Requires VL6180x_GetI2cBuffer()
+ *    Per Device potentially dynamic allocated. Requires VL6180x_GetI2cBuffer()  //ick: cut and paste error, one that would never have happened with C++ namespaces
  * to be implemented.
  * @ingroup Configuration
  */

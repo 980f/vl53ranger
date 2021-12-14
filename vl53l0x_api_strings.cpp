@@ -34,9 +34,7 @@
 #include <stdlib.h>
 #endif
 
-#define LOG_FUNCTION_START(fmt, ...)   _LOG_FUNCTION_START(TRACE_MODULE_API, fmt, ## __VA_ARGS__)
-#define LOG_FUNCTION_END(status, ...)   _LOG_FUNCTION_END(TRACE_MODULE_API, status, ## __VA_ARGS__)
-#define LOG_FUNCTION_END_FMT(status, fmt, ...)  _LOG_FUNCTION_END_FMT(TRACE_MODULE_API, status, fmt, ## __VA_ARGS__)
+#include "log_api.h"
 
 VL53L0X_Error VL53L0X_check_part_used(VL53L0X_DEV Dev, uint8_t *Revision,VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo){
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
