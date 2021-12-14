@@ -1190,7 +1190,7 @@ VL53L0X_Error VL53L0X_calc_dmax(VL53L0X_DEV Dev, FixPoint1616_t totalSignalRate_
   dmaxAmbient = VL53L0X_isqrt(dmaxAmbient);
 
   *pdmax_mm = min(dmaxDark, dmaxAmbient);
-  LOG_FUNCTION_END(Status);
+  LOG_FUNCTION_END(VL53L0X_ERROR_NONE);
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_calc_dmax
 
