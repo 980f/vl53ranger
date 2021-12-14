@@ -95,15 +95,17 @@ VL53L0X_Error VL53L0X_UnlockSequenceAccess(VL53L0X_DEV Dev) {
   return VL53L0X_ERROR_NONE;
 }
 
+/** @returns an api error code for a non-zero return from an i2c function. At present all such return 0 */
+static VL53L0X_Error recode(int i2creturn){
+  return i2creturn? VL53L0X_ERROR_CONTROL_INTERFACE: VL53L0X_ERROR_NONE;
+}
+
 // the ranging_sensor_comms.dll will take care of the page selection
 VL53L0X_Error VL53L0X_WriteMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, uint32_t count) {
   if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
     return VL53L0X_ERROR_INVALID_PARAMS;//BUG: formerly went ahead and asked for invalid transfer
   }
-  if (VL53L0X_write_multi(Dev->I2cDevAddr, index, pdata, count, Dev->i2c) != 0) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  return VL53L0X_ERROR_NONE;
+  return recode(VL53L0X_write_multi(Dev->I2cDevAddr, index, pdata, count, Dev->i2c) != 0);
 } // VL53L0X_WriteMulti
 
 // the ranging_sensor_comms.dll will take care of the page selection
@@ -112,32 +114,20 @@ VL53L0X_Error VL53L0X_ReadMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, 
   if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
     return VL53L0X_ERROR_INVALID_PARAMS;//BUG: formerly went ahead and sent truncated data
   }
-  if (VL53L0X_read_multi(Dev->I2cDevAddr, index, pdata, count, Dev->i2c)) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  return VL53L0X_ERROR_NONE;
+  return recode(VL53L0X_read_multi(Dev->I2cDevAddr, index, pdata, count, Dev->i2c)) ;
 } // VL53L0X_ReadMulti
 
 VL53L0X_Error VL53L0X_WrByte(VL53L0X_DEV Dev, uint8_t index, uint8_t data) {
   //BUG?: not locked like the ReadMulti was, why not?
-  if (VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c)) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  return VL53L0X_ERROR_NONE;
+  return recode(VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
 } // VL53L0X_WrByte
 
 VL53L0X_Error VL53L0X_WrWord(VL53L0X_DEV Dev, uint8_t index, uint16_t data) {
-  if (VL53L0X_write_word(Dev->I2cDevAddr, index, data, Dev->i2c)) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  return VL53L0X_ERROR_NONE;
+  return recode(VL53L0X_write_word(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
 } // VL53L0X_WrWord
 
 VL53L0X_Error VL53L0X_WrDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t data) {
-  if (VL53L0X_write_dword(Dev->I2cDevAddr, index, data, Dev->i2c)) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  return VL53L0X_ERROR_NONE;
+  return recode(VL53L0X_write_dword(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
 } // VL53L0X_WrDWord
 
 VL53L0X_Error VL53L0X_UpdateByte(VL53L0X_DEV Dev, uint8_t index, uint8_t AndData, uint8_t OrData) {
@@ -146,32 +136,19 @@ VL53L0X_Error VL53L0X_UpdateByte(VL53L0X_DEV Dev, uint8_t index, uint8_t AndData
     return VL53L0X_ERROR_CONTROL_INTERFACE;
   }
   data = (data & AndData) | OrData;
-
-  if (VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c)) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  return VL53L0X_ERROR_NONE;
+  return recode(VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
 } // VL53L0X_UpdateByte
 
 VL53L0X_Error VL53L0X_RdByte(VL53L0X_DEV Dev, uint8_t index, uint8_t *data) {
-  if (VL53L0X_read_byte(Dev->I2cDevAddr, index, data, Dev->i2c)) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  return VL53L0X_ERROR_NONE;
+  return recode(VL53L0X_read_byte(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
 } // VL53L0X_RdByte
 
 VL53L0X_Error VL53L0X_RdWord(VL53L0X_DEV Dev, uint8_t index, uint16_t *data) {
-  if( VL53L0X_read_word(Dev->I2cDevAddr, index, data, Dev->i2c)) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  return VL53L0X_ERROR_NONE;
+  return recode( VL53L0X_read_word(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
 } // VL53L0X_RdWord
 
 VL53L0X_Error VL53L0X_RdDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t *data) {
-  if (VL53L0X_read_dword(Dev->I2cDevAddr, index, data, Dev->i2c) != 0) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  return VL53L0X_ERROR_NONE;
+  return recode(VL53L0X_read_dword(Dev->I2cDevAddr, index, data, Dev->i2c) != 0);
 } // VL53L0X_RdDWord
 
 //BUG: below is a parameter that must be tuned per platform, but is buried deep in the source:
@@ -179,7 +156,7 @@ VL53L0X_Error VL53L0X_RdDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t *data) {
 
 VL53L0X_Error VL53L0X_PollingDelay(VL53L0X_DEV Dev) {
   LOG_FUNCTION_START("");
-  for (volatile uint32_t i = 0; i < VL53L0X_POLLINGDELAY_LOOPNB; i++) {
+  for (volatile unsigned i = VL53L0X_POLLINGDELAY_LOOPNB; i-->0;) {
     // Do nothing
     asm ("nop");
   }

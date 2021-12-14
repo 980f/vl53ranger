@@ -26,16 +26,11 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#ifndef _VL53L0X_TUNING_H_
-#define _VL53L0X_TUNING_H_
-
-#include "vl53l0x_def.h"
-
-#ifdef __cplusplus
-extern "C" {
+#ifdef _VL53L0X_TUNING_H_
+#error "this file should only be included in the C/C++ file which references the array, and there is no reason for there to be more than one of those"
 #endif
 
-uint8_t DefaultTuningSettings[] = {
+static uint8_t DefaultTuningSettings[] = {
 
     /* update 02/11/2015_v36 */
     0x01, 0xFF, 0x01, 0x01, 0x00, 0x00,
@@ -78,10 +73,5 @@ uint8_t DefaultTuningSettings[] = {
     0x01, 0xFF, 0x01, 0x01, 0x8e, 0x01, 0x01, 0x00, 0x01, 0x01, 0xFF, 0x00,
     0x01, 0x80, 0x00,
 
-    0x00, 0x00, 0x00};
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _VL53L0X_TUNING_H_ */
+    0x00, 0x00, 0x00  //end marker, type zero and some zero lengths in case someone ignores the flag.
+};

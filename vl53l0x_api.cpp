@@ -33,7 +33,7 @@
 #include "vl53l0x_api_core.h"
 #include "vl53l0x_api_strings.h"
 #include "vl53l0x_interrupt_threshold_settings.h"
-#include "vl53l0x_tuning.h"
+#include "vl53l0x_tuning.h"  //tuning values packed into an array of bytes
 
 #ifndef __KERNEL__
 #include <stdlib.h>

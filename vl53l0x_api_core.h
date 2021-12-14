@@ -29,7 +29,7 @@
 #ifndef _VL53L0X_API_CORE_H_
 #define _VL53L0X_API_CORE_H_
 
-#include "vl53l0x_def.h"
+//#include "vl53l0x_def.h"
 #include "vl53l0x_platform.h"
 
 #ifdef __cplusplus
@@ -64,7 +64,7 @@ VL53L0X_Error VL53L0X_set_measurement_timing_budget_micro_seconds(VL53L0X_DEV De
 
 VL53L0X_Error VL53L0X_get_measurement_timing_budget_micro_seconds(VL53L0X_DEV Dev, uint32_t *pMeasurementTimingBudgetMicroSeconds);
 
-VL53L0X_Error VL53L0X_load_tuning_settings(VL53L0X_DEV Dev,uint8_t *pTuningSettingBuffer);
+VL53L0X_Error VL53L0X_load_tuning_settings(VL53L0X_DEV Dev,const uint8_t *pTuningSettingBuffer);
 
 VL53L0X_Error VL53L0X_calc_sigma_estimate(VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData,FixPoint1616_t *pSigmaEstimate, uint32_t *pDmax_mm);
 
