@@ -47,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stddef.h>
 #include <stdint.h>
+#include <cmath>
 
 #ifndef NULL
 #error "Error NULL definition should be done. Please add required include "
@@ -104,6 +105,25 @@ typedef signed char int8_t;
 /** use where fractional values are expected
  *
  * Given a floating point value f it's .16 bit point is (int)(f*(1<<16))*/
-typedef uint32_t FixPoint1616_t;
+template <int whole, int fract,typename RawType= uint32_t> struct FixPoint {
+  //todo: compute Rawtype from whole and fract.
+  RawType raw;
+  operator RawType  () const {
+    return raw;
+  }
+  FixPoint<whole,fract> & operator = (float eff){
+    if(eff<0){
+      //need to see if this ever occurs
+      raw=0;
+    } else if(eff==0){//frequent enough to special case
+      raw=0;
+    } else {
+      raw= RawType(modff(eff,&eff))<<fract;
+      raw|= RawType(eff*(1<<fract));
+    }
+    return *this;
+  }
 
+};
+using FixPoint1616_t = FixPoint<16,16>;
 #endif /* VL53L0X_TYPES_H_ */

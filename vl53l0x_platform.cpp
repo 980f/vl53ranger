@@ -160,6 +160,5 @@ VL53L0X_Error VL53L0X_PollingDelay(VL53L0X_DEV Dev) {
     // Do nothing
     asm ("nop");
   }
-  LOG_FUNCTION_END(VL53L0X_ERROR_NONE);
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_PollingDelay

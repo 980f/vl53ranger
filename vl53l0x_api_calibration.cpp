@@ -229,7 +229,7 @@ VL53L0X_Error VL53L0X_set_offset_calibration_data_micro_meter(VL53L0X_DEV Dev, i
   const int16_t cOffsetRange = 4096;
   uint32_t encodedOffsetVal = (OffsetCalibrationDataMicroMeter / 250) + ((OffsetCalibrationDataMicroMeter >= 0) ? 0 : cOffsetRange);
   VL53L0X_Error Status = VL53L0X_WrWord(Dev, VL53L0X_REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, encodedOffsetVal);
-  LOG_FUNCTION_END(Status);
+
   return Status;
 } // VL53L0X_set_offset_calibration_data_micro_meter
 

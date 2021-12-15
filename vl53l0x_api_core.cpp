@@ -30,11 +30,10 @@
 #include "vl53l0x_api.h"
 #include "vl53l0x_api_calibration.h"
 
-#ifndef __KERNEL__
-#include <stdlib.h>
-#endif
-
 #include "log_api.h"
+
+//we will be getting rid of this, so dup something to get a compile until we do.
+#define VL53L0X_COPYSTRING(target,string) strcpy(target,string)
 
 VL53L0X_Error VL53L0X_reverse_bytes(uint8_t *data, uint32_t size) {
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
@@ -77,7 +76,7 @@ VL53L0X_Error VL53L0X_measurement_poll_for_completion(VL53L0X_DEV Dev) {
     VL53L0X_PollingDelay(Dev);
   } while (1);
 
-  LOG_FUNCTION_END(Status);
+
 
   return Status;
 } // VL53L0X_measurement_poll_for_completion
@@ -167,7 +166,7 @@ VL53L0X_Error VL53L0X_device_read_strobe(VL53L0X_DEV Dev) {
   }
   Status |= VL53L0X_WrByte(Dev, 0x83, 0x01);
 //BUG: if timetout we still call WrByte and if it has an error then we return a garbled status.
-  LOG_FUNCTION_END(Status);
+
   return Status;
 } // VL53L0X_device_read_strobe
 
@@ -184,7 +183,6 @@ VL53L0X_Error VL53L0X_get_info_from_device(VL53L0X_DEV Dev, uint8_t option) {
   uint32_t DistMeasTgtFixed1104_mm = 400 << 4;
   uint32_t DistMeasFixed1104_400_mm = 0;
   uint32_t SignalRateMeasFixed1104_400_mm = 0;
-  char ProductId[19];
 
   FixPoint1616_t SignalRateMeasFixed400mmFix = 0;
   uint8_t NvmRefGoodSpadMap[VL53L0X_REF_SPAD_BUFFER_SIZE];
@@ -381,23 +379,17 @@ VL53L0X_Error VL53L0X_get_info_from_device(VL53L0X_DEV Dev, uint8_t option) {
     VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReadDataFromDeviceDone, (ReadDataFromDeviceDone | option));
   }
 
-  LOG_FUNCTION_END(Status);
+
   return Status;
 } // VL53L0X_get_info_from_device
 
 uint32_t VL53L0X_calc_macro_period_ps(VL53L0X_DEV Dev, uint8_t vcsel_period_pclks) {
-
-
   LOG_FUNCTION_START("");
-
   /* The above calculation will produce rounding errors,  therefore set fixed value //ICK: comment refers to non-existent code.
    */
   const uint64_t PLL_period_ps = 1655;
   const uint32_t macro_period_vclks = 2304;
-  uint32_t  macro_period_ps = (uint32_t) (macro_period_vclks * vcsel_period_pclks * PLL_period_ps);
-
-  LOG_FUNCTION_END("");
-  return macro_period_ps;
+  return  (uint32_t) (macro_period_vclks * vcsel_period_pclks * PLL_period_ps);
 } // VL53L0X_calc_macro_period_ps
 
 uint16_t VL53L0X_encode_timeout(uint32_t timeout_macro_clks) {
@@ -846,7 +838,7 @@ VL53L0X_Error VL53L0X_set_measurement_timing_budget_micro_seconds(VL53L0X_DEV De
     }
 
     if (Status != VL53L0X_ERROR_NONE) {
-      LOG_FUNCTION_END(Status);
+
       return Status;
     }
 
@@ -874,7 +866,7 @@ VL53L0X_Error VL53L0X_set_measurement_timing_budget_micro_seconds(VL53L0X_DEV De
   }
 
   if (Status != VL53L0X_ERROR_NONE) {
-    LOG_FUNCTION_END(Status);
+
     return Status;
   }
 
@@ -906,7 +898,7 @@ VL53L0X_Error VL53L0X_set_measurement_timing_budget_micro_seconds(VL53L0X_DEV De
     VL53L0X_SETPARAMETERFIELD(Dev, MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
   }
 
-  LOG_FUNCTION_END(Status);
+
 
   return Status;
 } // VL53L0X_set_measurement_timing_budget_micro_seconds
@@ -933,7 +925,7 @@ VL53L0X_Error VL53L0X_get_measurement_timing_budget_micro_seconds(VL53L0X_DEV De
   Status = VL53L0X_GetSequenceStepEnables(Dev, &SchedulerSequenceSteps);
 
   if (Status != VL53L0X_ERROR_NONE) {
-    LOG_FUNCTION_END(Status);
+
     return Status;
   }
 
@@ -972,7 +964,7 @@ VL53L0X_Error VL53L0X_get_measurement_timing_budget_micro_seconds(VL53L0X_DEV De
     VL53L0X_SETPARAMETERFIELD(Dev, MeasurementTimingBudgetMicroSeconds, *pMeasurementTimingBudgetMicroSeconds);
   }
 
-  LOG_FUNCTION_END(Status);
+
   return Status;
 } // VL53L0X_get_measurement_timing_budget_micro_seconds
 
@@ -1021,7 +1013,6 @@ VL53L0X_Error VL53L0X_load_tuning_settings(VL53L0X_DEV Dev, const uint8_t *pTuni
     }
   }
 
-  LOG_FUNCTION_END(Error);
   return Error;
 } // VL53L0X_load_tuning_settings
 
@@ -1050,7 +1041,6 @@ VL53L0X_Error VL53L0X_get_total_signal_rate(VL53L0X_DEV Dev, VL53L0X_RangingMeas
   VL53L0X_Error Error = VL53L0X_get_total_xtalk_rate(Dev, pRangingMeasurementData, &totalXtalkMegaCps);
   ERROR_OUT;
   *ptotal_signal_rate_mcps += totalXtalkMegaCps;
-  //BUG: missing LOG_FUNCTION_END
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_get_total_signal_rate
 
@@ -1190,7 +1180,6 @@ VL53L0X_Error VL53L0X_calc_dmax(VL53L0X_DEV Dev, FixPoint1616_t totalSignalRate_
   dmaxAmbient = VL53L0X_isqrt(dmaxAmbient);
 
   *pdmax_mm = min(dmaxDark, dmaxAmbient);
-  LOG_FUNCTION_END(VL53L0X_ERROR_NONE);
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_calc_dmax
 
@@ -1326,7 +1315,7 @@ VL53L0X_Error VL53L0X_calc_sigma_estimate(VL53L0X_DEV Dev, VL53L0X_RangingMeasur
   }
 
   if (Status != VL53L0X_ERROR_NONE) {
-    LOG_FUNCTION_END(Status);
+
     return Status;
   }
 
@@ -1498,7 +1487,7 @@ VL53L0X_Error VL53L0X_calc_sigma_estimate(VL53L0X_DEV Dev, VL53L0X_RangingMeasur
     Status = VL53L0X_calc_dmax(Dev, totalSignalRate_mcps, correctedSignalRate_mcps, pwMult, sigmaEstimateP1, sigmaEstimateP2, peakVcselDuration_us, pDmax_mm);
   }
 
-  LOG_FUNCTION_END(Status);
+
   return Status;
 } // VL53L0X_calc_sigma_estimate
 
@@ -1638,6 +1627,6 @@ VL53L0X_Error VL53L0X_get_pal_range_status(VL53L0X_DEV Dev, uint8_t DeviceRangeS
     VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksStatus, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, (RangeIgnoreThresholdLimitCheckEnable == 0) || (RangeIgnoreThresholdflag == 1));
   }
 
-  LOG_FUNCTION_END(Status);
+
   return Status;
 } // VL53L0X_get_pal_range_status

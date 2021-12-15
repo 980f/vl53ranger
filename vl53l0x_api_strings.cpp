@@ -31,6 +31,8 @@
 
 #include "log_api.h"
 
+#define VL53L0X_COPYSTRING(target,string) strcpy(target,string)
+
 VL53L0X_Error VL53L0X_check_part_used(VL53L0X_DEV Dev, uint8_t *Revision, VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo) {
   LOG_FUNCTION_START("");
   VL53L0X_Error Status = VL53L0X_get_info_from_device(Dev, 2);
@@ -45,7 +47,7 @@ VL53L0X_Error VL53L0X_check_part_used(VL53L0X_DEV Dev, uint8_t *Revision, VL53L0
     }
   }
 
-  LOG_FUNCTION_END(Status);
+
   return Status;
 } // VL53L0X_check_part_used
 
@@ -126,7 +128,7 @@ VL53L0X_Error VL53L0X_get_device_error_string(VL53L0X_DeviceError ErrorCode, cha
       VL53L0X_COPYSTRING(pDeviceErrorString, VL53L0X_STRING_UNKNOW_ERROR_CODE);
   } // switch
 
-  LOG_FUNCTION_END(VL53L0X_ERROR_NONE);
+
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_get_device_error_string
 
@@ -159,7 +161,6 @@ VL53L0X_Error VL53L0X_get_range_status_string(uint8_t RangeStatus, char *pRangeS
       VL53L0X_COPYSTRING(pRangeStatusString, VL53L0X_STRING_RANGESTATUS_NONE);
   } // switch
 
-  LOG_FUNCTION_END(VL53L0X_ERROR_NONE);
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_get_range_status_string
 
@@ -226,7 +227,6 @@ VL53L0X_Error VL53L0X_get_pal_error_string(VL53L0X_Error PalErrorCode, char *pPa
     default:
       VL53L0X_COPYSTRING(pPalErrorString, VL53L0X_STRING_UNKNOW_ERROR_CODE);
   } // switch
-  LOG_FUNCTION_END(VL53L0X_ERROR_NONE);
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_get_pal_error_string
 
@@ -261,7 +261,6 @@ VL53L0X_Error VL53L0X_get_pal_state_string(VL53L0X_State PalStateCode, char *pPa
       VL53L0X_COPYSTRING(pPalStateString, VL53L0X_STRING_STATE_UNKNOWN);
   } // switch
 
-  LOG_FUNCTION_END(VL53L0X_ERROR_NONE);
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_get_pal_state_string
 
@@ -290,7 +289,7 @@ VL53L0X_Error VL53L0X_get_sequence_steps_info(VL53L0X_SequenceStepId SequenceSte
       Status = VL53L0X_ERROR_INVALID_PARAMS;
   } // switch
 
-  LOG_FUNCTION_END(Status);
+
 
   return Status;
 } // VL53L0X_get_sequence_steps_info
@@ -323,6 +322,5 @@ VL53L0X_Error VL53L0X_get_limit_check_info(VL53L0X_DEV Dev, uint16_t LimitCheckI
     default:
       VL53L0X_COPYSTRING(pLimitCheckString, VL53L0X_STRING_UNKNOW_ERROR_CODE);
   } // switch
-  LOG_FUNCTION_END(VL53L0X_ERROR_NONE);
   return VL53L0X_ERROR_NONE;
 } // VL53L0X_get_limit_check_info

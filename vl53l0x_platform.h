@@ -33,10 +33,6 @@
 #include "vl53l0x_i2c_platform.h"
 #include "vl53l0x_platform_log.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * @file vl53l0_platform.h
  *
@@ -55,7 +51,7 @@ extern "C" {
  * abstraction layer
  *
  */
-typedef struct {
+struct {
   VL53L0X_DevData_t Data; /*!< embed ST Ewok Dev  data as "Data"*/
 
   /*!< user specific field */
@@ -64,6 +60,14 @@ typedef struct {
   uint16_t comms_speed_khz; /*!< Comms speed [kHz] : typically 400kHz for I2C */
 
   TwoWire *i2c;
+
+
+  struct ProductRevision {
+    uint8_t Major;
+    uint8_t Minor;
+  };
+
+  Erroneous<ProductRevision> VL53L0X_GetProductRevision(VL53L0X_DEV Dev, uint8_t *pProductRevisionMajor, uint8_t *pProductRevisionMinor);
 
 } VL53L0X_Dev_t;
 
