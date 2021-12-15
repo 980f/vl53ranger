@@ -63,14 +63,14 @@ public:
    *   @returns True if address was set successfully, False otherwise
    */
   /**************************************************************************/
-  VL53L0X_Error rangingTest(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData, boolean debug = false){
+  VL53L0X::Error rangingTest(VL53L0X::RangingMeasurementData_t *pRangingMeasurementData, boolean debug = false){
     return getSingleRangingMeasurement(pRangingMeasurementData, debug);
   }
 
-  VL53L0X_Error getSingleRangingMeasurement(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData, boolean debug = false);
-  void printRangeStatus(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData);
+  VL53L0X::Error getSingleRangingMeasurement(VL53L0X::RangingMeasurementData_t *pRangingMeasurementData, boolean debug = false);
+  void printRangeStatus(VL53L0X::RangingMeasurementData_t *pRangingMeasurementData);
 
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE; ///< indicates whether or not the sensor has encountered an error
+  VL53L0X::Error Status = VL53L0X::ERROR_NONE; ///< indicates whether or not the sensor has encountered an error
   // Add similar methods as Adafruit_VL6180X class adapted to range of device
   uint16_t readRange(void);
   // float readLux(uint8_t gain);
@@ -96,7 +96,7 @@ public:
     return false;
   }
 
-  boolean configSensor(VL53L0X_Sense_config_t vl_config);
+  boolean configSensor(VL53L0X::Sense_config_t vl_config);
 
   // Export some wrappers to internal setting functions
   // that are used by the above helper function to allow
@@ -104,9 +104,9 @@ public:
   boolean setMeasurementTimingBudgetMicroSeconds(uint32_t budget_us);
   uint32_t getMeasurementTimingBudgetMicroSeconds(void);
 
-  boolean setVcselPulsePeriod(VL53L0X_VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriod);
+  boolean setVcselPulsePeriod(VL53L0X::VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriod);
 
-  uint8_t getVcselPulsePeriod(VL53L0X_VcselPeriod VcselPeriodType);
+  uint8_t getVcselPulsePeriod(VL53L0X::VcselPeriod VcselPeriodType);
 
   boolean setLimitCheckEnable(uint16_t LimitCheckId, uint8_t LimitCheckEnable);
   uint8_t getLimitCheckEnable(uint16_t LimitCheckId);
@@ -114,9 +114,9 @@ public:
   FixPoint1616_t getLimitCheckValue(uint16_t LimitCheckId);
 
 private:
-  VL53L0X_Dev_t MyDevice;
-  VL53L0X_Dev_t *pMyDevice = &MyDevice;
-  VL53L0X_DeviceInfo_t DeviceInfo;
+  VL53L0X::Dev_t MyDevice;
+  VL53L0X::Dev_t *pMyDevice = &MyDevice;
+  VL53L0X::DeviceInfo_t DeviceInfo;
   uint8_t _rangeStatus;
 }; // class Adafruit_VL53L0X
 

@@ -47,4 +47,7 @@ SET(platform
   vl53l0x_platform.cpp
   )
 
-ADD_EXECUTABLE(vl53  ${platform} ${coreSources})
+SET(adafruit
+ Adafruit_VL53L0X.cpp
+)
+ADD_EXECUTABLE(vl53  ${platform} ${coreSources} ${adafruit})

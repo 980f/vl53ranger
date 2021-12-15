@@ -1,4 +1,5 @@
 /*******************************************************************************
+Copyright 2021 Andy Heilveil, github/980F via mutation of source
  *  Copyright 2016, STMicroelectronics International N.V.
  *  All rights reserved.
  *
@@ -32,11 +33,11 @@
 
 #include "log_api.h"
 
+using namespace VL53L0X; //violates general rule of not using blanket import as this is the implementation of the namespace
 //we will be getting rid of this, so dup something to get a compile until we do.
 #define VL53L0X_COPYSTRING(target,string) strcpy(target,string)
 
-VL53L0X_Error VL53L0X_reverse_bytes(uint8_t *data, uint32_t size) {
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
+void reverse_bytes(uint8_t *data, uint32_t size) {
   uint8_t tempData;
   uint32_t mirrorIndex;
   uint32_t middle = size / 2;
@@ -48,19 +49,17 @@ VL53L0X_Error VL53L0X_reverse_bytes(uint8_t *data, uint32_t size) {
     data[index] = data[mirrorIndex];
     data[mirrorIndex] = tempData;
   }
-  return Status;
+
 } // VL53L0X_reverse_bytes
 
-VL53L0X_Error VL53L0X_measurement_poll_for_completion(VL53L0X_DEV Dev) {
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
+Erroneous<bool> Api::measurement_poll_for_completion() {
+  Erroneous<bool> value(false);
   uint8_t NewDataReady = 0;
-  uint32_t LoopNb;
+
 
   LOG_FUNCTION_START("");
 
-  LoopNb = 0;
-
-  do {
+  for(unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP;LoopNb-->0;) {
     Status = VL53L0X_GetMeasurementDataReady(Dev, &NewDataReady);
     if (Status != 0) {
       break; /* the error is set */
@@ -68,17 +67,13 @@ VL53L0X_Error VL53L0X_measurement_poll_for_completion(VL53L0X_DEV Dev) {
     if (NewDataReady == 1) {
       break; /* done note that status == 0 */
     }
-    LoopNb++;
-    if (LoopNb >= VL53L0X_DEFAULT_MAX_LOOP) {
-      Status = VL53L0X_ERROR_TIME_OUT;
+    if () {
+      Status =
       break;
     }
     VL53L0X_PollingDelay(Dev);
   } while (1);
-
-
-
-  return Status;
+  return {ERROR_TIME_OUT,false};
 } // VL53L0X_measurement_poll_for_completion
 
 uint8_t VL53L0X_decode_vcsel_period(uint8_t vcsel_period_reg) {
@@ -764,9 +759,8 @@ VL53L0X_Error VL53L0X_set_vcsel_pulse_period(VL53L0X_DEV Dev, VL53L0X_VcselPerio
   return VL53L0X_perform_phase_calibration(Dev, &PhaseCalInt, 0, 1);
 } // VL53L0X_set_vcsel_pulse_period
 
-VL53L0X_Error VL53L0X_get_vcsel_pulse_period(VL53L0X_DEV Dev, VL53L0X_VcselPeriod VcselPeriodType, uint8_t *pVCSELPulsePeriodPCLK) {
-  VL53L0X_Error Status = VL53L0X_ERROR_NONE;
-  uint8_t vcsel_period_reg;
+Erroneous<uint8_t> Api::get_vcsel_pulse_period( VcselPeriod VcselPeriodType) {
+  Erroneous<uint8_t> vcsel_period_reg;
 
   switch (VcselPeriodType) {
     case VL53L0X_VCSEL_PERIOD_PRE_RANGE:

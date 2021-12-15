@@ -32,54 +32,66 @@
 //#include "vl53l0x_def.h"
 #include "vl53l0x_platform.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace VL53L0X {
+  void reverse_bytes(uint8_t *data, uint32_t size);
+  uint8_t encode_vcsel_period(uint8_t vcsel_period_pclks);
+  uint8_t decode_vcsel_period(uint8_t vcsel_period_reg);
+  uint32_t isqrt(uint32_t num);
+  uint32_t quadrature_sum(uint32_t a, uint32_t b);
 
-VL53L0X_Error VL53L0X_reverse_bytes(uint8_t *data, uint32_t size);
+  uint32_t decode_timeout(uint16_t encoded_timeout);
 
-VL53L0X_Error VL53L0X_measurement_poll_for_completion(VL53L0X_DEV Dev);
+  uint16_t encode_timeout(uint32_t timeout_macro_clks);
 
-uint8_t VL53L0X_encode_vcsel_period(uint8_t vcsel_period_pclks);
+  class Core {
+    DEV Dev;//may eventually make this a base, but for migration want to keep the name.
+  public:
+    Core(){
+      //todo:0 this is the actual object
+    }
+    /** @returns false on timeout */
+    Erroneous<bool> measurement_poll_for_completion();
 
-uint8_t VL53L0X_decode_vcsel_period(uint8_t vcsel_period_reg);
+    template <typename Chunk> struct Parameter {
+      DEV &Dev;
+      /** getter */
+      operator Erroneous<Chunk>(){
 
-uint32_t VL53L0X_isqrt(uint32_t num);
+      }
+      /** setter */
+      bool operator=(Chunk chunk){
 
-uint32_t VL53L0X_quadrature_sum(uint32_t a, uint32_t b);
+      }
+    };
 
-VL53L0X_Error VL53L0X_get_info_from_device(VL53L0X_DEV Dev, uint8_t option);
+/** VCSELPulsePeriodPCLK */
+    Erroneous<uint8_t> get_vcsel_pulse_period( VcselPeriod VcselPeriodType);
 
-VL53L0X_Error VL53L0X_set_vcsel_pulse_period(VL53L0X_DEV Dev,VL53L0X_VcselPeriod VcselPeriodType,uint8_t VCSELPulsePeriodPCLK);
 
-VL53L0X_Error VL53L0X_get_vcsel_pulse_period(VL53L0X_DEV Dev,VL53L0X_VcselPeriod VcselPeriodType,uint8_t *pVCSELPulsePeriodPCLK);
+    Error set_vcsel_pulse_period( VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
 
-uint32_t VL53L0X_decode_timeout(uint16_t encoded_timeout);
+    Error get_info_from_device(uint8_t option);
 
-VL53L0X_Error get_sequence_step_timeout(VL53L0X_DEV Dev,VL53L0X_SequenceStepId SequenceStepId,uint32_t *pTimeOutMicroSecs);
+  Error get_sequence_step_timeout( SequenceStepId SequenceStepId, uint32_t *pTimeOutMicroSecs);
 
-VL53L0X_Error set_sequence_step_timeout(VL53L0X_DEV Dev,VL53L0X_SequenceStepId SequenceStepId,uint32_t TimeOutMicroSecs);
+  Error set_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t TimeOutMicroSecs);
 
-VL53L0X_Error VL53L0X_set_measurement_timing_budget_micro_seconds(VL53L0X_DEV Dev, uint32_t MeasurementTimingBudgetMicroSeconds);
+  Error get_measurement_timing_budget_micro_seconds( uint32_t *pMeasurementTimingBudgetMicroSeconds);
 
-VL53L0X_Error VL53L0X_get_measurement_timing_budget_micro_seconds(VL53L0X_DEV Dev, uint32_t *pMeasurementTimingBudgetMicroSeconds);
+    Error set_measurement_timing_budget_micro_seconds( uint32_t MeasurementTimingBudgetMicroSeconds);
 
-VL53L0X_Error VL53L0X_load_tuning_settings(VL53L0X_DEV Dev,const uint8_t *pTuningSettingBuffer);
 
-VL53L0X_Error VL53L0X_calc_sigma_estimate(VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData,FixPoint1616_t *pSigmaEstimate, uint32_t *pDmax_mm);
+  Error load_tuning_settings(const uint8_t *pTuningSettingBuffer);
 
-VL53L0X_Error VL53L0X_get_total_xtalk_rate(VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData,FixPoint1616_t *ptotal_xtalk_rate_mcps);
+  Error calc_sigma_estimate( RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *pSigmaEstimate, uint32_t *pDmax_mm);
 
-VL53L0X_Error VL53L0X_get_total_signal_rate(VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData,FixPoint1616_t *ptotal_signal_rate_mcps);
+  Error get_total_xtalk_rate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_xtalk_rate_mcps);
 
-VL53L0X_Error VL53L0X_get_pal_range_status(VL53L0X_DEV Dev, uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate,uint16_t EffectiveSpadRtnCount,VL53L0X_RangingMeasurementData_t *pRangingMeasurementData,uint8_t *pPalRangeStatus);
+  Error get_total_signal_rate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_signal_rate_mcps);
 
-uint32_t VL53L0X_calc_timeout_mclks(VL53L0X_DEV Dev, uint32_t timeout_period_us,uint8_t vcsel_period_pclks);
+  Error get_pal_range_status( uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus);
 
-uint16_t VL53L0X_encode_timeout(uint32_t timeout_macro_clks);
-
-#ifdef __cplusplus
-}
-#endif
-
+  uint32_t calc_timeout_mclks( uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
+  };
+};
 #endif /* _VL53L0X_API_CORE_H_ */

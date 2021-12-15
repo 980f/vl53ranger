@@ -1,18 +1,29 @@
 #include "vl53l0x_i2c_platform.h"
-
-//bug: module presumes endianess mismatch
-//BUG: errors can be detected and most of them will be rather fatal, but all are ignored
+#include <Wire.h>
+i2c.beginTransmission(deviceAddress);
 
 //#define I2C_DEBUG
-
-int VL53L0X_i2c_init(TwoWire *i2c) {
-  i2c->begin();
-  return 0;
+namespace Arduinoi { //misspelled in case one already exist
+  
+void i2c_init(TwoWire& i2c) {
+  i2c.begin();
 }
 
-int VL53L0X_write_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, int count, TwoWire *i2c) {
-  i2c->beginTransmission(deviceAddress);
-  i2c->write(index);
+/** RAII widget to allow us easy bailout on unexpected NAK's from device. */
+class I2cFramer{
+  TwoWire& i2c;
+public:
+  I2cFramer(TwoWire& i2c,uint8_t deviceAddress):i2c(i2c){
+    i2c.beginTransmission(deviceAddress);
+  }
+  ~I2cFramer(){
+    i2c.endTransmission();//#NB: this here is what takes all the time when sending.
+  }
+};
+
+bool write_multi(TwoWire& i2c,uint8_t deviceAddress, uint8_t index, uint8_t *pdata, int count) {
+  I2cFramer frameit(i2c,deviceAddress);
+  if(i2c.write(index)!=1) return false;
 #ifdef I2C_DEBUG
   Serial.print("\tWriting ");
   Serial.print(count);
@@ -24,10 +35,14 @@ int VL53L0X_write_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, in
     count = -count;//now positive
     pdata += count;//past end
     while (count-- > 0) {
-      i2c->write(pdata[count]);
+      if(i2c.write(pdata[count])!=1){
+        return false;
+      }
     }
   } else {
-    i2c->write(pdata, count);
+    if(i2c.write(pdata, count) !=count){
+      return false;
+    }
   }
 #ifdef I2C_DEBUG
   Serial.print("0x");
@@ -38,20 +53,22 @@ int VL53L0X_write_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, in
 #ifdef I2C_DEBUG
   Serial.println();
 #endif
-  i2c->endTransmission();
-  return 0;
+  return true;
 }
 
-int VL53L0X_read_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, int count, TwoWire *i2c) {
+bool read_multi(TwoWire& i2c, uint8_t deviceAddress, uint8_t index, uint8_t *pdata, int count) {
   bool reversing = count < 0;
   if (reversing) {
     count = -count;//now positive
     pdata += count;//past end
   }
-  i2c->beginTransmission(deviceAddress);
-  i2c->write(index);
-  i2c->endTransmission();
-  i2c->requestFrom(deviceAddress, (byte) count);
+  i2c.beginTransmission(deviceAddress);
+  i2c.write(index);
+  i2c.endTransmission();
+  auto didit=i2c.requestFrom(deviceAddress,  count);
+  if(didit!=count){
+    return false;
+  }
 #ifdef I2C_DEBUG
   Serial.print("\tReading ");
   Serial.print(count);
@@ -61,7 +78,7 @@ int VL53L0X_read_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, int
 #endif
   if (reversing) {
     while (count--) {
-      pdata[count] = i2c->read();
+      pdata[count] = i2c.read();
 #ifdef I2C_DEBUG
       Serial.print("0x");
       Serial.print(pdata[-1], HEX);
@@ -70,7 +87,7 @@ int VL53L0X_read_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, int
     }
   } else {
     while (count--) {
-      *pdata++ = i2c->read();
+      *pdata++ = i2c.read();
 #ifdef I2C_DEBUG
       Serial.print("0x");
       Serial.print(pdata[-1], HEX);
@@ -81,29 +98,7 @@ int VL53L0X_read_multi(uint8_t deviceAddress, uint8_t index, uint8_t *pdata, int
 #ifdef I2C_DEBUG
   Serial.println();
 #endif
-  return 0;
+  return true;
 }
 
-int VL53L0X_write_byte(uint8_t deviceAddress, uint8_t index, uint8_t data, TwoWire *i2c) {
-  return VL53L0X_write_multi(deviceAddress, index, &data, 1, i2c);
-}
-
-int VL53L0X_write_word(uint8_t deviceAddress, uint8_t index, uint16_t data, TwoWire *i2c) {
-  return VL53L0X_write_multi(deviceAddress, index, reinterpret_cast<uint8_t *>(data), -2, i2c);
-}
-
-int VL53L0X_write_dword(uint8_t deviceAddress, uint8_t index, uint32_t data, TwoWire *i2c) {
-  return VL53L0X_write_multi(deviceAddress, index, reinterpret_cast<uint8_t *>(data), -4, i2c);
-}
-
-int VL53L0X_read_byte(uint8_t deviceAddress, uint8_t index, uint8_t *data, TwoWire *i2c) {
-  return VL53L0X_read_multi(deviceAddress, index, data, 1, i2c);
-}
-
-int VL53L0X_read_word(uint8_t deviceAddress, uint8_t index, uint16_t *data, TwoWire *i2c) {
-  return VL53L0X_read_multi(deviceAddress, index, reinterpret_cast<uint8_t *>(data), -2, i2c);
-}
-
-int VL53L0X_read_dword(uint8_t deviceAddress, uint8_t index, uint32_t *data, TwoWire *i2c) {
-  return VL53L0X_read_multi(deviceAddress, index, reinterpret_cast<uint8_t *>(data), -4, i2c);
-}
+} 

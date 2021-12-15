@@ -45,8 +45,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * unsigned 8/16/32 bits basic types. \n If stddef.h is not available review and
  * adapt NULL definition .
  */
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 #include <cmath>
 
 #ifndef NULL
@@ -105,25 +105,68 @@ typedef signed char int8_t;
 /** use where fractional values are expected
  *
  * Given a floating point value f it's .16 bit point is (int)(f*(1<<16))*/
-template <int whole, int fract,typename RawType= uint32_t> struct FixPoint {
-  //todo: compute Rawtype from whole and fract.
+template <unsigned whole, unsigned fract,typename RawType= uint32_t> struct FixPoint {
+  //todo:2 compute Rawtype from whole and fract.
   RawType raw;
+  enum {
+    mask= (1<<fract)-1,
+    size=(fract+whole)/2,
+    powerShifter=1<<fract
+  };
   operator RawType  () const {
     return raw;
   }
-  FixPoint<whole,fract> & operator = (float eff){
+  operator float () const {
+    return float(raw>>fract)+ float(raw&mask)/float(powerShifter);
+  }
+  FixPoint & operator = (float eff){
     if(eff<0){
       //need to see if this ever occurs
       raw=0;
-    } else if(eff==0){//frequent enough to special case
+    } else if(eff==0.0){//frequent enough to special case
       raw=0;
     } else {
+#if 0  //need to see which is better on processor without hardware floating point. modff should be faster
       raw= RawType(modff(eff,&eff))<<fract;
       raw|= RawType(eff*(1<<fract));
+#else
+      raw = RawType(eff*powerShifter);
+#endif
     }
     return *this;
   }
+public:
 
-};
-using FixPoint1616_t = FixPoint<16,16>;
+  template<unsigned other_whole, unsigned other_fract>
+  FixPoint &operator=(FixPoint<other_whole, other_fract> other) {
+//e.g: <16,16>other  to <9,7> this (uint16_t)((Value >> 9) & 0xFFFF)
+    const int bitdiff = fract - other_fract;
+    if (size >= other.size) {//we are expanding so inflate and shift
+      raw = other.raw;//radix point is still at other_fract position
+      if (bitdiff < 0) {//truncating some bits on the ls end
+        raw >>= (-bitdiff);
+      } else { //##do not convert this to a ternary until use is debugged
+        raw <<= (bitdiff);
+      }
+    } else { //shrinking so must align before truncating
+      if (bitdiff < 0) {//truncating some bits on the ls end
+        other.raw >>= (-bitdiff);
+      } else { //##do not convert this to a ternary until use is debugged
+        other.raw <<= (bitdiff);
+      }
+      raw = other.raw;//radix point is still at other_fract position
+    }
+  }
+  };
+using FixPoint1616_t = FixPoint<16,16,uint32_t>;
+//types seen in macros that used to do the conversions.
+using FixPoint97_t = FixPoint<9,7,uint16_t>;
+using FixPoint88_t = FixPoint<8,8,uint16_t>;
+using FixPoint412_t = FixPoint<4,12,uint16_t>;
+using FixPoint313_t = FixPoint<3,13,uint16_t>;
+using FixPoint102_t = FixPoint<3,13,uint16_t>;
+
+using FixPoint08_t = FixPoint<0,8,uint8_t>;
+using FixPoint53_t = FixPoint<5,3,uint8_t>;
+
 #endif /* VL53L0X_TYPES_H_ */

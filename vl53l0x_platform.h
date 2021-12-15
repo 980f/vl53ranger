@@ -33,6 +33,8 @@
 #include "vl53l0x_i2c_platform.h"
 #include "vl53l0x_platform_log.h"
 
+namespace VL53L0X {
+
 /**
  * @file vl53l0_platform.h
  *
@@ -51,32 +53,154 @@
  * abstraction layer
  *
  */
-struct {
-  VL53L0X_DevData_t Data; /*!< embed ST Ewok Dev  data as "Data"*/
+/** In ST's work this guy's fields were embedded in the Device causing unnecessary sharing of information. */
+  struct Physical {
+    /*!< user specific field */
+    uint8_t I2cDevAddr; /*!< i2c device address user specific field */
+//senseless parameter until we have a base class instead of explicit TwoWire    uint8_t comms_type;   /*!< Type of comms : VL53L0X_COMMS_I2C or VL53L0X_COMMS_SPI */
+    uint16_t comms_speed_khz; /*!< Comms speed [kHz] : typically 400kHz for I2C */
 
-  /*!< user specific field */
-  uint8_t I2cDevAddr; /*!< i2c device address user specific field */
-  uint8_t comms_type;   /*!< Type of comms : VL53L0X_COMMS_I2C or VL53L0X_COMMS_SPI */
-  uint16_t comms_speed_khz; /*!< Comms speed [kHz] : typically 400kHz for I2C */
+    TwoWire &i2c;
+    Physical(TwoWire &i2c,uint8_t I2cDevAddr,uint16_t comms_speed_khz=400):
+    i2c(i2c),I2cDevAddr(I2cDevAddr),comms_speed_khz(comms_speed_khz){
+      //do nothing so that we can have statically constructed instances.
+    }
+/**
+ * Lock comms interface to serialize all commands to a shared I2C interface.
+ * ST allowed useless context, only the I2C master involved should be relevant here.
+ * There are no good reasons for multiple OS threads to be talking directly to a sensor,
+ * the user app should use message queues for other apps to share use of the sensor.
+ * Anything else is unlikely to be sane, the number of failure modes is uncountable.
+ *
+ * A thread interrupting itself to do other sensor operations is begging for a dead-lock.
+ *
+ * @return  whether lock was achieved
+ */
+    bool LockSequenceAccess(){}
 
-  TwoWire *i2c;
+/**
+ * Unlock comms interface to serialize all commands to a shared I2C interface
+ * for a specific device
+ * @return whether unlock worked.
+ */
+    bool UnlockSequenceAccess(){}
+
+/**
+ * Writes the supplied byte buffer to the device
+ * @param   index     The register index
+ * @param   pdata     Pointer to uint8_t buffer containing the data to be
+ * written
+ * @param   count     Number of bytes in the supplied byte buffer
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error WriteMulti( uint8_t index, uint8_t *pdata, uint32_t count);
+
+/**
+ * Reads the requested number of bytes from the device
+ * @param   index     The register index
+ * @param   pdata     Pointer to the uint8_t buffer to store read data
+ * @param   count     Number of uint8_t's to read
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error ReadMulti( uint8_t index, uint8_t *pdata, uint32_t count);
 
 
-  struct ProductRevision {
-    uint8_t Major;
-    uint8_t Minor;
+/**
+ * Write single byte register
+ * @param   index     The register index
+ * @param   data      8 bit register data
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error WrByte( uint8_t index, uint8_t data);
+
+/**
+ * Write word register
+ * @param   index     The register index
+ * @param   data      16 bit register data
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error WrWord( uint8_t index, uint16_t data);
+
+/**
+ * Write double word (4 byte) register
+ * @param   Dev       Device Handle
+ * @param   index     The register index
+ * @param   data      32 bit register data
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error WrDWord( uint8_t index, uint32_t data);
+
+/**
+ * Read single byte register
+ * @param   Dev       Device Handle
+ * @param   index     The register index
+ * @param   data      pointer to 8 bit data
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error RdByte( uint8_t index, uint8_t *data);
+
+/**
+ * Read word (2byte) register
+ * @param   Dev       Device Handle
+ * @param   index     The register index
+ * @param   data      pointer to 16 bit data
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error RdWord( uint8_t index, uint16_t *data);
+
+/**
+ * Read dword (4byte) register
+ * @param   Dev       Device Handle
+ * @param   index     The register index
+ * @param   data      pointer to 32 bit data
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error RdDWord( uint8_t index, uint32_t *data);
+
+/**
+ * Threat safe Update (read/modify/write) single byte register
+ *
+ * Final_reg = (Initial_reg & and_data) |or_data
+ *
+ * @param   Dev        Device Handle
+ * @param   index      The register index
+ * @param   AndData    8 bit and data
+ * @param   OrData     8 bit or data
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error UpdateByte( uint8_t index, uint8_t AndData, uint8_t OrData);
+
+/** @} end of VL53L0X_registerAccess_group */
+
   };
 
-  Erroneous<ProductRevision> VL53L0X_GetProductRevision(VL53L0X_DEV Dev, uint8_t *pProductRevisionMajor, uint8_t *pProductRevisionMinor);
+  struct Dev_t {
+    DevData_t Data; /*!< embed ST Ewok Dev  data as "Data"*/
+    Physical comm;
 
-} VL53L0X_Dev_t;
+    struct ProductRevision {
+      uint8_t Major;
+      uint8_t Minor;
+    };
+
+    Erroneous<ProductRevision> GetProductRevision();
+  };
 
 /**
  * @brief   Declare the device Handle as a pointer of the structure @a
  * VL53L0X_Dev_t.
  *
  */
-typedef VL53L0X_Dev_t *VL53L0X_DEV;
+//  typedef VL53L0X_Dev_t *VL53L0X_DEV;
 
 /**
  * @def PALDevDataGet
@@ -106,124 +230,9 @@ typedef VL53L0X_Dev_t *VL53L0X_DEV;
  */
 
 /**
- * Lock comms interface to serialize all commands to a shared I2C interface for
- * a specific device
- * @param   Dev       Device Handle
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_LockSequenceAccess(VL53L0X_DEV Dev);
-
-/**
- * Unlock comms interface to serialize all commands to a shared I2C interface
- * for a specific device
- * @param   Dev       Device Handle
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_UnlockSequenceAccess(VL53L0X_DEV Dev);
-
-/**
- * Writes the supplied byte buffer to the device
- * @param   Dev       Device Handle
- * @param   index     The register index
- * @param   pdata     Pointer to uint8_t buffer containing the data to be
- * written
- * @param   count     Number of bytes in the supplied byte buffer
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_WriteMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata,uint32_t count);
-
-/**
- * Reads the requested number of bytes from the device
- * @param   Dev       Device Handle
- * @param   index     The register index
- * @param   pdata     Pointer to the uint8_t buffer to store read data
- * @param   count     Number of uint8_t's to read
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_ReadMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata,uint32_t count);
-
-/**
- * Write single byte register
- * @param   Dev       Device Handle
- * @param   index     The register index
- * @param   data      8 bit register data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_WrByte(VL53L0X_DEV Dev, uint8_t index, uint8_t data);
-
-/**
- * Write word register
- * @param   Dev       Device Handle
- * @param   index     The register index
- * @param   data      16 bit register data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_WrWord(VL53L0X_DEV Dev, uint8_t index, uint16_t data);
-
-/**
- * Write double word (4 byte) register
- * @param   Dev       Device Handle
- * @param   index     The register index
- * @param   data      32 bit register data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_WrDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t data);
-
-/**
- * Read single byte register
- * @param   Dev       Device Handle
- * @param   index     The register index
- * @param   data      pointer to 8 bit data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_RdByte(VL53L0X_DEV Dev, uint8_t index, uint8_t *data);
-
-/**
- * Read word (2byte) register
- * @param   Dev       Device Handle
- * @param   index     The register index
- * @param   data      pointer to 16 bit data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_RdWord(VL53L0X_DEV Dev, uint8_t index, uint16_t *data);
-
-/**
- * Read dword (4byte) register
- * @param   Dev       Device Handle
- * @param   index     The register index
- * @param   data      pointer to 32 bit data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_RdDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t *data);
-
-/**
- * Threat safe Update (read/modify/write) single byte register
- *
- * Final_reg = (Initial_reg & and_data) |or_data
- *
- * @param   Dev        Device Handle
- * @param   index      The register index
- * @param   AndData    8 bit and data
- * @param   OrData     8 bit or data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-VL53L0X_Error VL53L0X_UpdateByte(VL53L0X_DEV Dev, uint8_t index,uint8_t AndData, uint8_t OrData);
-
-/** @} end of VL53L0X_registerAccess_group */
-
-/**
  * @brief execute delay in all polling API call
+ *
+ * 980f: this sounds like it should be called 'yield()', allow other tasks to run.
  *
  * A typical multi-thread or RTOs implementation is to sleep the task for some
  * 5ms (with 100Hz max rate faster polling is not needed) if nothing specific is
@@ -235,12 +244,9 @@ VL53L0X_Error VL53L0X_UpdateByte(VL53L0X_DEV Dev, uint8_t index,uint8_t AndData,
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-VL53L0X_Error VL53L0X_PollingDelay(VL53L0X_DEV Dev); /* usually best implemented as a real function */
+  Error PollingDelay(Physical &bus); /* usually best implemented as a real function */
 
 /** @} end of VL53L0X_platform_group */
 
-#ifdef __cplusplus
-}
-#endif
-
+}//end namespace
 #endif /* _VL53L0X_PLATFORM_H_ */

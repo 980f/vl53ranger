@@ -38,7 +38,7 @@
 #include "vl53l0x_i2c_platform.h"
 
 #include "log_platform.h"
-
+namespace VL53L0X {
 /**
  * @def I2C_BUFFER_CONFIG
  *
@@ -64,101 +64,108 @@
 /** Maximum buffer size to be used in i2c */
 #define VL53L0X_MAX_I2C_XFER_SIZE    64
 
-#if I2C_BUFFER_CONFIG == 0
-/* GLOBAL config buffer */
-uint8_t i2c_global_buffer[VL53L0X_MAX_I2C_XFER_SIZE];
-
-#define DECL_I2C_BUFFER
-#define VL53L0X_GetLocalBuffer(Dev, n_byte) i2c_global_buffer
-
-#elif I2C_BUFFER_CONFIG == 1
-/* ON STACK */
-#define DECL_I2C_BUFFER uint8_t LocBuffer[VL53L0X_MAX_I2C_XFER_SIZE];
-#define VL53L0X_GetLocalBuffer(Dev, n_byte) LocBuffer
-#elif I2C_BUFFER_CONFIG == 2
-/* user define buffer type declare DECL_I2C_BUFFER  as access  via
- * VL53L0X_GetLocalBuffer */
-#define DECL_I2C_BUFFER
-#else
-#error "invalid I2C_BUFFER_CONFIG "
-#endif
+//unused concept:
+//#if I2C_BUFFER_CONFIG == 0
+///* GLOBAL config buffer */
+//uint8_t i2c_global_buffer[VL53L0X_MAX_I2C_XFER_SIZE];
+//
+//#define DECL_I2C_BUFFER
+//#define VL53L0X_GetLocalBuffer(Dev, n_byte) i2c_global_buffer
+//
+//#elif I2C_BUFFER_CONFIG == 1
+///* ON STACK */
+//#define DECL_I2C_BUFFER uint8_t LocBuffer[VL53L0X_MAX_I2C_XFER_SIZE];
+//#define VL53L0X_GetLocalBuffer(Dev, n_byte) LocBuffer
+//#elif I2C_BUFFER_CONFIG == 2
+///* user define buffer type declare DECL_I2C_BUFFER  as access  via
+// * VL53L0X_GetLocalBuffer */
+//#define DECL_I2C_BUFFER
+//#else
+//#error "invalid I2C_BUFFER_CONFIG "
+//#endif
 
 #define VL53L0X_I2C_USER_VAR /* none but could be for a flag var to get/pass to mutex interruptible  return flags and try again */
 #define VL53L0X_GetI2CAccess(Dev) /* todo mutex acquire */
 #define VL53L0X_DoneI2CAcces(Dev) /* todo mutex release */
-
-VL53L0X_Error VL53L0X_LockSequenceAccess(VL53L0X_DEV Dev) {
-  return VL53L0X_ERROR_NONE;
-}
-
-VL53L0X_Error VL53L0X_UnlockSequenceAccess(VL53L0X_DEV Dev) {
-  return VL53L0X_ERROR_NONE;
-}
+//
+//VL53L0X_Error VL53L0X_LockSequenceAccess(VL53L0X_DEV Dev) {
+//  return VL53L0X_ERROR_NONE;
+//}
+//
+//VL53L0X_Error VL53L0X_UnlockSequenceAccess(VL53L0X_DEV Dev) {
+//  return VL53L0X_ERROR_NONE;
+//}
 
 /** @returns an api error code for a non-zero return from an i2c function. At present all such return 0 */
-static VL53L0X_Error recode(int i2creturn){
-  return i2creturn? VL53L0X_ERROR_CONTROL_INTERFACE: VL53L0X_ERROR_NONE;
-}
+  static Error recode(int i2creturn) {
+    return i2creturn ? ERROR_CONTROL_INTERFACE : ERROR_NONE;
+  }
+
+  Error Physical::WriteMulti(uint8_t index, uint8_t *pdata, uint32_t count) {
+    if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
+      return ERROR_INVALID_PARAMS;//BUG: formerly went ahead and asked for invalid transfer
+    }
+    return recode(Physical::write_multi( index, pdata, count));
+  }
+// the ranging_sensor_comms.dll will take care of the page selection
+  VL53L0X_Error VL53L0X_WriteMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, uint32_t count) {
+  } // VL53L0X_WriteMulti
 
 // the ranging_sensor_comms.dll will take care of the page selection
-VL53L0X_Error VL53L0X_WriteMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, uint32_t count) {
-  if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
-    return VL53L0X_ERROR_INVALID_PARAMS;//BUG: formerly went ahead and asked for invalid transfer
-  }
-  return recode(VL53L0X_write_multi(Dev->I2cDevAddr, index, pdata, count, Dev->i2c) != 0);
-} // VL53L0X_WriteMulti
+  VL53L0X_Error VL53L0X_ReadMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, uint32_t count) {
+    VL53L0X_I2C_USER_VAR
+    if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
+      return VL53L0X_ERROR_INVALID_PARAMS;//BUG: formerly went ahead and sent truncated data
+    }
+    return recode(VL53L0X_read_multi(Dev->I2cDevAddr, index, pdata, count, Dev->i2c));
+  } // VL53L0X_ReadMulti
 
-// the ranging_sensor_comms.dll will take care of the page selection
-VL53L0X_Error VL53L0X_ReadMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, uint32_t count) {
-  VL53L0X_I2C_USER_VAR
-  if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
-    return VL53L0X_ERROR_INVALID_PARAMS;//BUG: formerly went ahead and sent truncated data
-  }
-  return recode(VL53L0X_read_multi(Dev->I2cDevAddr, index, pdata, count, Dev->i2c)) ;
-} // VL53L0X_ReadMulti
+  VL53L0X_Error VL53L0X_WrByte(VL53L0X_DEV Dev, uint8_t index, uint8_t data) {
+    //BUG?: not locked like the ReadMulti was, why not?
+    return recode(VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c));
+  } // VL53L0X_WrByte
 
-VL53L0X_Error VL53L0X_WrByte(VL53L0X_DEV Dev, uint8_t index, uint8_t data) {
-  //BUG?: not locked like the ReadMulti was, why not?
-  return recode(VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
-} // VL53L0X_WrByte
+  Error WrWord( uint8_t index, uint16_t data) {
+    return recode(VL53L0X_write_word(Dev->I2cDevAddr, index, data, Dev->i2c));
+  } // VL53L0X_WrWord
 
-VL53L0X_Error VL53L0X_WrWord(VL53L0X_DEV Dev, uint8_t index, uint16_t data) {
-  return recode(VL53L0X_write_word(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
-} // VL53L0X_WrWord
+  VL53L0X_Error VL53L0X_WrDWord(uint8_t index, uint32_t data) {
+    return recode(VL53L0X_write_dword(Dev->I2cDevAddr, index, data, Dev->i2c));
+  } // VL53L0X_WrDWord
 
-VL53L0X_Error VL53L0X_WrDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t data) {
-  return recode(VL53L0X_write_dword(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
-} // VL53L0X_WrDWord
+  VL53L0X_Error VL53L0X_RdByte(VL53L0X_DEV Dev, uint8_t index, uint8_t *data) {
+    return recode(VL53L0X_read_byte(Dev->I2cDevAddr, index, data, Dev->i2c));
+  } // VL53L0X_RdByte
 
-VL53L0X_Error VL53L0X_UpdateByte(VL53L0X_DEV Dev, uint8_t index, uint8_t AndData, uint8_t OrData) {
-  uint8_t data;
-  if (VL53L0X_read_byte(Dev->I2cDevAddr, index, &data, Dev->i2c)) {
-    return VL53L0X_ERROR_CONTROL_INTERFACE;
-  }
-  data = (data & AndData) | OrData;
-  return recode(VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
-} // VL53L0X_UpdateByte
+  VL53L0X_Error VL53L0X_RdWord(VL53L0X_DEV Dev, uint8_t index, uint16_t *data) {
+    return recode(VL53L0X_read_word(Dev->I2cDevAddr, index, data, Dev->i2c));
+  } // VL53L0X_RdWord
 
-VL53L0X_Error VL53L0X_RdByte(VL53L0X_DEV Dev, uint8_t index, uint8_t *data) {
-  return recode(VL53L0X_read_byte(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
-} // VL53L0X_RdByte
-
-VL53L0X_Error VL53L0X_RdWord(VL53L0X_DEV Dev, uint8_t index, uint16_t *data) {
-  return recode( VL53L0X_read_word(Dev->I2cDevAddr, index, data, Dev->i2c)) ;
-} // VL53L0X_RdWord
-
-VL53L0X_Error VL53L0X_RdDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t *data) {
-  return recode(VL53L0X_read_dword(Dev->I2cDevAddr, index, data, Dev->i2c) != 0);
-} // VL53L0X_RdDWord
+  VL53L0X_Error VL53L0X_RdDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t *data) {
+    return recode(VL53L0X_read_dword(Dev->I2cDevAddr, index, data, Dev->i2c) != 0);
+  } // VL53L0X_RdDWord
 
 //BUG: below is a parameter that must be tuned per platform, but is buried deep in the source:
 #define VL53L0X_POLLINGDELAY_LOOPNB 250
 
-VL53L0X_Error VL53L0X_PollingDelay(VL53L0X_DEV Dev) {
-  LOG_FUNCTION_START("");
-  for (volatile unsigned i = VL53L0X_POLLINGDELAY_LOOPNB; i-->0;) {
-    // Do nothing
-    asm ("nop");
+  VL53L0X_Error VL53L0X_PollingDelay(VL53L0X_DEV Dev) {
+    LOG_FUNCTION_START
+    ("");
+    for (volatile unsigned i = VL53L0X_POLLINGDELAY_LOOPNB; i-- > 0;) {
+      // Do nothing
+      asm ("nop");
+    }
+    return VL53L0X_ERROR_NONE;
+  } // VL53L0X_PollingDelay
+  Error VL53L0X::Physical::UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData) {
+    uint8_t data;
+    if (comm.VL53L0X_read_byte(Dev->I2cDevAddr, index, &data, Dev->i2c)) {
+      return ERROR_CONTROL_INTERFACE;
+    }
+    data = (data & AndData) | OrData;
+    return recode(VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c));
+
+    return ERROR_NONE;
   }
-  return VL53L0X_ERROR_NONE;
-} // VL53L0X_PollingDelay
+
+}//end namespace
