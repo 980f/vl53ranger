@@ -150,12 +150,32 @@ namespace VL53L0X {
 
   };
 
-/** base class for returning values from a device, which operation might fail.
+  /** C++ is too strict for the legacy weirdness Error |= Error to compile, so:*/
+  struct ErrorAccumulator {
+    Error sum = ERROR_NONE;
+
+    ErrorAccumulator &operator|=(Error other) {
+      if (other != ERROR_NONE) {
+        sum = other;
+      }
+    }
+
+    ErrorAccumulator &operator=(Error other) {
+      sum = other;
+      return *this
+    }
+
+    operator Error() const {
+      return sum;
+    }
+  };
+
+  /** base class for returning values from a device, which operation might fail.
  * frequently such errors are ignored, tacking them onto the results of the failed operation makes after the fact reporting cheaper for those who care.*/
   template<typename Wrapped> class Erroneous {
   public:
     Wrapped wrapped;
-    Error error;
+    ErrorAccumulator error;
 
     Erroneous(Wrapped wrapped, Error error = ERROR_NONE) : wrapped(wrapped), error(error) {
     }
@@ -170,12 +190,16 @@ namespace VL53L0X {
       return error != 0;
     }
 
+    void operator|=(Error other) {
+      error |= other;
+    }
+
     /** this should allow transparent access as the type */
     operator Wrapped &() {
       return wrapped;
     }
 
-    operator Wrapped *(){
+    operator Wrapped *() {
       return &wrapped;
     }
   };
@@ -483,21 +507,26 @@ namespace VL53L0X {
 #define VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, field)  PALDevDataGet(Dev, DeviceSpecificParameters).field
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT97(Value)  (uint16_t)((Value >> 9) & 0xFFFF)
+//BUG: (UB) need to cast/convert before shift, not after
 #define VL53L0X_FIXPOINT97TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 9)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT88(Value)  (uint16_t)((Value >> 8) & 0xFFFF)
+//BUG: (UB) need to cast/convert before shift, not after
 #define VL53L0X_FIXPOINT88TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT412(Value) (uint16_t)((Value >> 4) & 0xFFFF)
 #define VL53L0X_FIXPOINT412TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 4)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT313(Value) (uint16_t)((Value >> 3) & 0xFFFF)
+//BUG: (UB) need to cast/convert before shift, not after
 #define VL53L0X_FIXPOINT313TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 3)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT08(Value) (uint8_t)((Value >> 8) & 0x00FF)
+//BUG: (UB) need to cast/convert before shift, not after
 #define VL53L0X_FIXPOINT08TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT53(Value)  (uint8_t)((Value >> 13) & 0x00FF)
+//BUG: (UB) need to cast/convert before shift, not after
 #define VL53L0X_FIXPOINT53TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 13)
 
 //BUG: rogue tile, shift should be 12 not 14.

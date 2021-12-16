@@ -26,212 +26,100 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************/
 //ick: the bone headed 'every function returns error' even when errors are not conceivable causes this module to be an expensive mistake versus a few maps of strings that won't require a copy to buffer but could be passed as pointers into printf and the like.
-#include "vl53l0x_api_strings.h"
-#include "vl53l0x_api_core.h"
+
+
+#include "vl53l0x_api_strings.h" //translatable parts
 
 #include "log_api.h"
 
-#define COPYSTRING(target,string) strcpy(target,string)
+#ifndef countof
+#define countof(array) (sizeof (array)/sizeof (*array))
+#endif
+
+//BUG: platform specific option should not be in this file
+#define COPYSTRING(target, string) strcpy(target,string)
 
 namespace VL53L0X {
 
-  Error check_part_used(uint8_t *Revision, DeviceInfo_t *pDeviceInfo) {
-    LOG_FUNCTION_START
-    ("");
-    Error Status = get_info_from_device(Dev, 2);
+  struct Enumified {
+    uint8_t code;
+    const char *text;
+  };
 
-    if (Status == ERROR_NONE) {
-      if (GETDEVICESPECIFICPARAMETER(Dev, ModuleId) == 0) {
-        *Revision = 0;
-        COPYSTRING(pDeviceInfo->ProductId, "");
-      } else {
-        *Revision = GETDEVICESPECIFICPARAMETER(Dev, Revision);
-        COPYSTRING(pDeviceInfo->ProductId, GETDEVICESPECIFICPARAMETER(Dev, ProductId));
+  const char *get_from_Table(const Enumified table[], uint8_t code, const char *ifnotfound = nullptr) {
+    unsigned i = 0;
+    for (; table[i].text != nullptr; ++i) {
+      if (table[i].code == code) {
+        return table[i].text;
       }
     }
+    return nullptr;
+  }
 
-    return Status;
-  } // check_part_used
-
-  Error get_device_info(DeviceInfo_t *pDeviceInfo) {
-    uint8_t Revision;
-    Error Error = check_part_used( &Revision, pDeviceInfo);
-    ERROR_OUT;
-    if (Revision == 0) {
-      COPYSTRING(pDeviceInfo->Name, VL53L0X_STRING_DEVICE_INFO_NAME_TS0);
-    } else if ((Revision <= 34) && (Revision != 32)) {
-      COPYSTRING(pDeviceInfo->Name,VL53L0X_STRING_DEVICE_INFO_NAME_TS1);
-    } else if (Revision < 39) {
-      COPYSTRING(pDeviceInfo->Name,VL53L0X_STRING_DEVICE_INFO_NAME_TS2);
+  Error copyit(const char *text, char *pDeviceErrorString) {
+    if (text) {
+      COPYSTRING(pDeviceErrorString, text);
+      return ERROR_NONE;
     } else {
-      COPYSTRING(pDeviceInfo->Name,VL53L0X_STRING_DEVICE_INFO_NAME_ES1);
+      return ERROR_INVALID_PARAMS;
     }
-    COPYSTRING(pDeviceInfo->Type, VL53L0X_STRING_DEVICE_INFO_TYPE);
-    Error = RdByte(Dev, REG_IDENTIFICATION_MODEL_ID, &pDeviceInfo->ProductType);
-    ERROR_OUT;
-    uint8_t revision_id;
-    Error = RdByte(Dev, REG_IDENTIFICATION_REVISION_ID, &revision_id);
-    pDeviceInfo->ProductRevisionMajor = 1;
-    pDeviceInfo->ProductRevisionMinor = (revision_id & 0xF0) >> 4; //BUG: rev id set even if read fails.
+  }
 
-    return Error;
-  } // get_device_info
+  static const Enumified DEVICEERROR_table[] = {
+    {DEVICEERROR_NONE,                       VL53L0X_STRING_DEVICEERROR_NONE},
+    {DEVICEERROR_VCSELCONTINUITYTESTFAILURE, VL53L0X_STRING_DEVICEERROR_VCSELCONTINUITYTESTFAILURE},
+    {DEVICEERROR_VCSELWATCHDOGTESTFAILURE,   VL53L0X_STRING_DEVICEERROR_VCSELWATCHDOGTESTFAILURE},
+    {DEVICEERROR_NOVHVVALUEFOUND,            VL53L0X_STRING_DEVICEERROR_NOVHVVALUEFOUND},
+    {DEVICEERROR_MSRCNOTARGET,               VL53L0X_STRING_DEVICEERROR_MSRCNOTARGET},
+    {DEVICEERROR_SNRCHECK,                   VL53L0X_STRING_DEVICEERROR_SNRCHECK},
+    {DEVICEERROR_RANGEPHASECHECK,            VL53L0X_STRING_DEVICEERROR_RANGEPHASECHECK},
+    {DEVICEERROR_SIGMATHRESHOLDCHECK,        VL53L0X_STRING_DEVICEERROR_SIGMATHRESHOLDCHECK},
+    {DEVICEERROR_TCC,                        VL53L0X_STRING_DEVICEERROR_TCC},
+    {DEVICEERROR_PHASECONSISTENCY,           VL53L0X_STRING_DEVICEERROR_PHASECONSISTENCY},
+    {DEVICEERROR_MINCLIP,                    VL53L0X_STRING_DEVICEERROR_MINCLIP},
+    {DEVICEERROR_RANGECOMPLETE,              VL53L0X_STRING_DEVICEERROR_RANGECOMPLETE},
+    {DEVICEERROR_ALGOUNDERFLOW,              VL53L0X_STRING_DEVICEERROR_ALGOUNDERFLOW},
+    {DEVICEERROR_ALGOOVERFLOW,               VL53L0X_STRING_DEVICEERROR_ALGOOVERFLOW},
+    {DEVICEERROR_RANGEIGNORETHRESHOLD,       VL53L0X_STRING_DEVICEERROR_RANGEIGNORETHRESHOLD},
+    {0, nullptr}  // code is ignored, OK if overlaps valid values.
+  };
+
+  const char *device_error_string(DeviceError ErrorCode) {
+    return get_from_Table(DEVICEERROR_table, ErrorCode, VL53L0X_STRING_UNKNOW_ERROR_CODE);
+  }
 
   Error get_device_error_string(DeviceError ErrorCode, char *pDeviceErrorString) {
-    LOG_FUNCTION_START
-    ("");
-
-    switch (ErrorCode) {
-      case DEVICEERROR_NONE:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_NONE);
-        break;
-      case DEVICEERROR_VCSELCONTINUITYTESTFAILURE:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_VCSELCONTINUITYTESTFAILURE);
-        break;
-      case DEVICEERROR_VCSELWATCHDOGTESTFAILURE:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_VCSELWATCHDOGTESTFAILURE);
-        break;
-      case DEVICEERROR_NOVHVVALUEFOUND:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_NOVHVVALUEFOUND);
-        break;
-      case DEVICEERROR_MSRCNOTARGET:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_MSRCNOTARGET);
-        break;
-      case DEVICEERROR_SNRCHECK:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_SNRCHECK);
-        break;
-      case DEVICEERROR_RANGEPHASECHECK:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_RANGEPHASECHECK);
-        break;
-      case DEVICEERROR_SIGMATHRESHOLDCHECK:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_SIGMATHRESHOLDCHECK);
-        break;
-      case DEVICEERROR_TCC:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_TCC);
-        break;
-      case DEVICEERROR_PHASECONSISTENCY:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_PHASECONSISTENCY);
-        break;
-      case DEVICEERROR_MINCLIP:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_MINCLIP);
-        break;
-      case DEVICEERROR_RANGECOMPLETE:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_RANGECOMPLETE);
-        break;
-      case DEVICEERROR_ALGOUNDERFLOW:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_ALGOUNDERFLOW);
-        break;
-      case DEVICEERROR_ALGOOVERFLOW:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_ALGOOVERFLOW);
-        break;
-      case DEVICEERROR_RANGEIGNORETHRESHOLD:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_DEVICEERROR_RANGEIGNORETHRESHOLD);
-        break;
-      default:
-        COPYSTRING(pDeviceErrorString, VL53L0X_STRING_UNKNOW_ERROR_CODE);
-    } // switch
-
-
-    return ERROR_NONE;
+    return copyit(device_error_string(ErrorCode), pDeviceErrorString);
   } // get_device_error_string
 
+
+
+  static const Enumified RANGESTATUS_table[] = {
+    {0, VL53L0X_STRING_RANGESTATUS_RANGEVALID},
+    {1, VL53L0X_STRING_RANGESTATUS_SIGMA},
+    {2, VL53L0X_STRING_RANGESTATUS_SIGNAL},
+    {3, VL53L0X_STRING_RANGESTATUS_MINRANGE},
+    {4, VL53L0X_STRING_RANGESTATUS_PHASE},
+    {5, VL53L0X_STRING_RANGESTATUS_HW},
+    {0, 0}
+  };
+
   Error get_range_status_string(uint8_t RangeStatus, char *pRangeStatusString) {
-
-    LOG_FUNCTION_START
-    ("");
-
-    switch (RangeStatus) {
-      case 0:
-        COPYSTRING(pRangeStatusString, VL53L0X_STRING_RANGESTATUS_RANGEVALID);
-        break;
-      case 1:
-        COPYSTRING(pRangeStatusString, VL53L0X_STRING_RANGESTATUS_SIGMA);
-        break;
-      case 2:
-        COPYSTRING(pRangeStatusString, VL53L0X_STRING_RANGESTATUS_SIGNAL);
-        break;
-      case 3:
-        COPYSTRING(pRangeStatusString, VL53L0X_STRING_RANGESTATUS_MINRANGE);
-        break;
-      case 4:
-        COPYSTRING(pRangeStatusString, VL53L0X_STRING_RANGESTATUS_PHASE);
-        break;
-      case 5:
-        COPYSTRING(pRangeStatusString, VL53L0X_STRING_RANGESTATUS_HW);
-        break;
-
-      default: /**/
-        COPYSTRING(pRangeStatusString, VL53L0X_STRING_RANGESTATUS_NONE);
-    } // switch
-
-    return ERROR_NONE;
+    return copyit(get_from_Table(RANGESTATUS_table, RangeStatus, VL53L0X_STRING_RANGESTATUS_NONE), pRangeStatusString);
   } // get_range_status_string
 
+  static const Enumified PalERROR_table[] = {
+    {ERROR_NONE, VL53L0X_STRING_ERROR_NONE},
+    {ERROR_CALIBRATION_WARNING, VL53L0X_STRING_ERROR_CALIBRATION_WARNING},
+    {ERROR_MIN_CLIPPED, VL53L0X_STRING_ERROR_MIN_CLIPPED},
+    {ERROR_UNDEFINED, VL53L0X_STRING_ERROR_UNDEFINED}, {ERROR_INVALID_PARAMS, VL53L0X_STRING_ERROR_INVALID_PARAMS}, {ERROR_NOT_SUPPORTED, VL53L0X_STRING_ERROR_NOT_SUPPORTED}, {ERROR_INTERRUPT_NOT_CLEARED, VL53L0X_STRING_ERROR_INTERRUPT_NOT_CLEARED}, {ERROR_RANGE_ERROR, VL53L0X_STRING_ERROR_RANGE_ERROR}, {ERROR_TIME_OUT, VL53L0X_STRING_ERROR_TIME_OUT}, {ERROR_MODE_NOT_SUPPORTED, VL53L0X_STRING_ERROR_MODE_NOT_SUPPORTED}, {ERROR_BUFFER_TOO_SMALL, VL53L0X_STRING_ERROR_BUFFER_TOO_SMALL}, {ERROR_GPIO_NOT_EXISTING, VL53L0X_STRING_ERROR_GPIO_NOT_EXISTING}, {ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED, VL53L0X_STRING_ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED}, {ERROR_CONTROL_INTERFACE, VL53L0X_STRING_ERROR_CONTROL_INTERFACE}, {ERROR_INVALID_COMMAND, VL53L0X_STRING_ERROR_INVALID_COMMAND}, {ERROR_DIVISION_BY_ZERO, VL53L0X_STRING_ERROR_DIVISION_BY_ZERO},
+    {ERROR_REF_SPAD_INIT, VL53L0X_STRING_ERROR_REF_SPAD_INIT},
+    {ERROR_NOT_IMPLEMENTED, VL53L0X_STRING_ERROR_NOT_IMPLEMENTED},
+    {0, 0}
+  };
+
   Error get_pal_error_string(Error PalErrorCode, char *pPalErrorString) {
-
-    LOG_FUNCTION_START
-    ("");
-
-    switch (PalErrorCode) {
-      case ERROR_NONE:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_NONE);
-        break;
-      case ERROR_CALIBRATION_WARNING:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_CALIBRATION_WARNING);
-        break;
-      case ERROR_MIN_CLIPPED:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_MIN_CLIPPED);
-        break;
-      case ERROR_UNDEFINED:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_UNDEFINED);
-        break;
-      case ERROR_INVALID_PARAMS:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_INVALID_PARAMS);
-        break;
-      case ERROR_NOT_SUPPORTED:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_NOT_SUPPORTED);
-        break;
-      case ERROR_INTERRUPT_NOT_CLEARED:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_INTERRUPT_NOT_CLEARED);
-        break;
-      case ERROR_RANGE_ERROR:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_RANGE_ERROR);
-        break;
-      case ERROR_TIME_OUT:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_TIME_OUT);
-        break;
-      case ERROR_MODE_NOT_SUPPORTED:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_MODE_NOT_SUPPORTED);
-        break;
-      case ERROR_BUFFER_TOO_SMALL:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_BUFFER_TOO_SMALL);
-        break;
-      case ERROR_GPIO_NOT_EXISTING:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_GPIO_NOT_EXISTING);
-        break;
-      case ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);
-        break;
-      case ERROR_CONTROL_INTERFACE:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_CONTROL_INTERFACE);
-        break;
-      case ERROR_INVALID_COMMAND:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_INVALID_COMMAND);
-        break;
-      case ERROR_DIVISION_BY_ZERO:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_DIVISION_BY_ZERO);
-        break;
-      case ERROR_REF_SPAD_INIT:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_REF_SPAD_INIT);
-        break;
-      case ERROR_NOT_IMPLEMENTED:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_ERROR_NOT_IMPLEMENTED);
-        break;
-
-      default:
-        COPYSTRING(pPalErrorString, VL53L0X_STRING_UNKNOW_ERROR_CODE);
-    } // switch
-    return ERROR_NONE;
+    return copyit(get_from_Table(RANGESTATUS_table, PalErrorCode, VL53L0X_STRING_UNKNOW_ERROR_CODE), pPalErrorString);
   } // get_pal_error_string
 
   Error get_pal_state_string(State PalStateCode, char *pPalStateString) {

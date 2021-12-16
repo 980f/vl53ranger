@@ -96,10 +96,6 @@ namespace VL53L0X {
 //  return Error_NONE;
 //}
 
-/** @returns an api error code for a non-zero return from an i2c function. At present all such return 0 */
-  static Error recode(int i2creturn) {
-    return i2creturn ? ERROR_CONTROL_INTERFACE : ERROR_NONE;
-  }
 
   Error Physical::WriteMulti(uint8_t index, uint8_t *pdata, uint32_t count) {
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {

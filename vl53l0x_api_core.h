@@ -29,10 +29,10 @@
 #ifndef _VL53L0X_API_CORE_H_
 #define _VL53L0X_API_CORE_H_
 
-//#include "vl53l0x_def.h"
-#include "vl53l0x_platform.h"
+#include "vl53l0x_platform.h" //for Dev_t
 
 namespace VL53L0X {
+  //some device independent functions:
   void reverse_bytes(uint8_t *data, uint32_t size);
   uint8_t encode_vcsel_period(uint8_t vcsel_period_pclks);
   uint8_t decode_vcsel_period(uint8_t vcsel_period_reg);
@@ -86,6 +86,12 @@ namespace VL53L0X {
     Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus);
 
     uint32_t calc_timeout_mclks(uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
+
+  private: //common code fragments or what were file static but didn't actually have the 'static' like they should have.
+    Error device_read_strobe();
+    /** read up to 4 bytes from 0x90 after selecting which at 0x94
+     * source for templates can be in the CPP if not used outside that module :) */
+    template<typename Int> Erroneous<Int> packed90(uint8_t which);
   };
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

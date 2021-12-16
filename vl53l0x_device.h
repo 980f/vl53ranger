@@ -195,7 +195,10 @@ namespace VL53L0X {
     , REG_VHV_CONFIG_PAD_SCL_SDA__EXTSUP_HV = 0x89
     , REG_ALGO_PHASECAL_LIM = 0x30 /* 0x130 */
     , REG_ALGO_PHASECAL_CONFIG_TIMEOUT = 0x30
-    , };
+
+      //formerly hidden inside code
+      ,Private_Strober=0x83  /** strobe related */
+    };
 
   /** the following defines were dropped in favor of a function:
 //#define VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_0 0x0B0

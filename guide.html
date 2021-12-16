@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title></title>
+    <meta name="author" content="Andy Heilveil (github/980f)">
+  </head>
+  <body>
+    <p>VL53 API</p>
+    <p>as reworked by 980F, but pretty close to the original C code<br>
+      starting with Adafruit gentle rewrite.</p>
+    <p><br>
+    </p>
+    <table border="0">
+      <tbody>
+        <tr>
+          <td>File vl53lox_</td>
+          <td><br>
+          </td>
+          <td>980F </td>
+        </tr>
+        <tr>
+          <td>def.h</td>
+          <td>data structures<br>
+            some enums useful for commands</td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>device.h</td>
+          <td>enums for commands and status<br>
+            manifest constants<br>
+          </td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>types.h</td>
+          <td>stdint and other common c library includes.<br>
+          </td>
+          <td>added class for FixedPoint to reduce verbiage when jostling values into and out of commands </td>
+        </tr>
+        <tr>
+          <td>platform.h</td>
+          <td>Port and cached data<br>
+            highest level of device contact<br>
+          </td>
+          <td>reworked extensively </td>
+        </tr>
+        <tr>
+          <td>i2c_platform.h</td>
+          <td>lowest level of device contact<br>
+            implementation is in i2c_comms.cpp for no documented reason.</td>
+          <td>implemented endianess conversion at this layer instead of higher.<br>
+            there are two 16bit values whose endianess differs from all the rest, the api will have to deal with that as platform.h does not support per-transfer endianess</td>
+        </tr>
+        <tr>
+          <td>api_core.h</td>
+          <td>Core contains Device access<br>
+            provides setters and getters<br>
+          </td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>api.h</td>
+          <td><br>
+          </td>
+          <td><br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p><br>
+    </p>
+    <p><br>
+    </p>
+  </body>
+</html>

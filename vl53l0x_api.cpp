@@ -54,35 +54,73 @@ Version_t PalSpecVersion {VL53L0X_SPECIFICATION_VER_REVISION, VL53L0X_SPECIFICAT
     LOG_FUNCTION_START("");
 
     for(unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP;LoopNb-->0;) {
-      Erroneous<bool> value(false,ERROR_TIME_OUT);
-
-      value.error = GetMeasurementDataReady(value);
-      if (~value) {
-        break; /* the error is set */
+      Erroneous<bool> value;
+      value = GetMeasurementDataReady();
+      if (~value || value == 1) {//980f: reversed legacy order of testing, test valid before testing value.
+        return value;
       }
-      if (value == 1) {
-        break; /* done note that status == 0 */
-      }
-      PollingDelay(comm);//delay is on comm so that it can use platform specific technique
+      PollingDelay();//delay is on comm so that it can use platform specific technique
     }
     return {false,ERROR_TIME_OUT};//was init to 'timeout'
   } // VL53L0X_measurement_poll_for_completion
 
 
+  Error Api::check_part_used(uint8_t *Revision, DeviceInfo_t *pDeviceInfo) {
+    LOG_FUNCTION_START
+    ("");
+    Error Status = get_info_from_device( 2);
+
+    if (Status == ERROR_NONE) {
+      if (GETDEVICESPECIFICPARAMETER(Dev, ModuleId) == 0) {
+        *Revision = 0;
+        COPYSTRING(pDeviceInfo->ProductId, "");
+      } else {
+        *Revision = GETDEVICESPECIFICPARAMETER(Dev, Revision);
+        COPYSTRING(pDeviceInfo->ProductId, GETDEVICESPECIFICPARAMETER(Dev, ProductId));
+      }
+    }
+
+    return Status;
+  } // check_part_used
+
+  Error Api::get_device_info(DeviceInfo_t *pDeviceInfo) {
+    uint8_t Revision;
+    Error Error = check_part_used( &Revision, pDeviceInfo);
+    ERROR_OUT;
+    if (Revision == 0) {
+      COPYSTRING(pDeviceInfo->Name, VL53L0X_STRING_DEVICE_INFO_NAME_TS0);
+    } else if ((Revision <= 34) && (Revision != 32)) {
+      COPYSTRING(pDeviceInfo->Name,VL53L0X_STRING_DEVICE_INFO_NAME_TS1);
+    } else if (Revision < 39) {
+      COPYSTRING(pDeviceInfo->Name,VL53L0X_STRING_DEVICE_INFO_NAME_TS2);
+    } else {
+      COPYSTRING(pDeviceInfo->Name,VL53L0X_STRING_DEVICE_INFO_NAME_ES1);
+    }
+    COPYSTRING(pDeviceInfo->Type, VL53L0X_STRING_DEVICE_INFO_TYPE);
+    Error = RdByte(Dev, REG_IDENTIFICATION_MODEL_ID, &pDeviceInfo->ProductType);
+    ERROR_OUT;
+    uint8_t revision_id;
+    Error = RdByte(Dev, REG_IDENTIFICATION_REVISION_ID, &revision_id);
+    pDeviceInfo->ProductRevisionMajor = 1;
+    pDeviceInfo->ProductRevisionMinor = (revision_id & 0xF0) >> 4; //BUG: rev id set even if read fails.
+
+    return Error;
+  } // get_device_info
+
 Error Api::GetProductRevision(uint8_t *pProductRevisionMajor,uint8_t *pProductRevisionMinor){
-  Error Status = ERROR_NONE;
-  uint8_t revision_id;
+  Erroneous<uint8_t> revision_id;
 
   LOG_FUNCTION_START("");
 
-  Status = Dev.RdByte(REG_IDENTIFICATION_REVISION_ID, &revision_id);
+  Status = comm.RdByte(REG_IDENTIFICATION_REVISION_ID, &revision_id);
+
   *pProductRevisionMajor = 1;
   *pProductRevisionMinor = (revision_id & 0xF0) >> 4;
   
   return Status;
 } // GetProductRevision
 
-Error GetDeviceInfo(VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo){
+Error Api::GetDeviceInfo(DeviceInfo_t *pVL53L0X_DeviceInfo){
   Error Status = Error_NONE;
   LOG_FUNCTION_START("");
 
