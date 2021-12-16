@@ -159,7 +159,7 @@ public:
   }
   };
 using FixPoint1616_t = FixPoint<16,16,uint32_t>;
-//types seen in macros that used to do the conversions.
+//types seen in macros that used to do the conversions:
 using FixPoint97_t = FixPoint<9,7,uint16_t>;
 using FixPoint88_t = FixPoint<8,8,uint16_t>;
 using FixPoint412_t = FixPoint<4,12,uint16_t>;

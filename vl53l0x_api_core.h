@@ -38,60 +38,54 @@ namespace VL53L0X {
   uint8_t decode_vcsel_period(uint8_t vcsel_period_reg);
   uint32_t isqrt(uint32_t num);
   uint32_t quadrature_sum(uint32_t a, uint32_t b);
-
   uint32_t decode_timeout(uint16_t encoded_timeout);
-
   uint16_t encode_timeout(uint32_t timeout_macro_clks);
 
-  class Core {
-    DEV Dev;//may eventually make this a base, but for migration want to keep the name.
+  class Core : public Dev_t {
   public:
-    Core(){
-      //todo:0 this is the actual object
+    Core(TwoWire &i2c, uint8_t I2cDevAddr) : Dev_t(i2c, I2cDevAddr) {
+      //do nothing here so that we can statically construct
     }
-    /** @returns false on timeout */
-    Erroneous<bool> measurement_poll_for_completion();
 
-    template <typename Chunk> struct Parameter {
-      DEV &Dev;
+    /** values which have the same representation on the I2C message as in program storage can use this wrapper */
+    template<typename Chunk> struct Parameter {
+      Dev_t &parent;
+
       /** getter */
-      operator Erroneous<Chunk>(){
-
+      operator Erroneous<Chunk>() {
       }
-      /** setter */
-      bool operator=(Chunk chunk){
 
+      /** setter */
+      bool operator=(Chunk chunk) {
       }
     };
 
 /** VCSELPulsePeriodPCLK */
-    Erroneous<uint8_t> get_vcsel_pulse_period( VcselPeriod VcselPeriodType);
+    Erroneous<uint8_t> get_vcsel_pulse_period(VcselPeriod VcselPeriodType);
 
-
-    Error set_vcsel_pulse_period( VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
+    Error set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
 
     Error get_info_from_device(uint8_t option);
 
-  Error get_sequence_step_timeout( SequenceStepId SequenceStepId, uint32_t *pTimeOutMicroSecs);
+    Error get_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t *pTimeOutMicroSecs);
 
-  Error set_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t TimeOutMicroSecs);
+    Error set_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t TimeOutMicroSecs);
 
-  Error get_measurement_timing_budget_micro_seconds( uint32_t *pMeasurementTimingBudgetMicroSeconds);
+    Error get_measurement_timing_budget_micro_seconds(uint32_t *pMeasurementTimingBudgetMicroSeconds);
 
-    Error set_measurement_timing_budget_micro_seconds( uint32_t MeasurementTimingBudgetMicroSeconds);
+    Error set_measurement_timing_budget_micro_seconds(uint32_t MeasurementTimingBudgetMicroSeconds);
 
+    Error load_tuning_settings(const uint8_t *pTuningSettingBuffer);
 
-  Error load_tuning_settings(const uint8_t *pTuningSettingBuffer);
+    Error calc_sigma_estimate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *pSigmaEstimate, uint32_t *pDmax_mm);
 
-  Error calc_sigma_estimate( RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *pSigmaEstimate, uint32_t *pDmax_mm);
+    Error get_total_xtalk_rate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_xtalk_rate_mcps);
 
-  Error get_total_xtalk_rate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_xtalk_rate_mcps);
+    Error get_total_signal_rate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_signal_rate_mcps);
 
-  Error get_total_signal_rate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_signal_rate_mcps);
+    Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus);
 
-  Error get_pal_range_status( uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus);
-
-  uint32_t calc_timeout_mclks( uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
+    uint32_t calc_timeout_mclks(uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
   };
-};
+}//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

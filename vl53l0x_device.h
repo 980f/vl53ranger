@@ -28,8 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
 /**
- * Device specific defines. To be adapted by implementer for the targeted
- * device.
+ * Device specific defines. To be adapted by chip firmware implementer for the targeted device.
  */
 
 #ifndef _VL53L0X_DEVICE_H_
@@ -94,16 +93,12 @@ namespace VL53L0X {
  *  @{
  */
   enum GpioFunctionality : uint8_t {
-    GPIOFUNCTIONALITY_OFF = 0
-    , /*!< NO Interrupt  */
-    GPIOFUNCTIONALITY_THRESHOLD_CROSSED_LOW
-    , /*!< Level Low (value < thresh_low)  */
-    GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH
-    , /*!< Level High (value > thresh_high) */
-    GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT
-    ,/*!< Out Of Window (value < thresh_low OR value > thresh_high)  */
-    GPIOFUNCTIONALITY_NEW_MEASURE_READY
-    , /*!< New Sample Ready  */
+    GPIOFUNCTIONALITY_OFF = 0 /*!< NO Interrupt  */
+    , GPIOFUNCTIONALITY_THRESHOLD_CROSSED_LOW /*!< Level Low (value < thresh_low)  */
+    , GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH /*!< Level High (value > thresh_high) */
+    , GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT /*!< Out Of Window (value < thresh_low OR value > thresh_high)  */
+    , GPIOFUNCTIONALITY_NEW_MEASURE_READY /*!< New Sample Ready  */
+
   };
 #if 0  //the following were redundant definitions for the GpioFunctionality
 #define VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_DISABLED 0x00
@@ -150,8 +145,8 @@ namespace VL53L0X {
     , REG_SYSTEM_INTERRUPT_CONFIG_GPIO = 0x0A
     , REG_GPIO_HV_MUX_ACTIVE_HIGH = 0x84
     , REG_SYSTEM_INTERRUPT_CLEAR = 0x0B
-    , /* Result registers */
-    REG_RESULT_INTERRUPT_STATUS = 0x13
+    /* Result registers */
+    , REG_RESULT_INTERRUPT_STATUS = 0x13
     , REG_RESULT_RANGE_STATUS = 0x14
     , REG_RESULT_CORE_PAGE = 1
     , REG_RESULT_CORE_AMBIENT_WINDOW_EVENTS_RTN = 0xBC
@@ -159,19 +154,19 @@ namespace VL53L0X {
     , REG_RESULT_CORE_AMBIENT_WINDOW_EVENTS_REF = 0xD0
     , REG_RESULT_CORE_RANGING_TOTAL_EVENTS_REF = 0xD4
     , REG_RESULT_PEAK_SIGNAL_RATE_REF = 0xB6
-    , /* Algo register */
-    REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM = 0x28
+    /* Algo register */
+    , REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM = 0x28
     , REG_I2C_SLAVE_DEVICE_ADDRESS = 0x8a
-    , /* Check Limit registers */
-    REG_MSRC_CONFIG_CONTROL = 0x60
+    /* Check Limit registers */
+    , REG_MSRC_CONFIG_CONTROL = 0x60
     , REG_PRE_RANGE_CONFIG_MIN_SNR = 0x27
-    , //ick: an exception to the bigendianess seen elsewhere?:
-    REG_PRE_RANGE_CONFIG_VALID_PHASE_LOW = 0x56
+    //ick: an exception to the bigendianess seen elsewhere?:
+    , REG_PRE_RANGE_CONFIG_VALID_PHASE_LOW = 0x56
     , REG_PRE_RANGE_CONFIG_VALID_PHASE_HIGH = 0x57
     , REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT = 0x64
     , REG_FINAL_RANGE_CONFIG_MIN_SNR = 0x67
-    , //ick: another little endian!
-    REG_FINAL_RANGE_CONFIG_VALID_PHASE_LOW = 0x47
+    //ick: another little endian!
+    , REG_FINAL_RANGE_CONFIG_VALID_PHASE_LOW = 0x47
     , REG_FINAL_RANGE_CONFIG_VALID_PHASE_HIGH = 0x48
     , REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT = 0x44
     , REG_PRE_RANGE_CONFIG_SIGMA_THRESH_HI = 0x61

@@ -29,9 +29,8 @@
 #ifndef _VL53L0X_PLATFORM_H_
 #define _VL53L0X_PLATFORM_H_
 
-#include "vl53l0x_def.h"
+#include "vl53l0x_def.h"  //DevData and pointless connection to Error
 #include "vl53l0x_i2c_platform.h"
-#include "vl53l0x_platform_log.h"
 
 namespace VL53L0X {
 
@@ -56,15 +55,20 @@ namespace VL53L0X {
 /** In ST's work this guy's fields were embedded in the Device causing unnecessary sharing of information. */
   struct Physical {
     /*!< user specific field */
-    uint8_t I2cDevAddr; /*!< i2c device address user specific field */
+    ArduinoWirer wirer;
 //senseless parameter until we have a base class instead of explicit TwoWire    uint8_t comms_type;   /*!< Type of comms : VL53L0X_COMMS_I2C or VL53L0X_COMMS_SPI */
     uint16_t comms_speed_khz; /*!< Comms speed [kHz] : typically 400kHz for I2C */
 
-    TwoWire &i2c;
     Physical(TwoWire &i2c,uint8_t I2cDevAddr,uint16_t comms_speed_khz=400):
-    i2c(i2c),I2cDevAddr(I2cDevAddr),comms_speed_khz(comms_speed_khz){
+    wirer(i2c,I2cDevAddr),comms_speed_khz(comms_speed_khz){
       //do nothing so that we can have statically constructed instances.
     }
+
+    /** it appears that applications typically have done this init themselves instead of calling this one. */
+    bool init(){
+      wirer.i2c_init(comms_speed_khz);
+    }
+
 /**
  * Lock comms interface to serialize all commands to a shared I2C interface.
  * ST allowed useless context, only the I2C master involved should be relevant here.
@@ -105,6 +109,7 @@ namespace VL53L0X {
  * @return  "Other error code"    See ::VL53L0X_Error
  */
     Error ReadMulti( uint8_t index, uint8_t *pdata, uint32_t count);
+
 
 
 /**
@@ -185,7 +190,9 @@ namespace VL53L0X {
 
   struct Dev_t {
     DevData_t Data; /*!< embed ST Ewok Dev  data as "Data"*/
-    Physical comm;
+    Physical comm; //not a base as eventually we will pass in a reference to a baser class
+
+    Dev_t(TwoWire &i2c,uint8_t I2cDevAddr):comm(i2c, I2cDevAddr){}
 
     struct ProductRevision {
       uint8_t Major;
@@ -193,6 +200,23 @@ namespace VL53L0X {
     };
 
     Erroneous<ProductRevision> GetProductRevision();
+    /**
+ * @brief execute delay in all polling API call
+ *
+ * 980f: this sounds like it should be called 'yield()', allow other tasks to run.
+ *
+ * A typical multi-thread or RTOs implementation is to sleep the task for some
+ * 5ms (with 100Hz max rate faster polling is not needed) if nothing specific is
+ * need you can define it as an empty/void macro
+ * @code
+ * #define VL53L0X_PollingDelay(...) (void)0
+ * @endcode
+ * @param Dev       Device Handle
+ * @return  VL53L0X_ERROR_NONE        Success
+ * @return  "Other error code"    See ::VL53L0X_Error
+ */
+    Error PollingDelay(); /* usually best implemented as a real function */
+
   };
 
 /**
@@ -229,22 +253,6 @@ namespace VL53L0X {
  *  @{
  */
 
-/**
- * @brief execute delay in all polling API call
- *
- * 980f: this sounds like it should be called 'yield()', allow other tasks to run.
- *
- * A typical multi-thread or RTOs implementation is to sleep the task for some
- * 5ms (with 100Hz max rate faster polling is not needed) if nothing specific is
- * need you can define it as an empty/void macro
- * @code
- * #define VL53L0X_PollingDelay(...) (void)0
- * @endcode
- * @param Dev       Device Handle
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
- */
-  Error PollingDelay(Physical &bus); /* usually best implemented as a real function */
 
 /** @} end of VL53L0X_platform_group */
 

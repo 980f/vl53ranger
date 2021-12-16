@@ -88,12 +88,12 @@ namespace VL53L0X {
 #define VL53L0X_GetI2CAccess(Dev) /* todo mutex acquire */
 #define VL53L0X_DoneI2CAcces(Dev) /* todo mutex release */
 //
-//VL53L0X_Error VL53L0X_LockSequenceAccess(VL53L0X_DEV Dev) {
-//  return VL53L0X_ERROR_NONE;
+//Error VL53L0X_LockSequenceAccess(VL53L0X_DEV Dev) {
+//  return Error_NONE;
 //}
 //
-//VL53L0X_Error VL53L0X_UnlockSequenceAccess(VL53L0X_DEV Dev) {
-//  return VL53L0X_ERROR_NONE;
+//Error VL53L0X_UnlockSequenceAccess(VL53L0X_DEV Dev) {
+//  return Error_NONE;
 //}
 
 /** @returns an api error code for a non-zero return from an i2c function. At present all such return 0 */
@@ -105,67 +105,61 @@ namespace VL53L0X {
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
       return ERROR_INVALID_PARAMS;//BUG: formerly went ahead and asked for invalid transfer
     }
-    return recode(Physical::write_multi( index, pdata, count));
+    return recode(wirer.write_multi( index, pdata, count));
   }
-// the ranging_sensor_comms.dll will take care of the page selection
-  VL53L0X_Error VL53L0X_WriteMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, uint32_t count) {
-  } // VL53L0X_WriteMulti
 
 // the ranging_sensor_comms.dll will take care of the page selection
-  VL53L0X_Error VL53L0X_ReadMulti(VL53L0X_DEV Dev, uint8_t index, uint8_t *pdata, uint32_t count) {
+  Error Physical::ReadMulti( uint8_t index, uint8_t *pdata, uint32_t count) {
     VL53L0X_I2C_USER_VAR
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
-      return VL53L0X_ERROR_INVALID_PARAMS;//BUG: formerly went ahead and sent truncated data
+      return ERROR_INVALID_PARAMS;//BUG: formerly went ahead and sent truncated data
     }
-    return recode(VL53L0X_read_multi(Dev->I2cDevAddr, index, pdata, count, Dev->i2c));
+    return recode(wirer.read_multi( index, pdata, count));
   } // VL53L0X_ReadMulti
 
-  VL53L0X_Error VL53L0X_WrByte(VL53L0X_DEV Dev, uint8_t index, uint8_t data) {
+  Error Physical::WrByte( uint8_t index, uint8_t data) {
     //BUG?: not locked like the ReadMulti was, why not?
-    return recode(VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c));
+    return recode(wirer.Write( index, data));
   } // VL53L0X_WrByte
 
-  Error WrWord( uint8_t index, uint16_t data) {
-    return recode(VL53L0X_write_word(Dev->I2cDevAddr, index, data, Dev->i2c));
+  Error Physical::WrWord( uint8_t index, uint16_t data) {
+    return recode(wirer.Write( index, data));
   } // VL53L0X_WrWord
 
-  VL53L0X_Error VL53L0X_WrDWord(uint8_t index, uint32_t data) {
-    return recode(VL53L0X_write_dword(Dev->I2cDevAddr, index, data, Dev->i2c));
+  Error Physical::WrDWord(uint8_t index, uint32_t data) {
+    return recode(wirer.Write( index, data));
   } // VL53L0X_WrDWord
 
-  VL53L0X_Error VL53L0X_RdByte(VL53L0X_DEV Dev, uint8_t index, uint8_t *data) {
-    return recode(VL53L0X_read_byte(Dev->I2cDevAddr, index, data, Dev->i2c));
+  Error Physical::RdByte( uint8_t index, uint8_t *data) {
+    return recode(wirer.Read(index, data));
   } // VL53L0X_RdByte
 
-  VL53L0X_Error VL53L0X_RdWord(VL53L0X_DEV Dev, uint8_t index, uint16_t *data) {
-    return recode(VL53L0X_read_word(Dev->I2cDevAddr, index, data, Dev->i2c));
+  Error Physical::RdWord( uint8_t index, uint16_t *data) {
+    return recode(wirer.Read( index, data));
   } // VL53L0X_RdWord
 
-  VL53L0X_Error VL53L0X_RdDWord(VL53L0X_DEV Dev, uint8_t index, uint32_t *data) {
-    return recode(VL53L0X_read_dword(Dev->I2cDevAddr, index, data, Dev->i2c) != 0);
+  Error Physical::RdDWord(uint8_t index, uint32_t *data) {
+    return recode(wirer.Read( index, data) != 0);
   } // VL53L0X_RdDWord
 
-//BUG: below is a parameter that must be tuned per platform, but is buried deep in the source:
-#define VL53L0X_POLLINGDELAY_LOOPNB 250
+  Error Physical::UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData) {
+    uint8_t data;
+    if (wirer.Read( index, data)) {
+      return ERROR_CONTROL_INTERFACE;
+    }
+    data = (data & AndData) | OrData;
+    return recode(wirer.Write( index, data));
+  }
 
-  VL53L0X_Error VL53L0X_PollingDelay(VL53L0X_DEV Dev) {
-    LOG_FUNCTION_START
-    ("");
+//ick: below is a parameter that must be tuned per platform, but is buried deep in the source:
+#define VL53L0X_POLLINGDELAY_LOOPNB 250
+  Error Dev_t::PollingDelay() {
+    LOG_FUNCTION_START    ("");
     for (volatile unsigned i = VL53L0X_POLLINGDELAY_LOOPNB; i-- > 0;) {
       // Do nothing
       asm ("nop");
     }
-    return VL53L0X_ERROR_NONE;
-  } // VL53L0X_PollingDelay
-  Error VL53L0X::Physical::UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData) {
-    uint8_t data;
-    if (comm.VL53L0X_read_byte(Dev->I2cDevAddr, index, &data, Dev->i2c)) {
-      return ERROR_CONTROL_INTERFACE;
-    }
-    data = (data & AndData) | OrData;
-    return recode(VL53L0X_write_byte(Dev->I2cDevAddr, index, data, Dev->i2c));
-
     return ERROR_NONE;
-  }
+  } // VL53L0X_PollingDelay
 
-}//end namespace
+} //end namespace

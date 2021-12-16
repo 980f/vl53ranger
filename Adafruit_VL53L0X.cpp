@@ -406,8 +406,7 @@ boolean Adafruit_VL53L0X::startRange(void){
 /**************************************************************************/
 
 boolean Adafruit_VL53L0X::isRangeComplete(void){
-  uint8_t NewDataReady = 0;
-  Status = VL53L0X_GetMeasurementDataReady(pMyDevice, &NewDataReady);
+  Erroneous<bool> api.GetMeasurementDataReady();
   return (Status != VL53L0X_ERROR_NONE) || (NewDataReady == 1);
 }
 

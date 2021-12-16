@@ -1,29 +1,36 @@
+//Copyright 2021 Andrew Heilveil, github/980f
+
+/** implementation for vl53l0x_i2c_platform.h, given a spurious name for legacy reasons */
+
 #include "vl53l0x_i2c_platform.h"
 #include <Wire.h>
-i2c.beginTransmission(deviceAddress);
 
 //#define I2C_DEBUG
-namespace Arduinoi { //misspelled in case one already exist
-  
-void i2c_init(TwoWire& i2c) {
-  i2c.begin();
+
+uint8_t ArduinoWirer::changedAddress(uint8_t newAddress) {
+  uint8_t was = this->deviceAddress;
+  this->deviceAddress = newAddress;
+  return was;
 }
 
 /** RAII widget to allow us easy bailout on unexpected NAK's from device. */
-class I2cFramer{
-  TwoWire& i2c;
+class I2cFramer {
+  ArduinoWirer &parent;
 public:
-  I2cFramer(TwoWire& i2c,uint8_t deviceAddress):i2c(i2c){
-    i2c.beginTransmission(deviceAddress);
+  I2cFramer(ArduinoWirer &parent) : parent(parent) {
+    parent.i2c.beginTransmission(parent.deviceAddress);
   }
-  ~I2cFramer(){
-    i2c.endTransmission();//#NB: this here is what takes all the time when sending.
+
+  ~I2cFramer() {
+    parent.i2c.endTransmission();//#NB: this here is what takes all the time when sending.
   }
 };
 
-bool write_multi(TwoWire& i2c,uint8_t deviceAddress, uint8_t index, uint8_t *pdata, int count) {
-  I2cFramer frameit(i2c,deviceAddress);
-  if(i2c.write(index)!=1) return false;
+bool ArduinoWirer::write_multi(uint8_t index, uint8_t *pdata, int count) {
+  I2cFramer frameit(*this);
+  if (i2c.write(index) != 1) {
+    return false;
+  }
 #ifdef I2C_DEBUG
   Serial.print("\tWriting ");
   Serial.print(count);
@@ -35,12 +42,12 @@ bool write_multi(TwoWire& i2c,uint8_t deviceAddress, uint8_t index, uint8_t *pda
     count = -count;//now positive
     pdata += count;//past end
     while (count-- > 0) {
-      if(i2c.write(pdata[count])!=1){
+      if (i2c.write(pdata[count]) != 1) {
         return false;
       }
     }
   } else {
-    if(i2c.write(pdata, count) !=count){
+    if (i2c.write(pdata, count) != count) {
       return false;
     }
   }
@@ -56,7 +63,7 @@ bool write_multi(TwoWire& i2c,uint8_t deviceAddress, uint8_t index, uint8_t *pda
   return true;
 }
 
-bool read_multi(TwoWire& i2c, uint8_t deviceAddress, uint8_t index, uint8_t *pdata, int count) {
+bool ArduinoWirer::read_multi(uint8_t index, uint8_t *pdata, int count) {
   bool reversing = count < 0;
   if (reversing) {
     count = -count;//now positive
@@ -65,8 +72,8 @@ bool read_multi(TwoWire& i2c, uint8_t deviceAddress, uint8_t index, uint8_t *pda
   i2c.beginTransmission(deviceAddress);
   i2c.write(index);
   i2c.endTransmission();
-  auto didit=i2c.requestFrom(deviceAddress,  count);
-  if(didit!=count){
+  auto didit = i2c.requestFrom(deviceAddress, count);
+  if (didit != count) {
     return false;
   }
 #ifdef I2C_DEBUG
@@ -101,4 +108,3 @@ bool read_multi(TwoWire& i2c, uint8_t deviceAddress, uint8_t index, uint8_t *pda
   return true;
 }
 
-} 

@@ -114,8 +114,7 @@ public:
   FixPoint1616_t getLimitCheckValue(uint16_t LimitCheckId);
 
 private:
-  VL53L0X::Dev_t MyDevice;
-  VL53L0X::Dev_t *pMyDevice = &MyDevice;
+  VL53L0X::Api MyDevice;
   VL53L0X::DeviceInfo_t DeviceInfo;
   uint8_t _rangeStatus;
 }; // class Adafruit_VL53L0X
