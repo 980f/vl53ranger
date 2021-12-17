@@ -32,23 +32,41 @@
 #include "vl53l0x_def.h"
 #include "vl53l0x_platform.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace VL53L0X {
+/**
+ new approach, point to it so that printf etc can pick up the data without intermediate buffer or copy.
 
-VL53L0X_Error VL53L0X_get_device_info(VL53L0X_DEV Dev,VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo);
+ Each of the below returns nullptr on an invalid code unless someone decided to put in a specific string for such.
+ */
+  const char *device_error_string(DeviceError ErrorCode);
+  const char *range_status_string(uint8_t RangeStatus);
+  const char *pal_error_string(const Error &PalErrorCode);
+  const char *pal_state_string(const State &PalStateCode) ;
+  const char *sequence_steps_info(const SequenceStepId &SequenceStepId) ;
+  const char *limit_check_info(uint16_t LimitCheckId) ;
 
-VL53L0X_Error VL53L0X_get_device_error_string(VL53L0X_DeviceError ErrorCode,char *pDeviceErrorString);
+  //was in wrong module, is a device function not a stringifying function:
+//  Error get_device_info(VL53L0X_DEV Dev, VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo);
 
-VL53L0X_Error VL53L0X_get_range_status_string(uint8_t RangeStatus,char *pRangeStatusString);
+/** all but one of the get__string|info methods used to return ERROR_NONE, and stuff in an error message to the text.
+ * changing those to return void allows us to remove gratuitous checks that were most likely not made.
+ * */
+  void get_device_error_string(DeviceError ErrorCode, char *pDeviceErrorString);
 
-VL53L0X_Error VL53L0X_get_pal_error_string(VL53L0X_Error PalErrorCode,char *pPalErrorString);
+  void  get_range_status_string(uint8_t RangeStatus, char *pRangeStatusString);
 
-VL53L0X_Error VL53L0X_get_pal_state_string(VL53L0X_State PalStateCode,char *pPalStateString);
+  void  get_pal_error_string(Error PalErrorCode, char *pPalErrorString);
 
-VL53L0X_Error VL53L0X_get_sequence_steps_info(VL53L0X_SequenceStepId SequenceStepId,char *pSequenceStepsString);
+  void  get_pal_state_string(State PalStateCode, char *pPalStateString);
 
-VL53L0X_Error VL53L0X_get_limit_check_info(VL53L0X_DEV Dev,uint16_t LimitCheckId,char *pLimitCheckString);
+  void  get_limit_check_info( uint16_t LimitCheckId, char *pLimitCheckString);
+
+  /** @returns ERROR_INVALID_PARAMS for unknown step id, else ERROR_NONE. */
+  Error get_sequence_steps_info(SequenceStepId SequenceStepId, char *pSequenceStepsString);
+
+
+}// end name space
+
 
 #ifdef USE_EMPTY_STRING
 #define VL53L0X_STRING_DEVICE_INFO_NAME ""
