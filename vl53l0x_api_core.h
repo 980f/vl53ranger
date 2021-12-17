@@ -40,8 +40,10 @@ namespace VL53L0X {
   uint32_t quadrature_sum(uint32_t a, uint32_t b);
   uint32_t decode_timeout(uint16_t encoded_timeout);
   uint16_t encode_timeout(uint32_t timeout_macro_clks);
+  uint32_t calc_timeout_mclks(uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
 
-  Error sequence_step_enabled(SequenceStepId SequenceStepId,uint8_t SequenceConfig,uint8_t *pSequenceStepEnabled);
+
+//replaced need with constructor  Error sequence_step_enabled(SequenceStepId SequenceStepId,uint8_t SequenceConfig,uint8_t *pSequenceStepEnabled);
 
   class Core : public Dev_t {
   public:
@@ -62,7 +64,10 @@ namespace VL53L0X {
       }
     };
 
-/** VCSELPulsePeriodPCLK */
+    Erroneous<bool> GetSequenceStepEnable(SequenceStepId StepId); // GetSequenceStepEnable
+
+
+    /** VCSELPulsePeriodPCLK */
     Erroneous<uint8_t> get_vcsel_pulse_period(VcselPeriod VcselPeriodType);
 
     Error set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
@@ -87,9 +92,13 @@ namespace VL53L0X {
 
     Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus);
 
-    uint32_t calc_timeout_mclks(uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
 
-  protected: //common code fragments or what were file static but didn't actually have the 'static' like they should have.
+  private:  //common code fragments or what were file static but didn't actually have the 'static' like they should have.
+    Error setValidPhase(uint8_t high, uint8_t low);
+
+    Error setPhasecalLimit(uint8_t value);
+
+  protected: //some of this functionality was in api.cpp but used by core.cpp
     Error device_read_strobe();
     /** read up to 4 bytes from 0x90 after selecting which at 0x94
      * source for templates can be in the CPP if not used outside that module :) */
@@ -98,10 +107,9 @@ namespace VL53L0X {
 
 /** gets value from device, @returns whether it worked OK.*/
     template<typename Scalar> bool fetch(Erroneous<Scalar> &item, RegSystem reg);
-  private:
-    Error setValidPhase(uint8_t high, uint8_t low);
-
-    Error setPhasecalLimit(uint8_t value);
+    Erroneous <SchedulerSequenceSteps_t> get_sequence_step_enables();
+    uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
+    Erroneous <uint32_t> calc_sigma_estimate(RangingMeasurementData_t *pRangingMeasurementData, const FixPoint1616_t *pSigmaEstimate);
   };
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

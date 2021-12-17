@@ -369,7 +369,7 @@ VL53L0X_Error count_enabled_spads(uint8_t spadArray[], uint32_t byteCount, uint3
     if ((tempByte & 0x01) == 1) {
       ++*pTotalSpadsEnabled;
     }
-    //BUG: this is the bug that triggered rewriting of this whole application, forgot to shift the tempByte while counting its bits.
+    //BUG: this is the bug that triggered rewriting of this whole application, forgot to shrink the tempByte while counting its bits.
     //... the real fix is to not bother with this since the unused bits will be zero and we inspect them without harm.
   }
 

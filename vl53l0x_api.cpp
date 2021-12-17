@@ -1014,28 +1014,7 @@ Error VL53L0X_SetSequenceStepEnable(VL53L0X_SequenceStepId SequenceStepId,uint8_
 } // VL53L0X_SetSequenceStepEnable
 
 
-Error Api::GetSequenceStepEnable(SequenceStepId SequenceStepId,uint8_t *pSequenceStepEnabled){
-  LOG_FUNCTION_START("");
-  Erroneous<uint8_t> SequenceConfig ;
-  if(fetch(SequenceConfig,REG_SYSTEM_SEQUENCE_CONFIG)){
-    sequence_step_enabled(SequenceStepId, SequenceConfig, pSequenceStepEnabled);
-  }
-  return SequenceConfig.error;
-} // GetSequenceStepEnable
 
-Error Api::GetSequenceStepEnables(SchedulerSequenceSteps_t *pSchedulerSequenceSteps){
-  LOG_FUNCTION_START("");
-  Erroneous<uint8_t> SequenceConfig ;
-  if(fetch(SequenceConfig, REG_SYSTEM_SEQUENCE_CONFIG)){
-    //since we are using the defined symbols we will never get errors on the following
-     sequence_step_enabled(SEQUENCESTEP_TCC, SequenceConfig, &pSchedulerSequenceSteps->TccOn);
- sequence_step_enabled(SEQUENCESTEP_DSS, SequenceConfig, &pSchedulerSequenceSteps->DssOn);
- sequence_step_enabled(SEQUENCESTEP_MSRC, SequenceConfig, &pSchedulerSequenceSteps->MsrcOn);
- sequence_step_enabled(SEQUENCESTEP_PRE_RANGE, SequenceConfig, &pSchedulerSequenceSteps->PreRangeOn);
- sequence_step_enabled(SEQUENCESTEP_FINAL_RANGE, SequenceConfig, &pSchedulerSequenceSteps->FinalRangeOn);
-  }
-  return SequenceConfig.error;
-} // GetSequenceStepEnables
 
 void Api::GetNumberOfSequenceSteps(uint8_t *pNumberOfSequenceSteps){
   *pNumberOfSequenceSteps = SEQUENCESTEP_NUMBER_OF_CHECKS;

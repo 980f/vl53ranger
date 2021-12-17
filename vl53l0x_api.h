@@ -726,7 +726,7 @@ namespace VL53L0X {
  *                                       supported.
  * @return  "Other error code"           See ::Error
  */
-    Error GetSequenceStepEnable(SequenceStepId SequenceStepId, uint8_t *pSequenceStepEnabled);
+    Erroneous<bool> GetSequenceStepEnable(SequenceStepId StepId);
 
 /**
  * @brief Gets the (on/off) state of all sequence steps.
@@ -1837,6 +1837,7 @@ namespace VL53L0X {
 /** @} SPADfunctions_group */
 
 /** @} cut11_group */
+
   };
 }//end namespace
 #endif /* __H_ */

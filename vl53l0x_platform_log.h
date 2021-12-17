@@ -52,19 +52,17 @@ enum TRACE_LEVEL {
 
 #if VL53L0X_LOG_ENABLE
 
-extern VL53L0X_Error Error;
-
-class PerformanceTracer {
+class PerformanceTracer :public  VL53L0X::ErrorAccumulator {
   const char *location;
   uint32_t starttime;
   //placeholders until we get the logging output defined:
   static uint32_t logclock();
   static void printf(const char *format, ...);
-  static bool enable;//manipulate via debugger
-  bool enabled;//todo: local enable defaulted to global one.
+  static bool enabled;//manipulate via debugger.. //todo:init with some compiler defined flag
+//  bool enabled;
 public:
   /** records location and emits start message to log */
-  PerformanceTracer(const char *location) : location(location), starttime(logclock()),enabled(enable) {
+  PerformanceTracer(const char *location) : VL53L0X::ErrorAccumulator(VL53L0X::ERROR_NONE),location(location), starttime(logclock()) {
     if(enabled){
       printf("START %s at %ud", location, starttime);
     }
@@ -77,11 +75,11 @@ public:
   }
   /** use location and emits start message to log */
   ~PerformanceTracer() {
-    printf("END %s after %ud, error=%d", location, logclock() - starttime,Error);//todo: compiletime option for error string
+    printf("END %s after %ud, error=%d", location, logclock() - starttime, sum);//todo: compiletime option for error string now that api_strings supports it
   }
 };
 
-#define LOG_FUNCTION_START  PerformanceTracer log(__FUNCTION__);
+#define LOG_FUNCTION_START  PerformanceTracer Error(__FUNCTION__);
 //for additional info put Log(fmt, ... args) after LOG_FUNCTION_START and before ;
 #else
 #define LOG_FUNCTION_START

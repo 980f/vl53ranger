@@ -102,6 +102,39 @@ typedef signed char int8_t;
 /** @}  */
 #endif /* _STDINT_H */
 
+template<typename Intish> constexpr bool getBit(const unsigned bitnum,const Intish data){
+  if( bitnum/8 > sizeof(Intish)){
+    //todo: compiletime error if bitnum/8 is greater than bytes in the data
+    return false;
+  }
+  return (data&(1<<bitnum))!=0;
+}
+
+template<typename Intish> constexpr uint8_t getByte(const unsigned bytenum,const Intish data){
+  if( bytenum > sizeof(Intish)){
+    //todo: compiletime error if bitnum/8 is greater than bytes in the data
+    return false;
+  }
+  return data>>(8*bytenum);
+}
+
+/** @returns @param num divided by @param denom, rounded */
+template <typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom){
+  return (denom!=0)? (num+(denom>>1))/denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
+}
+
+/** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
+template <typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned powerof2) {
+  return (num + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
+}
+
+/** @returns value squared
+ * might add saturation which is rarely checked at present */
+template <typename Intish> Intish squared(Intish num) {
+  return num*num;
+}
+
+
 /** use where fractional values are expected
  *
  * Given a floating point value f it's .16 bit point is (int)(f*(1<<16))*/
@@ -123,9 +156,13 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
     return float(raw >> fract) + float(raw & mask) / float(powerShifter);
   }
 
+  //todo: this is logically dangerous but matches legacy use. Logically one would expect to assing to the whole part, ie shrink by fract.
   FixPoint &operator=(RawType pattern) {
     raw = pattern;
     return *this;
+  }
+
+  FixPoint () :raw(0){
   }
 
   FixPoint &operator=(float eff) {
@@ -144,6 +181,58 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
     return *this;
   }
 
+
+  FixPoint (float eff){
+    *this=eff;
+  }
+
+  /** @returns nearest integer to nominal value */
+  RawType rounded(){
+    return (raw + half) >> fract;
+  }
+
+  /** @returns the raw value of this scaled by 2^ @param  bits, roundeding */
+  RawType scaled(unsigned bits) const {
+    return roundedScale(raw,bits);
+  }
+
+  /** @returns this after dividing by 2^ @param bits, rounding */
+  FixPoint &shrink(unsigned bits){
+    raw=this->scaled(bits);
+    return *this;
+  }
+
+  /** @returns this after dividing by 2^ @param bits, rounding */
+  RawType boosted(unsigned bits) const{
+    return raw<<bits;
+  }
+
+
+  /** @returns this after dividing by 2^ @param bits, rounding */
+  FixPoint &boost(unsigned bits){
+    raw<<=bits;
+    return *this;
+  }
+
+  RawType squared() const {//todo: add power of 2 divider
+    return squared(raw);
+  }
+
+  FixPoint &square(){
+    raw*=raw;
+    return *this;
+  }
+
+
+  /** @returns this after ensuring that it is no greater than @param max */
+  FixPoint &lessen(FixPoint max){
+    if (raw > max.raw) {
+      /* Clip to prevent overflow. Will ensure safe max result. */
+      raw = max.raw;
+    }
+    return *this;
+  }
+
   /** @returns integer part times 1000 rounded to integer. Might overflow. */
   RawType millis()const {
     return ((raw * 1000) + half) >> fract;
@@ -152,7 +241,7 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
   template<unsigned other_whole, unsigned other_fract>  FixPoint &operator=(FixPoint<other_whole, other_fract> other) {
 //e.g: <16,16>other  to <9,7> this (uint16_t)((Value >> 9) & 0xFFFF)
     const int bitdiff = fract - other_fract;
-    if (size >= other.size) {//we are expanding so inflate and shift
+    if (size >= other.size) {//we are expanding so inflate and shrink
       raw = other.raw;//radix point is still at other_fract position
       if (bitdiff < 0) {//truncating some bits on the ls end
         raw >>= (-bitdiff);
@@ -168,7 +257,21 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
       raw = other.raw;//radix point is still at other_fract position
     }
   }
+
+  /** rounding /= */
+  template<typename Intish> FixPoint &divideby(Intish denom) {
+    raw= roundedDivide(raw,denom);
+    return *this;
+  }
 };
+template<unsigned whole, unsigned fract, typename RawType= uint32_t>
+static RawType quadrature_sum(FixPoint<whole, fract, RawType> a, FixPoint<whole, fract, RawType> b){
+  //todo: debate whether the guard in the non-class quadrature_sum should apply
+//      if (a > 65535 || b > 65535) {
+//        return 65535;
+//      }
+  return isqrt(a.squared()+ b.squared());
+}
 
 using FixPoint1616_t = FixPoint<16, 16, uint32_t>;
 //types seen in macros that used to do the conversions:

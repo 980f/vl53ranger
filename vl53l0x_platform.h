@@ -198,6 +198,10 @@ namespace VL53L0X {
  */
     Error UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData);
 
+    Error UpdateBit(const uint8_t index, const uint8_t bitnumber, const bool value){
+      return UpdateByte(index,~(value?0:(1<<bitnumber)), value?(1<<bitnumber):0);
+    }
+
 /** @} end of VL53L0X_registerAccess_group */
   private:
     /** @returns an api error code for a non-zero return from an i2c function. At present all such return 0. */

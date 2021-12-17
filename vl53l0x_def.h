@@ -154,6 +154,9 @@ namespace VL53L0X {
   struct ErrorAccumulator {
     Error sum = ERROR_NONE;
 
+    ErrorAccumulator(Error first) : sum(first) {
+    }
+
     ErrorAccumulator &operator|=(Error other) {
       if (other != ERROR_NONE) {
         sum = other;
@@ -162,7 +165,7 @@ namespace VL53L0X {
 
     ErrorAccumulator &operator=(Error other) {
       sum = other;
-      return *this
+      return *this;
     }
 
     operator Error() const {
@@ -178,6 +181,9 @@ namespace VL53L0X {
     ErrorAccumulator error;
 
     Erroneous(Wrapped wrapped, Error error = ERROR_NONE) : wrapped(wrapped), error(error) {
+    }
+
+    Erroneous(Error error = ERROR_NONE) : wrapped(), error(error) {
     }
 
     /** @returns whether value is GOOD. If not you can inspect Error for what went wrong */
@@ -453,20 +459,6 @@ namespace VL53L0X {
 /** @} VL53L0X_define_VcselPeriod_group */
   };
 
-/** @defgroup VL53L0X_define_SchedulerSequence_group Defines the steps
- * carried out by the scheduler during a range measurement.
- *	@{
- *	Defines the states of all the steps in the scheduler
- *	i.e. enabled/disabled.
- */
-  struct SchedulerSequenceSteps_t {
-    uint8_t TccOn;        /*!<Reports if Target Centre Check On  */
-    uint8_t MsrcOn;       /*!<Reports if MSRC On  */
-    uint8_t DssOn;        /*!<Reports if DSS On  */
-    uint8_t PreRangeOn;   /*!<Reports if Pre-Range On	*/
-    uint8_t FinalRangeOn; /*!<Reports if Final-Range On  */
-  };
-
 /** @} VL53L0X_define_SchedulerSequence_group */
 
 /** @defgroup VL53L0X_define_SequenceStepId_group Defines the Polarity
@@ -484,6 +476,50 @@ namespace VL53L0X {
     , SEQUENCESTEP_NUMBER_OF_CHECKS /*!<Number of Sequence Step Managed by the API. */
   };
 
+  /** @returns the bit within the packed SequenceStep control byte for the given @param sid  choice */
+  constexpr int bitFor(SequenceStepId sid){
+      switch (sid) {
+        case SEQUENCESTEP_TCC:
+          return 4;
+        case SEQUENCESTEP_DSS:
+          return  3;
+        case SEQUENCESTEP_MSRC:
+          return  2;
+        case SEQUENCESTEP_PRE_RANGE:
+          return  6;
+          break;
+        case SEQUENCESTEP_FINAL_RANGE:
+          return  7;
+        default:
+          return -1;
+      } // switch
+    }
+
+/** @defgroup VL53L0X_define_SchedulerSequence_group Defines the steps
+ * carried out by the scheduler during a range measurement.
+ *	@{
+ *	Defines the states of all the steps in the scheduler
+ *	i.e. enabled/disabled.
+ */
+  struct SchedulerSequenceSteps_t {
+    bool TccOn=false ;       /*!<Reports if Target Centre Check On  */
+    bool MsrcOn=false ;       /*!<Reports if MSRC On  */
+    bool DssOn=false ;        /*!<Reports if DSS On  */
+    bool PreRangeOn=false ;   /*!<Reports if Pre-Range On	*/
+    bool FinalRangeOn=false ; /*!<Reports if Final-Range On  */
+    SchedulerSequenceSteps_t &unpack(uint8_t devicebyte){
+      TccOn= getBit(bitFor(SEQUENCESTEP_TCC),devicebyte);
+      DssOn=getBit(bitFor(SEQUENCESTEP_DSS),devicebyte);
+      MsrcOn= getBit(bitFor(SEQUENCESTEP_MSRC),devicebyte);
+      PreRangeOn= getBit(bitFor(SEQUENCESTEP_PRE_RANGE),devicebyte);
+      FinalRangeOn= getBit(bitFor(SEQUENCESTEP_FINAL_RANGE),devicebyte);
+      return *this;
+    }
+
+    SchedulerSequenceSteps_t(uint8_t devicebyte) {
+      unpack(devicebyte);
+    }
+  };
 
 /** @} VL53L0X_define_SequenceStepId_group */
 
@@ -507,29 +543,29 @@ namespace VL53L0X {
 #define VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, field)  PALDevDataGet(Dev, DeviceSpecificParameters).field
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT97(Value)  (uint16_t)((Value >> 9) & 0xFFFF)
-//BUG: (UB) need to cast/convert before shift, not after
+//BUG: (UB) need to cast/convert before shrink, not after
 #define VL53L0X_FIXPOINT97TOFIXPOINT1616(Value) (FixPoint1616_t)((Value) << 9)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT88(Value)  (uint16_t)((Value >> 8) & 0xFFFF)
-//BUG: (UB) need to cast/convert before shift, not after
+//BUG: (UB) need to cast/convert before shrink, not after
 #define VL53L0X_FIXPOINT88TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT412(Value) (uint16_t)((Value >> 4) & 0xFFFF)
 #define VL53L0X_FIXPOINT412TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 4)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT313(Value) (uint16_t)((Value >> 3) & 0xFFFF)
-//BUG: (UB) need to cast/convert before shift, not after
+//BUG: (UB) need to cast/convert before shrink, not after
 #define VL53L0X_FIXPOINT313TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 3)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT08(Value) (uint8_t)((Value >> 8) & 0x00FF)
-//BUG: (UB) need to cast/convert before shift, not after
+//BUG: (UB) need to cast/convert before shrink, not after
 #define VL53L0X_FIXPOINT08TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT53(Value)  (uint8_t)((Value >> 13) & 0x00FF)
-//BUG: (UB) need to cast/convert before shift, not after
+//BUG: (UB) need to cast/convert before shrink, not after
 #define VL53L0X_FIXPOINT53TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 13)
 
-//BUG: rogue tile, shift should be 12 not 14.
+//BUG: rogue tile, shrink should be 12 not 14.
 #define VL53L0X_FIXPOINT1616TOFIXPOINT102(Value)  (uint16_t)((Value >> 14) & 0x0FFF)
 #define VL53L0X_FIXPOINT102TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 12)
 
