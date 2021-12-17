@@ -875,20 +875,20 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
     if (Status == ERROR_NONE) {
       if (SchedulerSequenceSteps.PreRangeOn) {
-        Status = get_sequence_step_timeout(Dev, SEQUENCESTEP_PRE_RANGE, &PreRangeTimeoutMicroSeconds);
+        Status = get_sequence_step_timeout( SEQUENCESTEP_PRE_RANGE, &PreRangeTimeoutMicroSeconds);
         *pMeasurementTimingBudgetMicroSeconds += PreRangeTimeoutMicroSeconds + PreRangeOverheadMicroSeconds;
       }
     }
 
     if (Status == ERROR_NONE) {
       if (SchedulerSequenceSteps.FinalRangeOn) {
-        Status = get_sequence_step_timeout(Dev, SEQUENCESTEP_FINAL_RANGE, &FinalRangeTimeoutMicroSeconds);
+        Status = get_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, &FinalRangeTimeoutMicroSeconds);
         *pMeasurementTimingBudgetMicroSeconds += (FinalRangeTimeoutMicroSeconds + FinalRangeOverheadMicroSeconds);
       }
     }
 
     if (Status == ERROR_NONE) {
-      VL53L0X_SETPARAMETERFIELD(Dev, MeasurementTimingBudgetMicroSeconds, *pMeasurementTimingBudgetMicroSeconds);
+      VL53L0X_SETPARAMETERFIELD(this, MeasurementTimingBudgetMicroSeconds, *pMeasurementTimingBudgetMicroSeconds);
     }
 
     return Status;
@@ -902,31 +902,34 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
     return VL53L0X_MAKEUINT16(lsb, msb);
   }
 
-  Error VL53L0X_load_tuning_settings(VL53L0X_DEV Dev, const uint8_t *pTuningSettingBuffer) {
-
-    LOG_FUNCTION_START
-    ("");
+  /**
+   * record formats:
+   * 0xFF  0..3 msbof16 lsbof16  loads one of 4 fields of PALDevData
+   * 0..3 index  number of bytes indicated in first byte  I2C multi byte write.
+   * */
+  Error Core::load_tuning_settings(const uint8_t *pTuningSettingBuffer) {
+    LOG_FUNCTION_START    ("");
     int Index = 0;//ick: only value over using the pTuning..Buffer as a pointer might be for debug display.
-    Error Error = ERROR_NONE;
-    while ((pTuningSettingBuffer[Index] != 0) && !Error) {
+
+    while (pTuningSettingBuffer[Index]) {
       uint8_t NumberOfWrites = pTuningSettingBuffer[Index++];
       if (NumberOfWrites == 0xFF) {
         /* internal parameters */
         switch (pTuningSettingBuffer[Index++]) {
           case 0: /* uint16_t SigmaEstRefArray -> 2 bytes */
-            PALDevDataSet(Dev, SigmaEstRefArray, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet(this, SigmaEst.RefArray, unpack(pTuningSettingBuffer, Index));
             break;
           case 1: /* uint16_t SigmaEstEffPulseWidth -> 2 bytes */
-            PALDevDataSet(Dev, SigmaEstEffPulseWidth, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet(this, SigmaEst.EffPulseWidth, unpack(pTuningSettingBuffer, Index));
             break;
           case 2: /* uint16_t SigmaEstEffAmbWidth -> 2 bytes */
-            PALDevDataSet(Dev, SigmaEstEffAmbWidth, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet(this, SigmaEst.EffAmbWidth, unpack(pTuningSettingBuffer, Index));
             break;
           case 3: /* uint16_t targetRefRate -> 2 bytes */
-            PALDevDataSet(Dev, targetRefRate, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet(this, targetRefRate, unpack(pTuningSettingBuffer, Index));
             break;
           default: /* invalid parameter */
-            Error = ERROR_INVALID_PARAMS;
+            return ERROR_INVALID_PARAMS;
         } // switch
       } else if (NumberOfWrites <= 4) {
         uint8_t localBuffer[4]; /* max */
@@ -934,42 +937,39 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
         for (unsigned i = 0; i < NumberOfWrites; i++) {
           localBuffer[i] = pTuningSettingBuffer[Index++];
         }
-        Error = VL53L0X_WriteMulti(Dev, Address, localBuffer, NumberOfWrites);
+        if(comm.WriteMulti(Address, localBuffer, NumberOfWrites)){
+          return ERROR_CONTROL_INTERFACE;
+        }
       } else {
-        Error = ERROR_INVALID_PARAMS;
+        return ERROR_INVALID_PARAMS;
       }
     }
-
-    return Error;
+    return ERROR_NONE;
   } // VL53L0X_load_tuning_settings
 
-  Error VL53L0X_get_total_xtalk_rate(VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_xtalk_rate_mcps) {
-    *ptotal_xtalk_rate_mcps = 0;//nb: gets set to zero when there are communications errors trying to get the value.
-    uint8_t xtalkCompEnable;
-    Error Error = VL53L0X_GetXTalkCompensationEnable(Dev, &xtalkCompEnable);
-    ERROR_OUT;
-    if (xtalkCompEnable) {
+  Erroneous<FixPoint1616_t> Core:: get_total_xtalk_rate(const RangingMeasurementData_t *pRangingMeasurementData) {
+
+    Erroneous<uint8_t> xtalkCompEnable = GetXTalkCompensationEnable();
+
+    if (xtalkCompEnable.isOk()) {
       FixPoint1616_t xtalkPerSpadMegaCps;
-      VL53L0X_GETPARAMETERFIELD(Dev, XTalkCompensationRateMegaCps, xtalkPerSpadMegaCps);
+      VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationRateMegaCps, xtalkPerSpadMegaCps);
 
       /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
-      FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData->EffectiveSpadRtnCount * xtalkPerSpadMegaCps;
+      FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData->EffectiveSpadRtnCount * xtalkPerSpadMegaCps.raw;
 
       /* FixPoint0824 >> 8 = FixPoint1616 */
-      *ptotal_xtalk_rate_mcps = (totalXtalkMegaCps + 0x80) >> 8;
+      return totalXtalkMegaCps.shrink( 8);
     }
-    return ERROR_NONE;
+    return {0,xtalkCompEnable.error};//0 if caller ignores error
   } // VL53L0X_get_total_xtalk_rate
 
-  Error VL53L0X_get_total_signal_rate(VL53L0X_DEV Dev, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_signal_rate_mcps) {
-    LOG_FUNCTION_START
-    ("");
-    *ptotal_signal_rate_mcps = pRangingMeasurementData->SignalRateRtnMegaCps;
-    FixPoint1616_t totalXtalkMegaCps;
-    Error Error = VL53L0X_get_total_xtalk_rate(Dev, pRangingMeasurementData, &totalXtalkMegaCps);
-    ERROR_OUT;
-    *ptotal_signal_rate_mcps += totalXtalkMegaCps;
-    return ERROR_NONE;
+  Erroneous<FixPoint1616_t> get_total_signal_rate(const RangingMeasurementData_t *pRangingMeasurementData) {
+    LOG_FUNCTION_START("");
+    Erroneous<FixPoint1616_t> totalXtalkMegaCps { pRangingMeasurementData->SignalRateRtnMegaCps};//default in case returned error is ignored
+
+    return  get_total_xtalk_rate( pRangingMeasurementData);
+
   } // VL53L0X_get_total_signal_rate
 
   uint32_t Core::calc_dmax(const FixPoint1616_t totalSignalRate_mcps, const FixPoint1616_t totalCorrSignalRate_mcps, const FixPoint1616_t pwMult, const uint32_t sigmaEstimateP1, const FixPoint1616_t sigmaEstimateP2, const uint32_t peakVcselDuration_us) {
@@ -1098,7 +1098,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
     return min(dmaxDark, dmaxAmbient);
   } // calc_dmax
 
-  Erroneous<uint32_t> Core::calc_sigma_estimate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *pSigmaEstimate) {
+  Erroneous<uint32_t> Core::calc_sigma_estimate(const RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *pSigmaEstimate) {
     /* Expressed in 100ths of a ns, i.e. centi-ns */
     const uint32_t cPulseEffectiveWidth_centi_ns {800};
     /* Expressed in 100ths of a ns, i.e. centi-ns */
@@ -1158,8 +1158,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
      */
 
     LOG_FUNCTION_START ("");
-
-    FixPoint1616_t xTalkCompRate_mcps;
+    Erroneous<FixPoint1616_t> xTalkCompRate_mcps;
     VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationRateMegaCps, xTalkCompRate_mcps);
 
     /*
@@ -1171,9 +1170,9 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
     FixPoint1616_t correctedSignalRate_mcps = pRangingMeasurementData->SignalRateRtnMegaCps;
 
-    FixPoint1616_t totalSignalRate_mcps;
-    Status = get_total_signal_rate(pRangingMeasurementData, &totalSignalRate_mcps);
-    Status = get_total_xtalk_rate( pRangingMeasurementData, &xTalkCompRate_mcps);
+    FixPoint1616_t totalSignalRate_mcps = get_total_signal_rate(pRangingMeasurementData);
+
+    xTalkCompRate_mcps = get_total_xtalk_rate( pRangingMeasurementData);
 
     /* Signal rate measurement provided by device is the
      * peak signal rate, not average.
@@ -1410,7 +1409,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
   }
   // VL53L0X_calc_sigma_estimate
 
-  Error VL53L0X_get_pal_range_status(VL53L0X_DEV Dev, uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, VL53L0X_RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus) {
+  Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus) {
     LOG_FUNCTION_START
     ("");
 
@@ -1435,7 +1434,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
     }
 
     FixPoint1616_t LastSignalRefMcps = VL53L0X_FIXPOINT97TOFIXPOINT1616(tmpWord);
-    PALDevDataSet(Dev, LastSignalRefMcps, LastSignalRefMcps);
+    PALDevDataSet(this, LastSignalRefMcps, LastSignalRefMcps);
 
     /*
      * Check if Sigma limit is enabled, if yes then do comparison with limit

@@ -86,9 +86,9 @@ namespace VL53L0X {
 
     Error calc_sigma_estimate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *pSigmaEstimate, uint32_t *pDmax_mm);
 
-    Error get_total_xtalk_rate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_xtalk_rate_mcps);
+    Erroneous<FixPoint1616_t> get_total_xtalk_rate(const RangingMeasurementData_t *pRangingMeasurementData);
 
-    Error get_total_signal_rate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *ptotal_signal_rate_mcps);
+    Erroneous<FixPoint1616_t>get_total_signal_rate(const RangingMeasurementData_t *pRangingMeasurementData);
 
     Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus);
 
