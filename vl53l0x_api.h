@@ -794,7 +794,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE            Success
  * @return  "Other error code"           See ::Error
  */
-    Error GetNumberOfSequenceSteps(uint8_t *pNumberOfSequenceSteps);
+    static void GetNumberOfSequenceSteps(uint8_t *pNumberOfSequenceSteps);
 
 /**
  * @brief Gets the name of a given sequence step.

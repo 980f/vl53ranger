@@ -109,7 +109,7 @@ namespace VL53L0X {
   struct DeviceInfo_t {
     char Name[VL53L0X_MAX_STRING_LENGTH];     /*!< Name of the Device e.g. Left_Distance */
     char Type[VL53L0X_MAX_STRING_LENGTH];     /*!< Type of the Device e.g VL53L0X */
-    char ProductId[VL53L0X_MAX_STRING_LENGTH];    /*!< Product Identifier String	*/
+    char ProductId[VL53L0X_MAX_STRING_LENGTH];    /*!< Product Identifier String	(//ick:limited to 17+null in places) */
     uint8_t ProductType;     /*!< Product Type, VL53L0X = 1, VL53L1 = 2 */
     struct ProductRevision {
       uint8_t Major;   /*!< Product revision major */
@@ -508,7 +508,7 @@ namespace VL53L0X {
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT97(Value)  (uint16_t)((Value >> 9) & 0xFFFF)
 //BUG: (UB) need to cast/convert before shift, not after
-#define VL53L0X_FIXPOINT97TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 9)
+#define VL53L0X_FIXPOINT97TOFIXPOINT1616(Value) (FixPoint1616_t)((Value) << 9)
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT88(Value)  (uint16_t)((Value >> 8) & 0xFFFF)
 //BUG: (UB) need to cast/convert before shift, not after

@@ -41,6 +41,8 @@ namespace VL53L0X {
   uint32_t decode_timeout(uint16_t encoded_timeout);
   uint16_t encode_timeout(uint32_t timeout_macro_clks);
 
+  Error sequence_step_enabled(SequenceStepId SequenceStepId,uint8_t SequenceConfig,uint8_t *pSequenceStepEnabled);
+
   class Core : public Dev_t {
   public:
     Core(TwoWire &i2c, uint8_t I2cDevAddr) : Dev_t(i2c, I2cDevAddr) {
@@ -87,11 +89,19 @@ namespace VL53L0X {
 
     uint32_t calc_timeout_mclks(uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
 
-  private: //common code fragments or what were file static but didn't actually have the 'static' like they should have.
+  protected: //common code fragments or what were file static but didn't actually have the 'static' like they should have.
     Error device_read_strobe();
     /** read up to 4 bytes from 0x90 after selecting which at 0x94
      * source for templates can be in the CPP if not used outside that module :) */
     template<typename Int> Erroneous<Int> packed90(uint8_t which);
+    Erroneous<uint32_t> middleof64(unsigned int which);
+
+/** gets value from device, @returns whether it worked OK.*/
+    template<typename Scalar> bool fetch(Erroneous<Scalar> &item, RegSystem reg);
+  private:
+    Error setValidPhase(uint8_t high, uint8_t low);
+
+    Error setPhasecalLimit(uint8_t value);
   };
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

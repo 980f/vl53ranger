@@ -97,15 +97,14 @@ namespace VL53L0X {
 //}
 
 
-  Error Physical::WriteMulti(uint8_t index, uint8_t *pdata, uint32_t count) {
+  Error Physical::WriteMulti(uint8_t index, uint8_t *pdata, int count) {
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
       return ERROR_INVALID_PARAMS;//BUG: formerly went ahead and asked for invalid transfer
     }
     return recode(wirer.write_multi( index, pdata, count));
   }
 
-// the ranging_sensor_comms.dll will take care of the page selection
-  Error Physical::ReadMulti( uint8_t index, uint8_t *pdata, uint32_t count) {
+  Error Physical::ReadMulti( uint8_t index, uint8_t *pdata, int count) {
     VL53L0X_I2C_USER_VAR
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
       return ERROR_INVALID_PARAMS;//BUG: formerly went ahead and sent truncated data

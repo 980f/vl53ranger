@@ -1013,102 +1013,41 @@ Error VL53L0X_SetSequenceStepEnable(VL53L0X_SequenceStepId SequenceStepId,uint8_
   return Status;
 } // VL53L0X_SetSequenceStepEnable
 
-Error sequence_step_enabled(VL53L0X_SequenceStepId SequenceStepId,uint8_t SequenceConfig,uint8_t *pSequenceStepEnabled){
-  Error Status = Error_NONE;
-  *pSequenceStepEnabled = 0;
+
+Error Api::GetSequenceStepEnable(SequenceStepId SequenceStepId,uint8_t *pSequenceStepEnabled){
   LOG_FUNCTION_START("");
-
-  switch (SequenceStepId) {
-  case VL53L0X_SEQUENCESTEP_TCC:
-    *pSequenceStepEnabled = (SequenceConfig & 0x10) >> 4;
-    break;
-  case VL53L0X_SEQUENCESTEP_DSS:
-    *pSequenceStepEnabled = (SequenceConfig & 0x08) >> 3;
-    break;
-  case VL53L0X_SEQUENCESTEP_MSRC:
-    *pSequenceStepEnabled = (SequenceConfig & 0x04) >> 2;
-    break;
-  case VL53L0X_SEQUENCESTEP_PRE_RANGE:
-    *pSequenceStepEnabled = (SequenceConfig & 0x40) >> 6;
-    break;
-  case VL53L0X_SEQUENCESTEP_FINAL_RANGE:
-    *pSequenceStepEnabled = (SequenceConfig & 0x80) >> 7;
-    break;
-  default:
-    Status = Error_INVALID_PARAMS;
-  } // switch
-
-
-  return Status;
-} // sequence_step_enabled
-
-Error GetSequenceStepEnable(VL53L0X_SequenceStepId SequenceStepId,uint8_t *pSequenceStepEnabled){
-  Error Status = Error_NONE;
-  uint8_t SequenceConfig = 0;
-  LOG_FUNCTION_START("");
-
-  Status = VL53L0X_RdByte(Dev, VL53L0X_REG_SYSTEM_SEQUENCE_CONFIG, &SequenceConfig);
-
-  if (Status == Error_NONE) {
-    Status = sequence_step_enabled(Dev, SequenceStepId, SequenceConfig, pSequenceStepEnabled);
+  Erroneous<uint8_t> SequenceConfig ;
+  if(fetch(SequenceConfig,REG_SYSTEM_SEQUENCE_CONFIG)){
+    sequence_step_enabled(SequenceStepId, SequenceConfig, pSequenceStepEnabled);
   }
-
-
-  return Status;
+  return SequenceConfig.error;
 } // GetSequenceStepEnable
 
-Error GetSequenceStepEnables(VL53L0X_SchedulerSequenceSteps_t *pSchedulerSequenceSteps){
-  Error Status = Error_NONE;
-  uint8_t SequenceConfig = 0;
+Error Api::GetSequenceStepEnables(SchedulerSequenceSteps_t *pSchedulerSequenceSteps){
   LOG_FUNCTION_START("");
-
-  Status = VL53L0X_RdByte(Dev, VL53L0X_REG_SYSTEM_SEQUENCE_CONFIG, &SequenceConfig);
-
-  if (Status == Error_NONE) {
-    Status = sequence_step_enabled(Dev, VL53L0X_SEQUENCESTEP_TCC, SequenceConfig, &pSchedulerSequenceSteps->TccOn);
+  Erroneous<uint8_t> SequenceConfig ;
+  if(fetch(SequenceConfig, REG_SYSTEM_SEQUENCE_CONFIG)){
+    //since we are using the defined symbols we will never get errors on the following
+     sequence_step_enabled(SEQUENCESTEP_TCC, SequenceConfig, &pSchedulerSequenceSteps->TccOn);
+ sequence_step_enabled(SEQUENCESTEP_DSS, SequenceConfig, &pSchedulerSequenceSteps->DssOn);
+ sequence_step_enabled(SEQUENCESTEP_MSRC, SequenceConfig, &pSchedulerSequenceSteps->MsrcOn);
+ sequence_step_enabled(SEQUENCESTEP_PRE_RANGE, SequenceConfig, &pSchedulerSequenceSteps->PreRangeOn);
+ sequence_step_enabled(SEQUENCESTEP_FINAL_RANGE, SequenceConfig, &pSchedulerSequenceSteps->FinalRangeOn);
   }
-  if (Status == Error_NONE) {
-    Status = sequence_step_enabled(Dev, VL53L0X_SEQUENCESTEP_DSS, SequenceConfig, &pSchedulerSequenceSteps->DssOn);
-  }
-  if (Status == Error_NONE) {
-    Status = sequence_step_enabled(Dev, VL53L0X_SEQUENCESTEP_MSRC, SequenceConfig, &pSchedulerSequenceSteps->MsrcOn);
-  }
-  if (Status == Error_NONE) {
-    Status = sequence_step_enabled(Dev, VL53L0X_SEQUENCESTEP_PRE_RANGE, SequenceConfig, &pSchedulerSequenceSteps->PreRangeOn);
-  }
-  if (Status == Error_NONE) {
-    Status = sequence_step_enabled(Dev, VL53L0X_SEQUENCESTEP_FINAL_RANGE, SequenceConfig, &pSchedulerSequenceSteps->FinalRangeOn);
-  }
-
-
-  return Status;
+  return SequenceConfig.error;
 } // GetSequenceStepEnables
 
-Error GetNumberOfSequenceSteps(uint8_t *pNumberOfSequenceSteps){
-  Error Status = Error_NONE;
-  LOG_FUNCTION_START("");
-
-  *pNumberOfSequenceSteps = VL53L0X_SEQUENCESTEP_NUMBER_OF_CHECKS;
-
-
-  return Status;
+void Api::GetNumberOfSequenceSteps(uint8_t *pNumberOfSequenceSteps){
+  *pNumberOfSequenceSteps = SEQUENCESTEP_NUMBER_OF_CHECKS;
 }
 
-Error GetSequenceStepsInfo(VL53L0X_SequenceStepId SequenceStepId,char *pSequenceStepsString){
-  Error Status = Error_NONE;
+Error GetSequenceStepsInfo(SequenceStepId SequenceStepId,char *pSequenceStepsString){
   LOG_FUNCTION_START("");
-
-  Status = Get_sequence_steps_info(SequenceStepId, pSequenceStepsString);
-
-
-
-  return Status;
+  return get_sequence_steps_info(SequenceStepId, pSequenceStepsString);
 } // GetSequenceStepsInfo
 
-Error VL53L0X_SetSequenceStepTimeout(VL53L0X_SequenceStepId SequenceStepId,FixPoint1616_t TimeOutMilliSecs){
-  Error Status = Error_NONE;
-  Error Status1 = Error_NONE;
-  uint32_t TimeoutMicroSeconds = ((TimeOutMilliSecs * 1000) + 0x8000) >> 16;
+Error Api::SetSequenceStepTimeout(SequenceStepId SequenceStepId,FixPoint1616_t TimeOutMilliSecs){
+  auto TimeoutMicroSeconds = TimeOutMilliSecs.millis();
   uint32_t MeasurementTimingBudgetMicroSeconds;
   FixPoint1616_t OldTimeOutMicroSeconds;
 
@@ -1116,7 +1055,7 @@ Error VL53L0X_SetSequenceStepTimeout(VL53L0X_SequenceStepId SequenceStepId,FixPo
 
   /* Read back the current value in case we need to revert back to this.
    */
-  Status = get_sequence_step_timeout(Dev, SequenceStepId, &OldTimeOutMicroSeconds);
+  Status = get_sequence_step_timeout( SequenceStepId, &OldTimeOutMicroSeconds);
 
   if (Status == Error_NONE) {
     Status = set_sequence_step_timeout(Dev, SequenceStepId, TimeoutMicroSeconds);

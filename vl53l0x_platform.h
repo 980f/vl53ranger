@@ -100,7 +100,7 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error WriteMulti(uint8_t index, uint8_t *pdata, uint32_t count);
+    Error WriteMulti(uint8_t index, uint8_t *pdata, int count);
 
 /**
  * Reads the requested number of bytes from the device
@@ -110,7 +110,7 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error ReadMulti(uint8_t index, uint8_t *pdata, uint32_t count);
+    Error ReadMulti(uint8_t index, uint8_t *pdata, int count);
 
     /**  */
     template<typename Scalar> Error Write(uint8_t index, Scalar data, bool swapendians = false) {
@@ -307,6 +307,18 @@ namespace VL53L0X {
 
 
 /** @} end of VL53L0X_platform_group */
+/** should be in std lib somewhere ... */
+template <typename Target,typename Source> Target saturated(Source bigger){
+  if(bigger> std::numeric_limits<Target>::max()){
+    return  std::numeric_limits<Target>::max();
+  }
+  if(std::numeric_limits<Target>::is_signed) {
+    if (bigger < std::numeric_limits<Target>::min()) {
+      return std::numeric_limits<Target>::min();
+    }
+  }
+  return static_cast<Target>(bigger);
+}
 
 }//end namespace
 #endif /* _VL53L0X_PLATFORM_H_ */
