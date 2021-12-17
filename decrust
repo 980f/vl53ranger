@@ -1,0 +1,1 @@
+uncrustify -c uncrustify.cfg --replace $1 
