@@ -73,6 +73,16 @@
     </table>
     <p><br>
     </p>
+    <p>During the migration it has become obvious that no one has done any rigorous testing with actual communications errors. The honoring of the errors was erratic often using a value that was not successfully fetched.<br>
+      The having an error flag that is repeatedly assigned to be successive operations and then is tested before almost all of the subsequent ones makes it easy to screw up the checking.</p>
+    <p>The use of error code returns from layers where all the errors are of a single type is tedious.</p>
+    <p>I have tried to both hide some of the mess, but also check errors rigorously via a class which binds the error state to the associated value. One could then choose to do a few operations then check the values for "being Ok" before using them.<br>
+      <br>
+      I note that someone did Error |= Error, if that had been done with a double || then the subsequent items would not execute. That retains the first Error. For the |= to make sense one has to know that only two values will be returned- the actual Error and the 'no error' values where the 'no error' must be zero.</p>
+    <p>I am guessing that 'thread_local' doesn't work in windows dlls, else a thread local error code and a boolean return would be far simpler than the present stuff.</p>
+    <p>Note: making all functions return Error codes even when errors are not possible and a value is being returned via a pointer is a bad architectural decision. In C++ it is even more a bad idea since it is easy to return a paired value and status.</p>
+    <p><br>
+      The shared error type across even deep layers is an unnecessary tangling of scope. I think I may have sorted out the worst of that, with the lowest layers returning booleans for success/failure, intermediate layers convert that to the Error code known by that layer.</p>
     <p><br>
     </p>
   </body>
