@@ -1,2 +1,5 @@
 cmake-build-debug-baremetal/
 *unc-backup*
+*.bak
+#ignore the language select link
+vl53l0x.text
