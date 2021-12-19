@@ -218,12 +218,9 @@ namespace VL53L0X {
     Dev_t(TwoWire &i2c, uint8_t I2cDevAddr) : comm(i2c, I2cDevAddr) {
     }
 
-    struct ProductRevision {
-      uint8_t Major;
-      uint8_t Minor;
-    };
+    SemverLite ProductRevision;
 
-    Erroneous<ProductRevision> GetProductRevision();
+    Erroneous<SemverLite> GetProductRevision();
     /**
  * @brief execute delay in all polling API call
  *

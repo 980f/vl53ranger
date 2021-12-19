@@ -84,14 +84,35 @@ namespace VL53L0X {
 
     Error load_tuning_settings(const uint8_t *pTuningSettingBuffer);
 
-    Error calc_sigma_estimate(RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *pSigmaEstimate, uint32_t *pDmax_mm);
+    /** ?secondary return via reference to dmm as most if it is computed as a side effect of primary return.
+     * */
+    Erroneous<FixPoint1616_t> calc_sigma_estimate(const RangingMeasurementData_t &pRangingMeasurementData,  uint32_t &dmm);
 
-    Erroneous<FixPoint1616_t> get_total_xtalk_rate(const RangingMeasurementData_t *pRangingMeasurementData);
+    Erroneous<FixPoint1616_t> get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
-    Erroneous<FixPoint1616_t>get_total_signal_rate(const RangingMeasurementData_t *pRangingMeasurementData);
+    Erroneous<FixPoint1616_t> get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
     Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus);
 
+    class MagicTrio {
+      ErrorAccumulator Status;
+      Physical &comm; //not a base as eventually we will pass in a reference to a baser class
+    public:
+      MagicTrio(Physical &comm):comm(comm),Status(ERROR_NONE){
+        Status = comm.WrByte( 0x80, 0x01);
+        Status = comm.WrByte(0xFF, 0x01);
+        Status = comm.WrByte( 0x00, 0x00);
+      }
+      ~MagicTrio(){
+        Status = comm.WrByte(0x00, 0x01);
+        Status = comm.WrByte( 0xFF, 0x00);
+        Status = comm.WrByte( 0x80, 0x00);
+      }
+    };
+    /** RAII widget that surrounds some fetches. */
+    MagicTrio magicWrapper(){
+      return MagicTrio(comm);
+    }
 
   private:  //common code fragments or what were file static but didn't actually have the 'static' like they should have.
     Error setValidPhase(uint8_t high, uint8_t low);
@@ -109,7 +130,8 @@ namespace VL53L0X {
     template<typename Scalar> bool fetch(Erroneous<Scalar> &item, RegSystem reg);
     Erroneous <SchedulerSequenceSteps_t> get_sequence_step_enables();
     uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
-    Erroneous <uint32_t> calc_sigma_estimate(RangingMeasurementData_t *pRangingMeasurementData, const FixPoint1616_t *pSigmaEstimate);
+
+    Error SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable);
   };
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

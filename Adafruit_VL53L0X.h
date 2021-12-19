@@ -41,14 +41,18 @@
 class Adafruit_VL53L0X {
 public:
   /** Sensor configurations */
-  typedef enum {
+  enum  Sense_config_t{
     VL53L0X_SENSE_DEFAULT = 0
     , VL53L0X_SENSE_LONG_RANGE
     , VL53L0X_SENSE_HIGH_SPEED
     , VL53L0X_SENSE_HIGH_ACCURACY
-  } VL53L0X_Sense_config_t;
+  } ;
 
-  boolean begin(uint8_t i2c_addr = VL53L0X_I2C_ADDR, boolean debug = false, TwoWire *i2c = &Wire, VL53L0X_Sense_config_t vl_config = VL53L0X_SENSE_DEFAULT);
+  Adafruit_VL53L0X(uint8_t i2c_addr = VL53L0X_I2C_ADDR, TwoWire &i2c = Wire) : MyDevice(i2c,i2c_addr){
+    //but do not begin or start etc so that we can static init if we wish.
+  }
+
+  boolean begin( boolean debug = false,  Sense_config_t vl_config = VL53L0X_SENSE_DEFAULT);
   boolean setAddress(uint8_t newAddr);
 
   // uint8_t getAddress(void); // not currently implemented
@@ -63,26 +67,26 @@ public:
    *   @returns True if address was set successfully, False otherwise
    */
   /**************************************************************************/
-  VL53L0X::Error rangingTest(VL53L0X::RangingMeasurementData_t *pRangingMeasurementData, boolean debug = false){
+  VL53L0X::Error rangingTest(VL53L0X::RangingMeasurementData_t pRangingMeasurementData, boolean debug = false){
     return getSingleRangingMeasurement(pRangingMeasurementData, debug);
   }
 
-  VL53L0X::Error getSingleRangingMeasurement(VL53L0X::RangingMeasurementData_t *pRangingMeasurementData, boolean debug = false);
+  VL53L0X::Error getSingleRangingMeasurement(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false);
   void printRangeStatus(VL53L0X::RangingMeasurementData_t *pRangingMeasurementData);
 
   VL53L0X::Error Status = VL53L0X::ERROR_NONE; ///< indicates whether or not the sensor has encountered an error
   // Add similar methods as Adafruit_VL6180X class adapted to range of device
-  uint16_t readRange(void);
+  uint16_t readRange();
   // float readLux(uint8_t gain);
-  uint8_t readRangeStatus(void);
+  uint8_t readRangeStatus();
 
-  boolean startRange(void);
-  boolean isRangeComplete(void);
-  boolean waitRangeComplete(void);
-  uint16_t readRangeResult(void);
+  boolean startRange();
+  boolean isRangeComplete();
+  boolean waitRangeComplete();
+  uint16_t readRangeResult();
 
-  boolean startRangeContinuous(uint16_t period_ms = 50);
-  void stopRangeContinuous(void);
+  boolean startRangeContinuous(uint16_t period_ms = 50);//hmm: ST shows 33 as a sweet spot between performance and accuracy.
+  void stopRangeContinuous();
 
   //  void setTimeout(uint16_t timeout) { io_timeout = timeout; }
   // uint16_t getTimeout(void) { return io_timeout; }
@@ -92,26 +96,26 @@ public:
    *   @returns True if timeout has occurred, False otherwise
    */
   /**************************************************************************/
-  boolean timeoutOccurred(void){
-    return false;
+  boolean timeoutOccurred(){
+    return false;//why not Status==ERROR_TIMEOUT?
   }
 
-  boolean configSensor(VL53L0X::Sense_config_t vl_config);
+  boolean configSensor(Sense_config_t vl_config);
 
   // Export some wrappers to internal setting functions
   // that are used by the above helper function to allow
   // more complete control.
   boolean setMeasurementTimingBudgetMicroSeconds(uint32_t budget_us);
-  uint32_t getMeasurementTimingBudgetMicroSeconds(void);
+  uint32_t getMeasurementTimingBudgetMicroSeconds();
 
   boolean setVcselPulsePeriod(VL53L0X::VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriod);
 
   uint8_t getVcselPulsePeriod(VL53L0X::VcselPeriod VcselPeriodType);
 
-  boolean setLimitCheckEnable(uint16_t LimitCheckId, uint8_t LimitCheckEnable);
-  uint8_t getLimitCheckEnable(uint16_t LimitCheckId);
-  boolean setLimitCheckValue(uint16_t LimitCheckId, FixPoint1616_t LimitCheckValue);
-  FixPoint1616_t getLimitCheckValue(uint16_t LimitCheckId);
+  boolean setLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId, uint8_t LimitCheckEnable);
+  boolean getLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId);
+  boolean setLimitCheckValue(VL53L0X::CheckEnable LimitCheckId, FixPoint1616_t LimitCheckValue);
+  FixPoint1616_t getLimitCheckValue(VL53L0X::CheckEnable LimitCheckId);
 
 private:
   VL53L0X::Api MyDevice;

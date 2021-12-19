@@ -198,6 +198,8 @@ namespace VL53L0X {
 
       //formerly hidden inside code
       ,Private_Strober=0x83  /** strobe related */
+      ,Private_04=0x04 /** ?completion status */
+      ,Private_Pager=0xFF  /** guessing a page select, or freeze for atomic update */
     };
 
   /** the following defines were dropped in favor of a function:

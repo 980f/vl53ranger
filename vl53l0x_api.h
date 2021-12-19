@@ -73,9 +73,9 @@ namespace VL53L0X {
  * @note This function Access to the device
  *
  * @param   Dev                 Device Handle
- * @param   pProductRevisionMajor  Pointer to Product Revision Major
+ * @param   pProductRevisionMajor  Pointer to Product Revision major
  * for a given Device
- * @param   pProductRevisionMinor  Pointer to Product Revision Minor
+ * @param   pProductRevisionMinor  Pointer to Product Revision minor
  * for a given Device
  * @return  ERROR_NONE      Success
  * @return  "Other error code"  See ::Error
@@ -104,7 +104,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error GetDeviceErrorStatus(DeviceError *pDeviceErrorStatus);
+    Erroneous<DeviceError> GetDeviceErrorStatus();
 
 /**
  * @brief Human readable Range Status string for a given RangeStatus
@@ -121,16 +121,13 @@ namespace VL53L0X {
 
 /**
  * @brief Human readable error string for a given Error Code
- *
+
  * @note This function doesn't access to the device
  *
- * @param   ErrorCode           The error code as stored on
- * ::DeviceError
- * @param   pDeviceErrorString  The error string corresponding to the ErrorCode
- * @return  ERROR_NONE   Success
- * @return  "Other error code"  See ::Error
+ * @param   ErrorCode           The error code as stored on  ::DeviceError
+ * @return  pointer to const string
  */
-    Error GetDeviceErrorString(DeviceError ErrorCode, char *pDeviceErrorString);
+    const char * GetDeviceErrorString(DeviceError ErrorCode);
 
 /**
  * @brief Human readable error string for current PAL error status
@@ -439,6 +436,7 @@ namespace VL53L0X {
  * STATE_POWERDOWN.
  *
  * @note This function Access to the device
+ * @note  This function blacks until reset is successful.
  *
  * @param   Dev                   Device Handle
  * @return  ERROR_NONE     Success
@@ -466,7 +464,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error SetDeviceParameters(const DeviceParameters_t *pDeviceParameters);
+    Error SetDeviceParameters(const DeviceParameters_t &pDeviceParameters);
 
 /**
  * @brief  Retrieve current device parameters
@@ -481,7 +479,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error GetDeviceParameters(DeviceParameters_t *pDeviceParameters);
+    Error GetDeviceParameters(DeviceParameters_t &pDeviceParameters);
 
 /**
  * @brief  Set a new device mode
@@ -530,7 +528,7 @@ namespace VL53L0X {
  * @return  ERROR_MODE_NOT_SUPPORTED     This error occurs when
  * DeviceMode is not in the supported list
  */
-    Error GetDeviceMode(DeviceModes *pDeviceMode);
+    Error GetDeviceMode(DeviceModes &pDeviceMode);
 
 /**
  * @brief  Sets the resolution of range measurements.
@@ -631,7 +629,9 @@ namespace VL53L0X {
  *  MeasurementTimingBudgetMicroSeconds out of range
  * @return  "Other error code"            See ::Error
  */
-    Error SetMeasurementTimingBudgetMicroSeconds(uint32_t MeasurementTimingBudgetMicroSeconds);
+    Error SetMeasurementTimingBudgetMicroSeconds(uint32_t MeasurementTimingBudgetMicroSeconds){
+      return set_measurement_timing_budget_micro_seconds(MeasurementTimingBudgetMicroSeconds);
+    }
 
 /**
  * @brief Get Ranging Timing Budget in microseconds
@@ -842,7 +842,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                    Success
  * @return  "Other error code"                   See ::Error
  */
-    Error GetInterMeasurementPeriodMilliSeconds(uint32_t *pInterMeasurementPeriodMilliSeconds);
+    Error GetInterMeasurementPeriodMilliSeconds(uint32_t pInterMeasurementPeriodMilliSeconds);
 
 /**
  * @brief Enable/Disable Cross talk compensation feature
@@ -1838,6 +1838,7 @@ namespace VL53L0X {
 
 /** @} cut11_group */
 
+    Erroneous <uint8_t> GetStopCompletedStatus();
   };
 }//end namespace
 #endif /* __H_ */

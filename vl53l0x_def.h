@@ -95,12 +95,20 @@ namespace VL53L0X {
  * PRIVATE define do not edit
  ****************************************/
 
-/** @brief Defines the parameters of the Get Version Functions
+  struct SemverLite {
+    uint8_t major;   /*!< Product revision major */
+    uint8_t minor;/*!< Product revision minor */
+    bool operator ==(SemverLite other) const {
+      return major == other.major && minor == other.minor;
+    }
+
+  } ;
+
+  /** @brief Defines the parameters of the Get Version Functions
  */
   struct Version_t {
     uint32_t revision; /*!< revision number */
-    uint8_t major;     /*!< major number */
-    uint8_t minor;     /*!< minor number */
+    SemverLite ver;
     uint8_t build;     /*!< build number */
   };
 
@@ -111,10 +119,7 @@ namespace VL53L0X {
     char Type[VL53L0X_MAX_STRING_LENGTH];     /*!< Type of the Device e.g VL53L0X */
     char ProductId[VL53L0X_MAX_STRING_LENGTH];    /*!< Product Identifier String	(//ick:limited to 17+null in places) */
     uint8_t ProductType;     /*!< Product Type, VL53L0X = 1, VL53L1 = 2 */
-    struct ProductRevision {
-      uint8_t Major;   /*!< Product revision major */
-      uint8_t Minor;/*!< Product revision minor */
-    };
+    struct SemverLite ProductRevision;
   };
 
 /** @defgroup VL53L0X_define_Error_group Error and Warning code returned by API
@@ -170,6 +175,11 @@ namespace VL53L0X {
 
     operator Error() const {
       return sum;
+    }
+
+    /** @returns whether there is no error */
+    bool operator ~(){
+      return sum==ERROR_NONE;
     }
   };
 

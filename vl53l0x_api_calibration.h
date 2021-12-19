@@ -32,56 +32,39 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vl53l0x_def.h"
 #include "vl53l0x_platform.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+//#include "vl53l0x_api_core.h"
+namespace VL53L0X {
 
-VL53L0X_Error VL53L0X_perform_xtalk_calibration(
-    VL53L0X_DEV Dev, FixPoint1616_t XTalkCalDistance,
-    FixPoint1616_t *pXTalkCompensationRateMegaCps);
+  class Core;
 
-VL53L0X_Error
-VL53L0X_perform_offset_calibration(VL53L0X_DEV Dev,
-                                   FixPoint1616_t CalDistanceMilliMeter,
-                                   int32_t *pOffsetMicroMeter);
+  class Calibrator {
+    Core &core;
 
-VL53L0X_Error VL53L0X_set_offset_calibration_data_micro_meter(
-    VL53L0X_DEV Dev, int32_t OffsetCalibrationDataMicroMeter);
+    Calibrator(Core &core) : core(core) {
+    }
 
-VL53L0X_Error VL53L0X_get_offset_calibration_data_micro_meter(
-    VL53L0X_DEV Dev, int32_t *pOffsetCalibrationDataMicroMeter);
+    Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t *pXTalkCompensationRateMegaCps);
 
-VL53L0X_Error VL53L0X_apply_offset_adjustment(VL53L0X_DEV Dev);
+    Error perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter);
 
-VL53L0X_Error VL53L0X_perform_ref_spad_management(VL53L0X_DEV Dev,
-                                                  uint32_t *refSpadCount,
-                                                  uint8_t *isApertureSpads);
+    Error set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
 
-VL53L0X_Error VL53L0X_set_reference_spads(VL53L0X_DEV Dev, uint32_t count,
-                                          uint8_t isApertureSpads);
+    Error get_offset_calibration_data_micro_meter(int32_t *pOffsetCalibrationDataMicroMeter);
 
-VL53L0X_Error VL53L0X_get_reference_spads(VL53L0X_DEV Dev, uint32_t *pSpadCount,
-                                          uint8_t *pIsApertureSpads);
+    Error apply_offset_adjustment();
+    Error perform_ref_spad_management(uint32_t *refSpadCount, uint8_t *isApertureSpads);
 
-VL53L0X_Error VL53L0X_perform_phase_calibration(VL53L0X_DEV Dev,
-                                                uint8_t *pPhaseCal,
-                                                const uint8_t get_data_enable,
-                                                const uint8_t restore_config);
+    Error set_reference_spads(uint32_t count, uint8_t isApertureSpads);
 
-VL53L0X_Error VL53L0X_perform_ref_calibration(VL53L0X_DEV Dev,
-                                              uint8_t *pVhvSettings,
-                                              uint8_t *pPhaseCal,
-                                              uint8_t get_data_enable);
+    Error get_reference_spads(uint32_t *pSpadCount, uint8_t *pIsApertureSpads);
 
-VL53L0X_Error VL53L0X_set_ref_calibration(VL53L0X_DEV Dev, uint8_t VhvSettings,
-                                          uint8_t PhaseCal);
+    Error perform_phase_calibration(uint8_t *pPhaseCal, const uint8_t get_data_enable, const uint8_t restore_config);
 
-VL53L0X_Error VL53L0X_get_ref_calibration(VL53L0X_DEV Dev,
-                                          uint8_t *pVhvSettings,
-                                          uint8_t *pPhaseCal);
+    Error perform_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable);
 
-#ifdef __cplusplus
+    Error set_ref_calibration(uint8_t VhvSettings, uint8_t PhaseCal);
+
+    Error get_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal);
+  };
 }
-#endif
-
 #endif /* _VL53L0X_API_CALIBRATION_H_ */

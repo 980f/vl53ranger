@@ -128,6 +128,24 @@ template <typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned 
   return (num + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
 }
 
+/** @returns @param num divided by @param denom, rounded */
+template <typename IntishOver> IntishOver milli(IntishOver num){
+  return roundedDivide(num,1000);
+}
+
+template <typename Intish> constexpr Intish boost(unsigned shift,Intish value){
+  return value<<shift;
+}
+
+
+/** alters @param value to be no greater than @param max */
+template <typename Intish> constexpr void lessen(Intish &value, Intish max){
+  if (value> max) {
+    /* Clip to prevent overflow. Will ensure safe max result. */
+    value = max;
+  }
+}
+
 /** @returns value squared
  * might add saturation which is rarely checked at present */
 template <typename Intish> Intish squared(Intish num) {
@@ -187,7 +205,7 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
   }
 
   /** @returns nearest integer to nominal value */
-  RawType rounded(){
+  RawType rounded() const {
     return (raw + half) >> fract;
   }
 

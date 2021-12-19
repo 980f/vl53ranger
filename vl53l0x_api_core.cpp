@@ -128,11 +128,12 @@ namespace VL53L0X {
     if (a > 65535 || b > 65535) {
       return 65535;
     }
-    return isqrt(squared( a) + squared(b));
+    return isqrt(squared(a) + squared(b));
   } // VL53L0X_quadrature_sum
 
   Error Core::device_read_strobe() {
-    LOG_FUNCTION_START("");
+    LOG_FUNCTION_START
+    ("");
     auto onexit = autoCloser(Private_Strober, 0x00, 0x01);
     if (onexit) {
       /* polling with timeout to avoid deadlock*/
@@ -160,16 +161,16 @@ namespace VL53L0X {
 /** @returns whether same bit is set in option but cleared in RDFDD
  * replaces verbose expression that had unneeded actions and required careful copying of a value */
   static bool needOption(const unsigned bit, const uint8_t option, const uint8_t ReadDataFromDeviceDone) {
-    return getBit(bit,option & ~ReadDataFromDeviceDone);//# bitwise and required.
+    return getBit(bit, option & ~ReadDataFromDeviceDone);//# bitwise and required.
   }
 
   /** fetch 24 bits from one register and merge with 8 from the next.
    * former code didn't qualify data processing with success at getting raw data */
-  Erroneous<uint32_t > Core::middleof64(unsigned which){
+  Erroneous<uint32_t> Core::middleof64(unsigned which) {
     auto fetched = packed90<uint32_t>(which);
-    if(fetched.isOk()){
-      auto rest = packed90<uint32_t>(which+1);
-      if(rest.isOk()) {
+    if (fetched.isOk()) {
+      auto rest = packed90<uint32_t>(which + 1);
+      if (rest.isOk()) {
         rest.wrapped >>= (32 - 8);
         rest.wrapped |= fetched << 8;
       }
@@ -196,26 +197,27 @@ namespace VL53L0X {
 
     SpadArray NvmRefGoodSpadMap;
 
-    LOG_FUNCTION_START    ("");
+    LOG_FUNCTION_START
+    ("");
     uint8_t ReadDataFromDeviceDone = VL53L0X_GETDEVICESPECIFICPARAMETER(this, ReadDataFromDeviceDone);
 
     /* This access is done only once after that a GetDeviceInfo or datainit is done*/
     if (ReadDataFromDeviceDone != 7) { //if not all done
-      ErrorAccumulator Error{ERROR_NONE};
+      ErrorAccumulator Error {ERROR_NONE};
 
-      Error|= comm.WrByte(0x80, 0x01);
-      Error  |= comm.WrByte(0xFF, 0x01);
+      Error |= comm.WrByte(0x80, 0x01);
+      Error |= comm.WrByte(0xFF, 0x01);
       Error |= comm.WrByte(0x00, 0x00);
       Error |= comm.WrByte(0xFF, 0x06);
 
-      Error|= comm.UpdateBit(0x83, 2, true);
+      Error |= comm.UpdateBit(0x83, 2, true);
 
-      Error|= comm.WrByte(0xFF, 0x07);
-      Error|= comm.WrByte(0x81, 0x01);
+      Error |= comm.WrByte(0xFF, 0x07);
+      Error |= comm.WrByte(0x81, 0x01);
 
-      Error|= PollingDelay();
+      Error |= PollingDelay();
 
-      Error|= comm.WrByte(0x80, 0x01);
+      Error |= comm.WrByte(0x80, 0x01);
 
       if (needOption(0, option, ReadDataFromDeviceDone)) {
         auto packed = packed90<uint32_t>(0x6b);
@@ -223,14 +225,14 @@ namespace VL53L0X {
         ReferenceSpadType = (packed >> 15) & 1;
 
         packed = packed90<uint32_t>(0x24);
-        NvmRefGoodSpadMap[0] = getByte(3,packed.wrapped);
-        NvmRefGoodSpadMap[1] = getByte(2,packed.wrapped);
-        NvmRefGoodSpadMap[2] = getByte(1,packed.wrapped);
-        NvmRefGoodSpadMap[3] = getByte(0,packed.wrapped);
+        NvmRefGoodSpadMap[0] = getByte(3, packed.wrapped);
+        NvmRefGoodSpadMap[1] = getByte(2, packed.wrapped);
+        NvmRefGoodSpadMap[2] = getByte(1, packed.wrapped);
+        NvmRefGoodSpadMap[3] = getByte(0, packed.wrapped);
 
         packed = packed90<uint32_t>(0x25);
-        NvmRefGoodSpadMap[4] = getByte(3,packed.wrapped);
-        NvmRefGoodSpadMap[5] = getByte(2,packed.wrapped);
+        NvmRefGoodSpadMap[4] = getByte(3, packed.wrapped);
+        NvmRefGoodSpadMap[5] = getByte(2, packed.wrapped);
       }
 
       if (needOption(1, option, ReadDataFromDeviceDone)) {
@@ -241,7 +243,7 @@ namespace VL53L0X {
         {//indent what might become a function someday
           Erroneous<uint32_t> packed {0};//zero init here matters!
           uint8_t pager = 0x77;//first page
-          char *prodid=ProductId;//will increment as data is acquired sequentially
+          char *prodid = ProductId;//will increment as data is acquired sequentially
           int msb = 0;//misnamed, should be 'number of bits'
           char *const end = prodid + 19;//place where the null goes
           while (prodid < end) {
@@ -270,8 +272,8 @@ namespace VL53L0X {
         DistMeasFixed1104_400_mm = middleof64(0x75);
       }//end option 2
 
-      Error|= comm.WrByte(0x81, 0x00);
-      Error  |= comm.WrByte(0xFF, 0x06);
+      Error |= comm.WrByte(0x81, 0x00);
+      Error |= comm.WrByte(0xFF, 0x06);
 
       Error |= comm.UpdateBit(0x83, 2, false);
 
@@ -306,8 +308,8 @@ namespace VL53L0X {
         VL53L0X_SETDEVICESPECIFICPARAMETER(this, PartUIDLower, PartUIDLower);
 //BUG: originally, types reversed!
 //        SignalRateMeasFixed400mmFix = VL53L0X_FIXPOINT97TOFIXPOINT1616(SignalRateMeasFixed1104_400_mm);
-  //ick: the ST code suggests that the 32 bits we extracted from the middle of 64 is really 16 bits in 9.7 format.
-        SignalRateMeasFixed400mmFix=SignalRateMeasFixed1104_400_mm<<9;//macro didn't play well with an Erroneous<u32>
+        //ick: the ST code suggests that the 32 bits we extracted from the middle of 64 is really 16 bits in 9.7 format.
+        SignalRateMeasFixed400mmFix = SignalRateMeasFixed1104_400_mm << 9;//macro didn't play well with an Erroneous<u32>
         VL53L0X_SETDEVICESPECIFICPARAMETER(this, SignalRateMeasFixed400mm, SignalRateMeasFixed400mmFix);
 
         OffsetMicroMeters = 0;
@@ -324,13 +326,14 @@ namespace VL53L0X {
   } // VL53L0X_get_info_from_device
 
   uint32_t calc_macro_period_ps(uint8_t vcsel_period_pclks) {
-    LOG_FUNCTION_START("");//ick: logging simple math transformation seems noisy.
+    LOG_FUNCTION_START
+    ("");//ick: logging simple math transformation seems noisy.
     /* The above calculation will produce rounding errors,  therefore set fixed value //ICK: comment refers to non-existent code.
      */
     const unsigned PLL_period_ps = 1655;//ick: 64 bits for short constant was silly
     const unsigned macro_period_vclks = 2304;//ick: 32 bits for short constant was silly
     //casting the first variable is sufficient to cast the rest, extra parens added in case the compiler disagrees with me :)
-    return (static_cast<uint32_t>(vcsel_period_pclks) * macro_period_vclks) *  PLL_period_ps;
+    return (static_cast<uint32_t>(vcsel_period_pclks) * macro_period_vclks) * PLL_period_ps;
   } // VL53L0X_calc_macro_period_ps
 
   uint16_t encode_timeout(uint32_t timeout_macro_clks) {
@@ -341,7 +344,7 @@ namespace VL53L0X {
     if (timeout_macro_clks > 0) {
       uint32_t ls_byte = timeout_macro_clks - 1;
       uint16_t ms_byte = 0;
-      while (ls_byte >=256) {//say what you mean. compiler will probably generate the optimized expression that formerly was here.
+      while (ls_byte >= 256) {//say what you mean. compiler will probably generate the optimized expression that formerly was here.
         ls_byte >>= 1;
         ++ms_byte;
       }
@@ -351,37 +354,38 @@ namespace VL53L0X {
     }
   } // VL53L0X_encode_timeout
 
-  bool sequence_step_enabled(SequenceStepId SequenceStepId,uint8_t SequenceConfig){
-    LOG_FUNCTION_START("");
+  bool sequence_step_enabled(SequenceStepId SequenceStepId, uint8_t SequenceConfig) {
+    LOG_FUNCTION_START
+    ("");
     unsigned bitnumber;
     switch (SequenceStepId) {//ick: formerly masked then shifted, find the bit and mask and shrink in just one place.
       case SEQUENCESTEP_TCC:
-        bitnumber =  4;
+        bitnumber = 4;
         break;
       case SEQUENCESTEP_DSS:
-        bitnumber =  3;
+        bitnumber = 3;
         break;
       case SEQUENCESTEP_MSRC:
-        bitnumber =  2;
+        bitnumber = 2;
         break;
       case SEQUENCESTEP_PRE_RANGE:
-        bitnumber =  6;
+        bitnumber = 6;
         break;
       case SEQUENCESTEP_FINAL_RANGE:
-        bitnumber =  7;
+        bitnumber = 7;
         break;
       default:
         return false;
     } // switch
 
-    return (SequenceConfig >>bitnumber)&1;
+    return (SequenceConfig >> bitnumber) & 1;
   } // sequence_step_enabled
 
   uint32_t decode_timeout(uint16_t encoded_timeout) {
     /*!
      * Decode 16-bit timeout register value - format (LSByte * 2^MSByte) + 1
      */
-    return 1+(uint32_t (encoded_timeout & 0x00FF) << (encoded_timeout >> 8)) ;//ick: former cast of shrink to  u32 was silly
+    return 1 + (uint32_t(encoded_timeout & 0x00FF) << (encoded_timeout >> 8));//ick: former cast of shrink to  u32 was silly
   } // VL53L0X_decode_timeout
 
 /* To convert ms into register value */
@@ -393,80 +397,100 @@ namespace VL53L0X {
 
 /* To convert register value into us */
   uint32_t calc_timeout_us(uint16_t timeout_period_mclks, uint8_t vcsel_period_pclks) {
-    uint32_t macro_period_ps = calc_macro_period_ps( vcsel_period_pclks);
+    uint32_t macro_period_ps = calc_macro_period_ps(vcsel_period_pclks);
     uint32_t macro_period_ns = (macro_period_ps + 500) / 1000;
     return ((timeout_period_mclks * macro_period_ns) + (macro_period_ns / 2)) / 1000;
   } // VL53L0X_calc_timeout_us
 
-  template<typename Scalar>  bool Core::fetch(Erroneous<Scalar>&item,RegSystem reg){
-    item.error = comm.Read<Scalar>( reg, item);
+  template<typename Scalar> bool Core::fetch(Erroneous<Scalar> &item, RegSystem reg) {
+    item.error = comm.Read<Scalar>(reg, item);
     return item.isOk();
   }
 
-
-static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t PeriodClock){
-    auto TimeoutMicroSeconds =calc_timeout_us(MClks, PeriodClock);
+  static Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks, uint8_t PeriodClock) {
+    auto TimeoutMicroSeconds = calc_timeout_us(MClks, PeriodClock);
     *pTimeOutMicroSecs = TimeoutMicroSeconds;
     return ERROR_NONE;
   }
 
-  Error Core::get_sequence_step_timeout( SequenceStepId stepId, uint32_t *pTimeOutMicroSecs) {////BUG: uses many values even when they were not successfully fetched.
+  Error Core::SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable) {
+    LOG_FUNCTION_START
+    ("");
+
+    uint16_t LinearityCorrectiveGain = PALDevDataGet(this, LinearityCorrectiveGain);
+
+    FixPoint1616_t TempFix1616;
+    if ((XTalkCompensationEnable == 0) || (LinearityCorrectiveGain != 1000)) {
+      TempFix1616.raw = 0;
+    } else {
+      GetPARAMETERFIELD((this->Data), XTalkCompensationRateMegaCps, TempFix1616.raw);
+    }
+
+    /* the following register has a format 3.13 */
+    Error |= comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, VL53L0X_FIXPOINT1616TOFIXPOINT313(TempFix1616.raw));
+
+    if (~Error) {
+      VL53L0X_SETPARAMETERFIELD(this, XTalkCompensationEnable, bool(XTalkCompensationEnable));
+    }
+    return Error;
+  } // VL53L0X_SetXTalkCompensationEnable
 
 
+  Error Core::get_sequence_step_timeout(SequenceStepId stepId, uint32_t *pTimeOutMicroSecs) {////BUG: uses many values even when they were not successfully fetched.
     uint32_t TimeoutMicroSeconds = 0;
     switch (stepId) {
       case SEQUENCESTEP_TCC:
       case SEQUENCESTEP_DSS:
       case SEQUENCESTEP_MSRC: {
-        Erroneous<uint8_t> CurrentVCSELPulsePeriodPClk= get_vcsel_pulse_period( VCSEL_PERIOD_PRE_RANGE);//ick:formerly called up to api layer
+        Erroneous<uint8_t> CurrentVCSELPulsePeriodPClk = get_vcsel_pulse_period(VCSEL_PERIOD_PRE_RANGE);//ick:formerly called up to api layer
         if (CurrentVCSELPulsePeriodPClk.isOk()) {
-          Erroneous<uint8_t> EncodedTimeOutByte ;
-          if(fetch(EncodedTimeOutByte, REG_MSRC_CONFIG_TIMEOUT_MACROP)){
+          Erroneous<uint8_t> EncodedTimeOutByte;
+          if (fetch(EncodedTimeOutByte, REG_MSRC_CONFIG_TIMEOUT_MACROP)) {
             uint16_t MsrcTimeOutMClks = decode_timeout(EncodedTimeOutByte);    //BUG: formerly used EncodedTimeOutByte even when not fetched.
-            return calcandReturn(pTimeOutMicroSecs,MsrcTimeOutMClks, CurrentVCSELPulsePeriodPClk);//BUG: formerly used CurrentVCSELPulsePeriodPClk even when not fetched.
+            return calcandReturn(pTimeOutMicroSecs, MsrcTimeOutMClks, CurrentVCSELPulsePeriodPClk);//BUG: formerly used CurrentVCSELPulsePeriodPClk even when not fetched.
           }
         }
       }
         break;
       case SEQUENCESTEP_PRE_RANGE: {
         /* Retrieve PRE-RANGE VCSEL Period */
-        Erroneous<uint8_t> CurrentVCSELPulsePeriodPClk= get_vcsel_pulse_period( VCSEL_PERIOD_PRE_RANGE);//ick:formerly called up to api layer
+        Erroneous<uint8_t> CurrentVCSELPulsePeriodPClk = get_vcsel_pulse_period(VCSEL_PERIOD_PRE_RANGE);//ick:formerly called up to api layer
         /* Retrieve PRE-RANGE Timeout in Macro periods (MCLKS) */
         if (CurrentVCSELPulsePeriodPClk.isOk()) {
           //ick: formerly fetched it all over again
           Erroneous<uint16_t> PreRangeEncodedTimeOut;
-          if(fetch(PreRangeEncodedTimeOut, REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI)) {//there is a low that is ignored
+          if (fetch(PreRangeEncodedTimeOut, REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI)) {//there is a low that is ignored
             uint16_t PreRangeTimeOutMClks = decode_timeout(PreRangeEncodedTimeOut);
-            return calcandReturn(pTimeOutMicroSecs,PreRangeTimeOutMClks, CurrentVCSELPulsePeriodPClk);
+            return calcandReturn(pTimeOutMicroSecs, PreRangeTimeOutMClks, CurrentVCSELPulsePeriodPClk);
           }
         }
       }
         break;
       case SEQUENCESTEP_FINAL_RANGE: {
-        SchedulerSequenceSteps_t SchedulerSequenceSteps;
-        GetSequenceStepEnables( &SchedulerSequenceSteps);//ick: formerly called up to api
+        Erroneous<SchedulerSequenceSteps_t> SchedulerSequenceSteps = get_sequence_step_enables();
         uint16_t PreRangeTimeOutMClks = 0;
-        if (SchedulerSequenceSteps.PreRangeOn) {
+        if (SchedulerSequenceSteps.wrapped.PreRangeOn) {
           /* Retrieve PRE-RANGE VCSEL Period */
-          Erroneous<uint8_t> CurrentVCSELPulsePeriodPClk= get_vcsel_pulse_period( VCSEL_PERIOD_PRE_RANGE);//ick:formerly called up to api layer
+          Erroneous<uint8_t> CurrentVCSELPulsePeriodPClk = get_vcsel_pulse_period(VCSEL_PERIOD_PRE_RANGE);//ick:formerly called up to api layer
           if (CurrentVCSELPulsePeriodPClk.isOk()) {
             Erroneous<uint16_t> PreRangeEncodedTimeOut;
-            if(fetch(PreRangeEncodedTimeOut, REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI)){
+            if (fetch(PreRangeEncodedTimeOut, REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI)) {
               PreRangeTimeOutMClks = decode_timeout(PreRangeEncodedTimeOut);//BUG: ignores error in fetch
             }
           }
           /* Retrieve FINAL-RANGE Timeout in Macro periods (MCLKS) */
-          Erroneous<uint8_t> FinalVCSELPulsePeriodPClk= get_vcsel_pulse_period(VCSEL_PERIOD_FINAL_RANGE);
-        if(FinalVCSELPulsePeriodPClk.isOk()){
-          Erroneous<uint16_t> FinalRangeEncodedTimeOut;
-          if(fetch(FinalRangeEncodedTimeOut,REG_FINAL_RANGE_CONFIG_TIMEOUT_MACROP_HI)){
-            uint16_t FinalRangeTimeOutMClks = decode_timeout(FinalRangeEncodedTimeOut);
+          Erroneous<uint8_t> FinalVCSELPulsePeriodPClk = get_vcsel_pulse_period(VCSEL_PERIOD_FINAL_RANGE);
+          if (FinalVCSELPulsePeriodPClk.isOk()) {
+            Erroneous<uint16_t> FinalRangeEncodedTimeOut;
+            if (fetch(FinalRangeEncodedTimeOut, REG_FINAL_RANGE_CONFIG_TIMEOUT_MACROP_HI)) {
+              uint16_t FinalRangeTimeOutMClks = decode_timeout(FinalRangeEncodedTimeOut);
 
-            FinalRangeTimeOutMClks -= PreRangeTimeOutMClks;//BUG: uses value even if fetch fails
-            return calcandReturn(pTimeOutMicroSecs,FinalRangeTimeOutMClks, FinalVCSELPulsePeriodPClk);
+              FinalRangeTimeOutMClks -= PreRangeTimeOutMClks;//BUG: uses value even if fetch fails
+              return calcandReturn(pTimeOutMicroSecs, FinalRangeTimeOutMClks, FinalVCSELPulsePeriodPClk);
+            }
           }
         }
-      }}
+      }
         break;
       default:
         return ERROR_INVALID_PARAMS;
@@ -481,9 +505,8 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
     uint16_t PreRangeTimeOutMClks;
     uint16_t FinalRangeTimeOutMClks;
     uint16_t FinalRangeEncodedTimeOut;
-    SchedulerSequenceSteps_t SchedulerSequenceSteps;
 
-    switch(StepId) {
+    switch (StepId) {
       case SEQUENCESTEP_TCC:
       case SEQUENCESTEP_DSS:
       case SEQUENCESTEP_MSRC: {
@@ -511,62 +534,66 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
           }
         }
       }
-    break;
-        case SEQUENCESTEP_FINAL_RANGE:
+        break;
+      case SEQUENCESTEP_FINAL_RANGE: {
         /* For the final range timeout, the pre-range timeout
          * must be added. To do this both final and pre-range
          * timeouts must be expressed in macro periods MClks
          * because they have different vcsel periods.
          */
 
-        GetSequenceStepEnables( &SchedulerSequenceSteps);
+        Erroneous<SchedulerSequenceSteps_t> SchedulerSequenceSteps = get_sequence_step_enables();
         PreRangeTimeOutMClks = 0;
-        if (SchedulerSequenceSteps.PreRangeOn) {
+        if (SchedulerSequenceSteps.wrapped.PreRangeOn) {
           /* Retrieve PRE-RANGE VCSEL Period */
           Erroneous<uint8_t> CurrentVCSELPulsePeriodPClk = get_vcsel_pulse_period(VCSEL_PERIOD_PRE_RANGE);//ick:formerly called up to api laye
           if (CurrentVCSELPulsePeriodPClk.isOk()) {
-            if(fetch(PreRangeEncodedTimeOut, REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI)) {
+            if (fetch(PreRangeEncodedTimeOut, REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI)) {
               PreRangeTimeOutMClks = decode_timeout(PreRangeEncodedTimeOut);
               /* Calculate FINAL RANGE Timeout in Macro Periods
                * (MCLKS) and add PRE-RANGE value
                */
-              Erroneous<uint8_t> FinalVCSELPulsePeriodPClk= get_vcsel_pulse_period(VCSEL_PERIOD_FINAL_RANGE);
-              if(FinalVCSELPulsePeriodPClk.isOk()){
+              Erroneous<uint8_t> FinalVCSELPulsePeriodPClk = get_vcsel_pulse_period(VCSEL_PERIOD_FINAL_RANGE);
+              if (FinalVCSELPulsePeriodPClk.isOk()) {
                 FinalRangeTimeOutMClks = calc_timeout_mclks(TimeOutMicroSecs, (uint8_t) CurrentVCSELPulsePeriodPClk);
                 FinalRangeTimeOutMClks += PreRangeTimeOutMClks;
                 FinalRangeEncodedTimeOut = encode_timeout(FinalRangeTimeOutMClks);
 
-                  Status = comm.WrWord( 0x71, FinalRangeEncodedTimeOut);
+                Status = comm.WrWord(0x71, FinalRangeEncodedTimeOut);
                 if (Status == ERROR_NONE) {
                   VL53L0X_SETDEVICESPECIFICPARAMETER(this, FinalRange.TimeoutMicroSecs, TimeOutMicroSecs);
                 }
               }
+            }
           }
         }
-      }break;
-      default:return  ERROR_INVALID_PARAMS;
       }
+        break;
+      default:
+        return ERROR_INVALID_PARAMS;
+    }
 
-    return ERROR_CONTROL_INTERFACE  ;
+    return ERROR_CONTROL_INTERFACE;
   } // set_sequence_step_timeout
 
-  Error Core::setValidPhase( uint8_t high, uint8_t low) {
+  Error Core::setValidPhase(uint8_t high, uint8_t low) {
     comm.WrByte(REG_FINAL_RANGE_CONFIG_VALID_PHASE_HIGH, high);//NB: mimicking old bug of ignoring status of first write
     return comm.WrByte(REG_FINAL_RANGE_CONFIG_VALID_PHASE_LOW, low);
   }
 
-  Error Core::setPhasecalLimit( uint8_t value) {
-    ErrorAccumulator Error;
-    Error = comm.WrByte(0xff, 0x01);
+  Error Core::setPhasecalLimit(uint8_t value) {
+    ErrorAccumulator Error{ERROR_NONE};
+    //todo: RAII FF thingy
+    Error |= comm.WrByte(0xff, 0x01);
     Error |= comm.WrByte(REG_ALGO_PHASECAL_LIM, value);
     Error |= comm.WrByte(0xff, 0x00);
     return Error;
   }
 
-  Error Core::set_vcsel_pulse_period( VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK) {
+  Error Core::set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK) {
     uint8_t vcsel_period_reg;
     const uint8_t MinPreVcselPeriodPCLK = 12;
-    const  uint8_t MaxPreVcselPeriodPCLK = 18;
+    const uint8_t MaxPreVcselPeriodPCLK = 18;
     const uint8_t MinFinalVcselPeriodPCLK = 8;
     const uint8_t MaxFinalVcselPeriodPCLK = 14;
     uint32_t MeasurementTimingBudgetMicroSeconds;
@@ -597,44 +624,44 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
         /* Set phase check limits */
         switch (VCSELPulsePeriodPCLK) {
           case 12:
-            Error = setValidPhase( 0x18, 0x08);
+            Error = setValidPhase(0x18, 0x08);
             break;
           case 14:
-            Error = setValidPhase( 0x30, 0x08);
+            Error = setValidPhase(0x30, 0x08);
             break;
           case 16:
-            Error = setValidPhase( 0x40, 0x08);
+            Error = setValidPhase(0x40, 0x08);
             break;
           case 18:
-            Error = setValidPhase( 0x50, 0x08);
+            Error = setValidPhase(0x50, 0x08);
             break;
         }
         break;
         case VCSEL_PERIOD_FINAL_RANGE:
           switch (VCSELPulsePeriodPCLK) {
             case 8:
-              Error = setValidPhase( 0x10, 0x08);
+              Error = setValidPhase(0x10, 0x08);
               Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x02);
               Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x0C);
-              Error |= setPhasecalLimit( 0x30);
+              Error |= setPhasecalLimit(0x30);
               break;
             case 10:
-              Error = setValidPhase( 0x28, 0x08);
+              Error = setValidPhase(0x28, 0x08);
               Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
               Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x09);
-              Error |= setPhasecalLimit( 0x20);
+              Error |= setPhasecalLimit(0x20);
               break;
             case 12:
-              Error = setValidPhase( 0x38, 0x08);
+              Error = setValidPhase(0x38, 0x08);
               Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
               Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x08);
-              Error |= setPhasecalLimit( 0x20);
+              Error |= setPhasecalLimit(0x20);
               break;
             case 14:
-              Error = setValidPhase( 0x048, 0x08);
+              Error = setValidPhase(0x048, 0x08);
               Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
               Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x07);
-              Error |= setPhasecalLimit( 0x20);
+              Error |= setPhasecalLimit(0x20);
               break;
               break;
             default:
@@ -669,23 +696,23 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
           }
 
           if (Error == ERROR_NONE) {
-            Error = set_sequence_step_timeout( SEQUENCESTEP_PRE_RANGE, PreRangeTimeoutMicroSeconds);
+            Error = set_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE, PreRangeTimeoutMicroSeconds);
           }
 
           if (Error == ERROR_NONE) {
-            Error = set_sequence_step_timeout( SEQUENCESTEP_MSRC, MsrcTimeoutMicroSeconds);
+            Error = set_sequence_step_timeout(SEQUENCESTEP_MSRC, MsrcTimeoutMicroSeconds);
           }
 
           VL53L0X_SETDEVICESPECIFICPARAMETER(this, PreRange.VcselPulsePeriod, VCSELPulsePeriodPCLK);
           break;
         case VCSEL_PERIOD_FINAL_RANGE:
-          Error = get_sequence_step_timeout( SEQUENCESTEP_FINAL_RANGE, &FinalRangeTimeoutMicroSeconds);
+          Error = get_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, &FinalRangeTimeoutMicroSeconds);
 
           if (Error == ERROR_NONE) {
             Error = comm.WrByte(REG_FINAL_RANGE_CONFIG_VCSEL_PERIOD, vcsel_period_reg);
           }
           if (Error == ERROR_NONE) {
-            Error = set_sequence_step_timeout( SEQUENCESTEP_FINAL_RANGE, FinalRangeTimeoutMicroSeconds);
+            Error = set_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, FinalRangeTimeoutMicroSeconds);
           }
           VL53L0X_SETDEVICESPECIFICPARAMETER(this, FinalRange.VcselPulsePeriod, VCSELPulsePeriodPCLK);
           break;
@@ -696,15 +723,15 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
     /* Finally, the timing budget must be re-applied */
     if (Error == ERROR_NONE) {
-      VL53L0X_GETPARAMETERFIELD( this,MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
+      VL53L0X_GETPARAMETERFIELD(this, MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
 
-      return SetMeasurementTimingBudgetMicroSeconds( MeasurementTimingBudgetMicroSeconds);
+      return SetMeasurementTimingBudgetMicroSeconds(MeasurementTimingBudgetMicroSeconds);
     }
 
     /* Perform the phase calibration. This is needed after changing on
      * vcsel period.
      * get_data_enable = 0, restore_config = 1 */
-    return perform_phase_calibration( &PhaseCalInt, 0, 1);
+    return perform_phase_calibration(&PhaseCalInt, 0, 1);
   } // VL53L0X_set_vcsel_pulse_period
 
 ////////////////////////////////////////
@@ -714,7 +741,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
     switch (VcselPeriodType) {
       case VCSEL_PERIOD_PRE_RANGE:
-        fetch(vcsel_period_reg,REG_PRE_RANGE_CONFIG_VCSEL_PERIOD);
+        fetch(vcsel_period_reg, REG_PRE_RANGE_CONFIG_VCSEL_PERIOD);
         break;
       case VCSEL_PERIOD_FINAL_RANGE:
         fetch(vcsel_period_reg, REG_FINAL_RANGE_CONFIG_VCSEL_PERIOD);
@@ -732,20 +759,18 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
 
 
-  Erroneous<SchedulerSequenceSteps_t> Core::get_sequence_step_enables(){
-    LOG_FUNCTION_START("");
-    Erroneous<uint8_t> SequenceConfig ;
-    if(fetch(SequenceConfig, REG_SYSTEM_SEQUENCE_CONFIG)){
+  Erroneous<SchedulerSequenceSteps_t> Core::get_sequence_step_enables() {
+    LOG_FUNCTION_START
+    ("");
+    Erroneous<uint8_t> SequenceConfig;
+    if (fetch(SequenceConfig, REG_SYSTEM_SEQUENCE_CONFIG)) {
       return {SequenceConfig.wrapped};
     }
-    return {0,SequenceConfig.error};//if error ignored then all steps will be 'off'
+    return {0, SequenceConfig.error};//if error ignored then all steps will be 'off'
   } // GetSequenceStepEnables
 
 
   Error Core::set_measurement_timing_budget_micro_seconds(uint32_t MeasurementTimingBudgetMicroSeconds) {
-    Error Error = ERROR_NONE;
-//    uint32_t FinalRangeTimingBudgetMicroSeconds;
-
 
     LOG_FUNCTION_START("");
 
@@ -754,7 +779,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
     }
     uint32_t FinalRangeTimingBudgetMicroSeconds = MeasurementTimingBudgetMicroSeconds - (StartOverheadMicroSeconds + EndOverheadMicroSeconds);
 
-    Erroneous<SchedulerSequenceSteps_t> SchedulerSequenceSteps= get_sequence_step_enables();
+    Erroneous<SchedulerSequenceSteps_t> SchedulerSequenceSteps = get_sequence_step_enables();
 
     if (SchedulerSequenceSteps.isOk() && (SchedulerSequenceSteps.wrapped.TccOn || SchedulerSequenceSteps.wrapped.MsrcOn || SchedulerSequenceSteps.wrapped.DssOn)) {
 
@@ -768,7 +793,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
       /* TCC */
       if (SchedulerSequenceSteps.wrapped.TccOn) {
-       uint32_t SubTimeout = MsrcDccTccTimeoutMicroSeconds + TccOverheadMicroSeconds;
+        uint32_t SubTimeout = MsrcDccTccTimeoutMicroSeconds + TccOverheadMicroSeconds;
 
         if (SubTimeout < FinalRangeTimingBudgetMicroSeconds) {
           FinalRangeTimingBudgetMicroSeconds -= SubTimeout;
@@ -781,7 +806,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
       /* DSS */
       if (SchedulerSequenceSteps.wrapped.DssOn) {
-        uint32_t SubTimeout  = 2 * (MsrcDccTccTimeoutMicroSeconds + DssOverheadMicroSeconds);
+        uint32_t SubTimeout = 2 * (MsrcDccTccTimeoutMicroSeconds + DssOverheadMicroSeconds);
 
         if (SubTimeout < FinalRangeTimingBudgetMicroSeconds) {
           FinalRangeTimingBudgetMicroSeconds -= SubTimeout;
@@ -817,7 +842,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
       }
     }
 
-    if ( SchedulerSequenceSteps.wrapped.FinalRangeOn) {
+    if (SchedulerSequenceSteps.wrapped.FinalRangeOn) {
       FinalRangeTimingBudgetMicroSeconds -= FinalRangeOverheadMicroSeconds;
 
       /* Final Range Timeout
@@ -827,7 +852,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
        * will be set. Otherwise the remaining time will be applied to
        * the final range.
        */
-      Error = set_sequence_step_timeout( SEQUENCESTEP_FINAL_RANGE, FinalRangeTimingBudgetMicroSeconds);//BUG: error ignored
+      Error = set_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, FinalRangeTimingBudgetMicroSeconds);//BUG: error ignored
 
       VL53L0X_SETPARAMETERFIELD(this, MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
     }
@@ -835,11 +860,11 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
     return Error;
   } // VL53L0X_set_measurement_timing_budget_micro_seconds
 
-  Error Core::get_measurement_timing_budget_micro_seconds( uint32_t *pMeasurementTimingBudgetMicroSeconds) {
+  Error Core::get_measurement_timing_budget_micro_seconds(uint32_t *pMeasurementTimingBudgetMicroSeconds) {
     Error Status = ERROR_NONE;
 
     uint32_t FinalRangeTimeoutMicroSeconds;
-     uint32_t MsrcDccTccTimeoutMicroSeconds = 2000;
+    uint32_t MsrcDccTccTimeoutMicroSeconds = 2000;
 
     uint32_t PreRangeTimeoutMicroSeconds = 0;
 
@@ -858,7 +883,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
     if (SchedulerSequenceSteps.TccOn || SchedulerSequenceSteps.MsrcOn || SchedulerSequenceSteps.DssOn) {
 
-      Status = get_sequence_step_timeout( SEQUENCESTEP_MSRC, &MsrcDccTccTimeoutMicroSeconds);
+      Status = get_sequence_step_timeout(SEQUENCESTEP_MSRC, &MsrcDccTccTimeoutMicroSeconds);
 
       if (Status == ERROR_NONE) {
         if (SchedulerSequenceSteps.TccOn) {
@@ -875,7 +900,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
     if (Status == ERROR_NONE) {
       if (SchedulerSequenceSteps.PreRangeOn) {
-        Status = get_sequence_step_timeout( SEQUENCESTEP_PRE_RANGE, &PreRangeTimeoutMicroSeconds);
+        Status = get_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE, &PreRangeTimeoutMicroSeconds);
         *pMeasurementTimingBudgetMicroSeconds += PreRangeTimeoutMicroSeconds + PreRangeOverheadMicroSeconds;
       }
     }
@@ -908,7 +933,8 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
    * 0..3 index  number of bytes indicated in first byte  I2C multi byte write.
    * */
   Error Core::load_tuning_settings(const uint8_t *pTuningSettingBuffer) {
-    LOG_FUNCTION_START    ("");
+    LOG_FUNCTION_START
+    ("");
     int Index = 0;//ick: only value over using the pTuning..Buffer as a pointer might be for debug display.
 
     while (pTuningSettingBuffer[Index]) {
@@ -937,7 +963,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
         for (unsigned i = 0; i < NumberOfWrites; i++) {
           localBuffer[i] = pTuningSettingBuffer[Index++];
         }
-        if(comm.WriteMulti(Address, localBuffer, NumberOfWrites)){
+        if (comm.WriteMulti(Address, localBuffer, NumberOfWrites)) {
           return ERROR_CONTROL_INTERFACE;
         }
       } else {
@@ -947,7 +973,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
     return ERROR_NONE;
   } // VL53L0X_load_tuning_settings
 
-  Erroneous<FixPoint1616_t> Core:: get_total_xtalk_rate(const RangingMeasurementData_t *pRangingMeasurementData) {
+  Erroneous<FixPoint1616_t> Core::get_total_xtalk_rate(const RangingMeasurementData_t *pRangingMeasurementData) {
 
     Erroneous<uint8_t> xtalkCompEnable = GetXTalkCompensationEnable();
 
@@ -959,27 +985,27 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
       FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData->EffectiveSpadRtnCount * xtalkPerSpadMegaCps.raw;
 
       /* FixPoint0824 >> 8 = FixPoint1616 */
-      return totalXtalkMegaCps.shrink( 8);
+      return totalXtalkMegaCps.shrink(8);
     }
-    return {0,xtalkCompEnable.error};//0 if caller ignores error
+    return {0, xtalkCompEnable.error};//0 if caller ignores error
   } // VL53L0X_get_total_xtalk_rate
 
-  Erroneous<FixPoint1616_t> get_total_signal_rate(const RangingMeasurementData_t *pRangingMeasurementData) {
-    LOG_FUNCTION_START("");
-    Erroneous<FixPoint1616_t> totalXtalkMegaCps { pRangingMeasurementData->SignalRateRtnMegaCps};//default in case returned error is ignored
-
-    return  get_total_xtalk_rate( pRangingMeasurementData);
-
+  Erroneous<FixPoint1616_t> get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
+    LOG_FUNCTION_START
+    ("");
+    Erroneous<FixPoint1616_t> totalXtalkMegaCps {pRangingMeasurementData.SignalRateRtnMegaCps};//default in case returned error is ignored
+    return get_total_xtalk_rate(pRangingMeasurementData);
   } // VL53L0X_get_total_signal_rate
 
   uint32_t Core::calc_dmax(const FixPoint1616_t totalSignalRate_mcps, const FixPoint1616_t totalCorrSignalRate_mcps, const FixPoint1616_t pwMult, const uint32_t sigmaEstimateP1, const FixPoint1616_t sigmaEstimateP2, const uint32_t peakVcselDuration_us) {
     const uint32_t cSigmaLimit = 18;
-    const FixPoint1616_t cSignalLimit{0.25};// = 0x4000;     /* 0.25 */
-    const FixPoint1616_t cSigmaEstRef{0.0001};// = 0x00000042; /* 0.001 */
+    const FixPoint1616_t cSignalLimit {0.25};// = 0x4000;     /* 0.25 */
+    const FixPoint1616_t cSigmaEstRef {0.0001};// = 0x00000042; /* 0.001 */
     const uint32_t cAmbEffWidthSigmaEst_ns = 6;
     const uint32_t cAmbEffWidthDMax_ns = 7;
 
-    LOG_FUNCTION_START ("");
+    LOG_FUNCTION_START
+    ("");
 
     uint32_t dmaxCalRange_mm = PALDevDataGet(this, DmaxCalRangeMilliMeter);
     FixPoint1616_t dmaxCalSignalRateRtn_mcps = PALDevDataGet(this, DmaxCalSignalRateRtnMegaCps);
@@ -991,7 +1017,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
     /* FixPoint1616 >> 8 = FixPoint2408 */
     SignalAt0mm.shrink(8);
     SignalAt0mm.raw *= dmaxCalRange_mm;
-    FixPoint1616_t minSignalNeeded_p1 { 0};
+    FixPoint1616_t minSignalNeeded_p1 {0};
     if (totalCorrSignalRate_mcps.raw > 0) {
 
       /* Shift by 10 bits to increase resolution prior to the
@@ -999,7 +1025,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
       uint32_t signalRateTemp_mcps = totalSignalRate_mcps.boosted(10);
 
       /*  FixPoint0626/FixPoint1616 = FixPoint2210 */
-      minSignalNeeded_p1 = roundedDivide(signalRateTemp_mcps,totalCorrSignalRate_mcps );
+      minSignalNeeded_p1 = roundedDivide(signalRateTemp_mcps, totalCorrSignalRate_mcps);
 
 
       /* Apply a factored version of the speed of light.
@@ -1026,32 +1052,32 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
      */
 
     FixPoint1616_t sigmaEstP2Tmp = sigmaEstimateP2.rounded();
-    sigmaEstP2Tmp = roundedDivide(sigmaEstP2Tmp,  cAmbEffWidthSigmaEst_ns);
+    sigmaEstP2Tmp = roundedDivide(sigmaEstP2Tmp, cAmbEffWidthSigmaEst_ns);
     sigmaEstP2Tmp.raw *= cAmbEffWidthDMax_ns;//todo: multiplyByRatio function. Can be given greater range than is easy to achieve inline.
 
     FixPoint1616_t minSignalNeeded_p3;
     if (sigmaEstP2Tmp.raw > 0xffff) {// >=1.0
-      minSignalNeeded_p3 = uint32_t (0xfff00000);
+      minSignalNeeded_p3 = uint32_t(0xfff00000);
     } else {
       /* DMAX uses a different ambient width from sigma, so apply correction.
        * Perform division before multiplication to prevent overflow.
        */
-      sigmaEstimateP2 = roundedDivide(sigmaEstimateP2 , cAmbEffWidthSigmaEst_ns);
+      sigmaEstimateP2 = roundedDivide(sigmaEstimateP2, cAmbEffWidthSigmaEst_ns);
       sigmaEstimateP2.raw *= cAmbEffWidthDMax_ns; //ick: isn't this already computed in sigmaEstP2Tmp?
 
       /* FixPoint1616 >> 16 = uint32 */
-      minSignalNeeded_p3 = squared(sigmaEstimateP2.scaled( 16));
+      minSignalNeeded_p3 = squared(sigmaEstimateP2.scaled(16));
     }
 
     /* FixPoint1814 / uint32 = FixPoint1814
      * then FixPoint1814 * FixPoint1814 = FixPoint3628 := FixPoint0428 */
-    FixPoint1616_t sigmaLimitTmp = squared(roundedDivide(cSigmaLimit << 14 , 1000));
+    FixPoint1616_t sigmaLimitTmp = squared(roundedDivide(cSigmaLimit << 14, 1000));
 
     /* FixPoint1616 * FixPoint1616 = FixPoint3232 */
     FixPoint1616_t sigmaEstSqTmp = squared(cSigmaEstRef);
 
     /* FixPoint3232 >> 4 = FixPoint0428 */
-    sigmaEstSqTmp = sigmaEstSqTmp.scaled( 4);
+    sigmaEstSqTmp = sigmaEstSqTmp.scaled(4);
 
     /* FixPoint0428 - FixPoint0428	= FixPoint0428 */
     sigmaLimitTmp.raw -= sigmaEstSqTmp.raw;
@@ -1073,7 +1099,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
     /* FixPoint1814 / FixPoint1814 = uint32
      * then FixPoint3200 * FixPoint2804 := FixPoint2804*/
-    minSignalNeeded =  minSignalNeeded_p1.raw*roundedDivide(minSignalNeeded,minSignalNeeded_p4.raw).raw;
+    minSignalNeeded = minSignalNeeded_p1.raw * roundedDivide(minSignalNeeded, minSignalNeeded_p4.raw).raw;
 
     /* Apply correction by dividing by 1000000.
      * This assumes 10E16 on the numerator of the equation
@@ -1082,58 +1108,41 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
      * handle the larger and smaller elements of this equation,
      * i.e. speed of light and pulse widths.
      */
-    minSignalNeeded = roundedDivide(minSignalNeeded , 1000);
+    minSignalNeeded = roundedDivide(minSignalNeeded, 1000);
     minSignalNeeded.boost(4);
-    minSignalNeeded = roundedDivide(minSignalNeeded , 1000);//BUG: perhaps 980F screwed this up? Rounding each division by 1000 to get to /1000,000 is wrong if rounded twice.
+    minSignalNeeded = roundedDivide(minSignalNeeded, 1000);//BUG: perhaps 980F screwed this up? Rounding each division by 1000 to get to /1000,000 is wrong if rounded twice.
 
     /* FixPoint2408/FixPoint2408 = uint32 */
-    FixPoint1616_t dmaxAmbient = isqrt(roundedDivide(SignalAt0mm , minSignalNeeded));
+    FixPoint1616_t dmaxAmbient = isqrt(roundedDivide(SignalAt0mm, minSignalNeeded));
 
     /* FixPoint1616 >> 8 = FixPoint2408 */
     FixPoint1616_t signalLimitTmp = cSignalLimit.scaled(8);
 
     /* FixPoint2408/FixPoint2408 = uint32 */
-    FixPoint1616_t dmaxDark =isqrt(roundedDivide(SignalAt0mm , signalLimitTmp)) ;//former check for zero moved into roundedDivide
+    FixPoint1616_t dmaxDark = isqrt(roundedDivide(SignalAt0mm, signalLimitTmp));//former check for zero moved into roundedDivide
 
     return min(dmaxDark, dmaxAmbient);
   } // calc_dmax
 
-  Erroneous<uint32_t> Core::calc_sigma_estimate(const RangingMeasurementData_t *pRangingMeasurementData, FixPoint1616_t *pSigmaEstimate) {
+  Erroneous<FixPoint1616_t> Core::calc_sigma_estimate(const RangingMeasurementData_t &pRangingMeasurementData, uint32_t &pDmm) {
     /* Expressed in 100ths of a ns, i.e. centi-ns */
     const uint32_t cPulseEffectiveWidth_centi_ns {800};
     /* Expressed in 100ths of a ns, i.e. centi-ns */
     const uint32_t cAmbientEffectiveWidth_centi_ns {600};
     const FixPoint1616_t cSigmaEstRef {0.001}; /* 0.001 */
     const uint32_t cVcselPulseWidth_ps = 4700;      /* pico secs */
-    const FixPoint1616_t cSigmaEstMax=0x028F87AE;//todo: convert items like this to floating point as the conversion will be done at compile time
-    const FixPoint1616_t cSigmaEstRtnMax =0xF000;// 15/16 ths?
-    const FixPoint1616_t cAmbToSignalRatioMax =0xF0000000 / cAmbientEffectiveWidth_centi_ns;//ick: may be off by 64k, need some explanation of how you can divide the u32's and get the correct 16.16
+    //655.5299 looks suspiciciously close to 655.36 and typos:
+    const FixPoint1616_t cSigmaEstMax = 0x028F87AE;//todo: convert items like this to floating point as the conversion to integer will be done at compile time
+    const FixPoint1616_t cSigmaEstRtnMax = 0xF000;// 15/16 ths?
+    const FixPoint1616_t cAmbToSignalRatioMax = 0xF0000000 / cAmbientEffectiveWidth_centi_ns;//ick: may be off by 64k, need some explanation of how you can divide the u32's and get the correct 16.16
     /* Time Of Flight per mm (6.6 pico secs) */
     const FixPoint1616_t cTOF_per_mm_ps {6.6};//=0x0006999A; //ick: value doesn't seem to match reality, should be closer to 7.0
-//    const uint32_t c16BitRoundingParam = FixPoint1616_t::half;//0.5 if 16.16
     const FixPoint1616_t cMaxXTalk_kcps {50.0};//= 0x00320000;
     const uint32_t cPllPeriod_ps {1655};
 
-    uint32_t vcselTotalEventsRtn;
     uint32_t finalRangeTimeoutMicroSecs;
     uint32_t preRangeTimeoutMicroSecs;
-//    FixPoint1616_t sigmaEstimateP1;
-//    FixPoint1616_t sigmaEstimateP2;
-//    FixPoint1616_t sigmaEstimateP3;
-//    FixPoint1616_t deltaT_ps;
-//
-//    FixPoint1616_t sigmaEstRtn;
-//    FixPoint1616_t sigmaEstimate;
-//    FixPoint1616_t xTalkCorrection;
-//    FixPoint1616_t peakSignalRate_kcps;
 
-//    FixPoint1616_t diff1_mcps;
-//    FixPoint1616_t diff2_mcps;
-
-//    FixPoint1616_t sqr2;
-//    FixPoint1616_t sqrSum;
-//    FixPoint1616_t sqrtResult_centi_ns;
-//    FixPoint1616_t sqrtResult;
     uint32_t vcselWidth;
     uint32_t finalRangeMacroPCLKS;
     uint32_t preRangeMacroPCLKS;
@@ -1157,7 +1166,8 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
      *	- SigmaEstEffAmbWidth
      */
 
-    LOG_FUNCTION_START ("");
+    LOG_FUNCTION_START
+    ("");
     Erroneous<FixPoint1616_t> xTalkCompRate_mcps;
     VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationRateMegaCps, xTalkCompRate_mcps);
 
@@ -1172,63 +1182,53 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
 
     FixPoint1616_t totalSignalRate_mcps = get_total_signal_rate(pRangingMeasurementData);
 
-    xTalkCompRate_mcps = get_total_xtalk_rate( pRangingMeasurementData);
+    xTalkCompRate_mcps = get_total_xtalk_rate(pRangingMeasurementData);
 
+    if (~xTalkCompRate_mcps) {
+      return {xTalkCompRate_mcps.error};
+    }
     /* Signal rate measurement provided by device is the
      * peak signal rate, not average.
      */
     FixPoint1616_t peakSignalRate_kcps = totalSignalRate_mcps.millis();
-    uint32_t xTalkCompRate_kcps = xTalkCompRate_mcps.raw * 1000;
+    uint32_t xTalkCompRate_kcps = min(xTalkCompRate_mcps.wrapped * 1000, cMaxXTalk_kcps.raw);
 
-    if (xTalkCompRate_kcps > cMaxXTalk_kcps.raw) {
-      xTalkCompRate_kcps = cMaxXTalk_kcps;
-    }
 
-    if (Status == ERROR_NONE) {
+    /* Calculate final range macro periods */
+    finalRangeTimeoutMicroSecs = VL53L0X_GETDEVICESPECIFICPARAMETER(this, FinalRange.TimeoutMicroSecs);
 
-      /* Calculate final range macro periods */
-      finalRangeTimeoutMicroSecs = VL53L0X_GETDEVICESPECIFICPARAMETER(this, FinalRange.TimeoutMicroSecs);
+    finalRangeVcselPCLKS = VL53L0X_GETDEVICESPECIFICPARAMETER(this, FinalRange.VcselPulsePeriod);
 
-      finalRangeVcselPCLKS = VL53L0X_GETDEVICESPECIFICPARAMETER(this, FinalRange.VcselPulsePeriod);
+    finalRangeMacroPCLKS = calc_timeout_mclks(finalRangeTimeoutMicroSecs, finalRangeVcselPCLKS);
 
-      finalRangeMacroPCLKS = calc_timeout_mclks(finalRangeTimeoutMicroSecs, finalRangeVcselPCLKS);
+    /* Calculate pre-range macro periods */
+    preRangeTimeoutMicroSecs = VL53L0X_GETDEVICESPECIFICPARAMETER(this, PreRange.TimeoutMicroSecs);
 
-      /* Calculate pre-range macro periods */
-      preRangeTimeoutMicroSecs = VL53L0X_GETDEVICESPECIFICPARAMETER(this, PreRange.TimeoutMicroSecs);
+    preRangeVcselPCLKS = VL53L0X_GETDEVICESPECIFICPARAMETER(this, PreRange.VcselPulsePeriod);
 
-      preRangeVcselPCLKS = VL53L0X_GETDEVICESPECIFICPARAMETER(this, PreRange.VcselPulsePeriod);
+    preRangeMacroPCLKS = calc_timeout_mclks(preRangeTimeoutMicroSecs, preRangeVcselPCLKS);
 
-      preRangeMacroPCLKS = calc_timeout_mclks(preRangeTimeoutMicroSecs, preRangeVcselPCLKS);
+    vcselWidth = (finalRangeVcselPCLKS == 8) ? 2 : 3;
 
-      vcselWidth = 3;
-      if (finalRangeVcselPCLKS == 8) {
-        vcselWidth = 2;
-      }
+    peakVcselDuration_us = milli((vcselWidth << 11) * (preRangeMacroPCLKS + finalRangeMacroPCLKS));
+    peakVcselDuration_us *= cPllPeriod_ps;
+    peakVcselDuration_us = milli(peakVcselDuration_us);
 
-      peakVcselDuration_us = vcselWidth * 2048 * (preRangeMacroPCLKS + finalRangeMacroPCLKS);
-      peakVcselDuration_us = (peakVcselDuration_us + 500) / 1000;
-      peakVcselDuration_us *= cPllPeriod_ps;
-      peakVcselDuration_us = (peakVcselDuration_us + 500) / 1000;
+    /* Fix1616 >> 8 = Fix2408 */
+    totalSignalRate_mcps = totalSignalRate_mcps.shrink(8);
 
-      /* Fix1616 >> 8 = Fix2408 */
-      totalSignalRate_mcps = (totalSignalRate_mcps + 0x80) >> 8;
+    /* Fix2408 * uint32 = Fix2408
+     * then Fix2408 >> 8 = uint32 */
 
-      /* Fix2408 * uint32 = Fix2408 */
-      vcselTotalEventsRtn = totalSignalRate_mcps * peakVcselDuration_us;
+    uint32_t vcselTotalEventsRtn = roundedScale(totalSignalRate_mcps.raw * peakVcselDuration_us, 8);
 
-      /* Fix2408 >> 8 = uint32 */
-      vcselTotalEventsRtn = (vcselTotalEventsRtn + 0x80) >> 8;
-
-      /* Fix2408 << 8 = Fix1616 = */
-      totalSignalRate_mcps <<= 8;
-    }
-
-    ERROR_OUT;
+    /* Fix2408 << 8 = Fix1616 = */
+    totalSignalRate_mcps.boost(8);
 
     if (peakSignalRate_kcps.raw == 0) {
-      *pSigmaEstimate = cSigmaEstMax;
+
       PALDevDataSet(this, SigmaEstimate, cSigmaEstMax);
-      return  0;
+      return {cSigmaEstMax};
     } else {
       if (vcselTotalEventsRtn < 1) {
         vcselTotalEventsRtn = 1;
@@ -1274,7 +1274,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
       FixPoint1616_t sigmaEstimateP3 = 2 * isqrt(vcselTotalEventsRtn * 12);
 
       /* uint32 * FixPoint1616 = FixPoint1616 */
-      FixPoint1616_t deltaT_ps = pRangingMeasurementData->RangeMilliMeter * cTOF_per_mm_ps.raw;
+      FixPoint1616_t deltaT_ps = pRangingMeasurementData.RangeMilliMeter * cTOF_per_mm_ps.raw;
 
       /*
        * vcselRate - xtalkCompRate
@@ -1283,16 +1283,16 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
        * 500 is added to ensure rounding when integer division
        * truncates.
        */
-      FixPoint1616_t diff1_mcps = roundedDivide(peakSignalRate_kcps.boosted(16) - xTalkCompRate_kcps ,1000);
+      FixPoint1616_t diff1_mcps = roundedDivide(peakSignalRate_kcps.boosted(16) - xTalkCompRate_kcps, 1000);
 
       /* vcselRate + xtalkCompRate */
       FixPoint1616_t diff2_mcps = roundedDivide((peakSignalRate_kcps.boosted(16) + xTalkCompRate_kcps), 1000);
 
       /* Shift by 8 bits to increase resolution prior to the division */
-      diff1_mcps.boost( 8);
+      diff1_mcps.boost(8);
 
       /* FixPoint0824/FixPoint1616 = FixPoint2408 */
-      FixPoint1616_t xTalkCorrection =  abs( ((long long)diff1_mcps.raw / diff2_mcps.raw));
+      FixPoint1616_t xTalkCorrection = abs(((long long) diff1_mcps.raw / diff2_mcps.raw));
 
       /* FixPoint2408 << 8 = FixPoint1616 */
       xTalkCorrection.boost(8);
@@ -1300,7 +1300,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
       /* FixPoint1616/uint32 = FixPoint1616 */
       FixPoint1616_t pwMult = deltaT_ps.raw / cVcselPulseWidth_ps; /* smaller than 1.0f */ //ick: not rounded
 
-      const FixPoint1616_t Unity{1.0};
+      const FixPoint1616_t Unity {1.0};
       /*
        * FixPoint1616 * FixPoint1616 = FixPoint3232, however both
        * values are small enough such that32 bits will not be
@@ -1309,7 +1309,7 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
       pwMult.raw *= (Unity.raw - xTalkCorrection.raw);
 
       /* (FixPoint3232 >> 16) = FixPoint1616 */
-      pwMult.shrink( 16);//980f: rounded
+      pwMult.shrink(16);//980f: rounded
 
       /* FixPoint1616 + FixPoint1616 = FixPoint1616 */
       pwMult.raw += Unity.raw;
@@ -1324,30 +1324,19 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
       pwMult.square();
 
       /* (FixPoint3430 >> 14) = Fix1616 */
-      pwMult.shrink( 14);
+      pwMult.shrink(14);
 
       /* FixPoint1616 * uint32 = FixPoint1616 */
-      FixPoint1616_t  sqr1 = pwMult * sigmaEstimateP1;
-
+      FixPoint1616_t sqr1 = pwMult.raw * sigmaEstimateP1.raw;
       /* (FixPoint1616 >> 16) = FixPoint3200 */
       sqr1 = roundedScale(sqr1, 16);
 
-      /* FixPoint3200 * FixPoint3200 = FixPoint6400 */
-      sqr1.square();
-
       FixPoint1616_t sqr2 = sigmaEstimateP2;
-
       /* (FixPoint1616 >> 16) = FixPoint3200 */
       sqr2.shrink(16);
 
-      /* FixPoint3200 * FixPoint3200 = FixPoint6400 */
-      sqr2.square();
-
-      /* FixPoint64000 + FixPoint6400 = FixPoint6400 */
-      FixPoint1616_t sqrSum = sqr1.raw + sqr2.raw;
-
       /* SQRT(FixPoin6400) = FixPoint3200 */
-      FixPoint1616_t sqrtResult_centi_ns = isqrt(sqrSum);
+      FixPoint1616_t sqrtResult_centi_ns = quadrature_sum(sqr1, sqr2);
 
       /* (FixPoint3200 << 16) = FixPoint1616 */
       sqrtResult_centi_ns.boost(16);
@@ -1357,59 +1346,51 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
        * seconds (2997) Therefore to get mm/ns we have to divide by
        * 10000
        */
-      FixPoint1616_t sigmaEstRtn = ((roundedDivide(sqrtResult_centi_ns , 100).raw / sigmaEstimateP3.raw));//ick: why not rounded?
+      FixPoint1616_t sigmaEstRtn = ((roundedDivide(sqrtResult_centi_ns, 100).raw / sigmaEstimateP3.raw));//ick: why not rounded?
       sigmaEstRtn.raw *= SPEED_OF_LIGHT_IN_AIR;
-
-      /* Add 5000 before dividing by 10000 to ensure rounding. */
       sigmaEstRtn.divideby(10000);
-
-        /* Clip to prevent overflow. Will ensure safe max result. */
-        sigmaEstRtn.lessen(cSigmaEstRtnMax);
-
-      /* FixPoint1616 * FixPoint1616 = FixPoint3232 */
-      sqr1 = squared(sigmaEstRtn);
-      /* FixPoint1616 * FixPoint1616 = FixPoint3232 */
-      sqr2 = squared(cSigmaEstRef);
+      /* Clip to prevent overflow. Will ensure safe max result. */
+      sigmaEstRtn.lessen(cSigmaEstRtnMax);
 
       /* sqrt(FixPoint3232) = FixPoint1616 */
-      FixPoint1616_t sqrtResult = isqrt((sqr1 + sqr2));
+      FixPoint1616_t sqrtResult = quadrature_sum(sigmaEstRtn, cSigmaEstRef);
       /*
        * Note that the Shift by 4 bits increases resolution prior to
        * the sqrt, therefore the result must be shifted by 2 bits to
        * the right to revert back to the FixPoint1616 format.
        */
 
-      sigmaEstimate = 1000 * sqrtResult;
+      FixPoint1616_t sigmaEstimate = 1000 * sqrtResult;
 
-      if ((peakSignalRate_kcps < 1) || (vcselTotalEventsRtn < 1) ||
-          (sigmaEstimate > cSigmaEstMax)) {
+      if ((peakSignalRate_kcps.raw < 1) || (vcselTotalEventsRtn < 1) || (sigmaEstimate.raw > cSigmaEstMax.raw)) {
         sigmaEstimate = cSigmaEstMax;
       }
 
-      *pSigmaEstimate = (uint32_t) (sigmaEstimate);
-      PALDevDataSet(this, SigmaEstimate, *pSigmaEstimate);
-      return calc_dmax(Dev, totalSignalRate_mcps, correctedSignalRate_mcps, pwMult, sigmaEstimateP1, sigmaEstimateP2, peakVcselDuration_us, pDmax_mm);
+      pDmm = calc_dmax(totalSignalRate_mcps, correctedSignalRate_mcps, pwMult, sigmaEstimateP1, sigmaEstimateP2, peakVcselDuration_us);
+      PALDevDataSet(this, SigmaEstimate, sigmaEstimate);
+      return {sigmaEstimate};
     }
 
     return ERROR_NONE;
   }
 
   Erroneous<bool> Core::GetSequenceStepEnable(SequenceStepId StepId) {
-    LOG_FUNCTION_START("");
-    int seqbit= bitFor(StepId);
-    if(seqbit<0){
-      return {false,ERROR_INVALID_PARAMS};
+    LOG_FUNCTION_START
+    ("");
+    int seqbit = bitFor(StepId);
+    if (seqbit < 0) {
+      return {false, ERROR_INVALID_PARAMS};
     }
 
-    Erroneous<uint8_t> SequenceConfig ;
-    if(fetch(SequenceConfig,REG_SYSTEM_SEQUENCE_CONFIG)){
-      return {getBit(seqbit,  SequenceConfig.wrapped)};
+    Erroneous<uint8_t> SequenceConfig;
+    if (fetch(SequenceConfig, REG_SYSTEM_SEQUENCE_CONFIG)) {
+      return {getBit(seqbit, SequenceConfig.wrapped)};
     }
-    return {false,SequenceConfig.error};
+    return {false, SequenceConfig.error};
   }
   // VL53L0X_calc_sigma_estimate
 
-  Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus) {
+  Error Core::get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, const RangingMeasurementData_t &pRangingMeasurementData, uint8_t *pPalRangeStatus) {
     LOG_FUNCTION_START
     ("");
 
@@ -1423,37 +1404,30 @@ static  Error calcandReturn(uint32_t *pTimeOutMicroSecs, uint16_t MClks,uint8_t 
     uint8_t DeviceRangeStatusInternal = ((DeviceRangeStatus & 0x78) >> 3);
     uint8_t NoneFlag = (DeviceRangeStatusInternal == 0 || DeviceRangeStatusInternal == 5 || DeviceRangeStatusInternal == 7 || DeviceRangeStatusInternal == 12 || DeviceRangeStatusInternal == 13 || DeviceRangeStatusInternal == 14 || DeviceRangeStatusInternal == 15);
 
+    Erroneous<uint16_t> tmpWord;
     /* LastSignalRefMcps */
-    Error Status = comm.WrByte(0xFF, 0x01);
-    uint16_t tmpWord = 0;
-    if (Status == ERROR_NONE) {
-      Status = VL53L0X_RdWord(Dev, REG_RESULT_PEAK_SIGNAL_RATE_REF, &tmpWord);
-    }
-    if (Status == ERROR_NONE) {
-      Status = comm.WrByte(0xFF, 0x00);
+    {
+      auto pager = autoCloser(Private_Pager, 0x01, 0x00);
+      fetch(tmpWord, REG_RESULT_PEAK_SIGNAL_RATE_REF);
     }
 
-    FixPoint1616_t LastSignalRefMcps = VL53L0X_FIXPOINT97TOFIXPOINT1616(tmpWord);
+    FixPoint1616_t LastSignalRefMcps = VL53L0X_FIXPOINT97TOFIXPOINT1616(tmpWord);//ick: formerly used 0 on error instead of erroring out.
     PALDevDataSet(this, LastSignalRefMcps, LastSignalRefMcps);
 
     /*
      * Check if Sigma limit is enabled, if yes then do comparison with limit
      * value and put the result back into pPalRangeStatus.
      */
-    uint8_t SigmaLimitCheckEnable = 0;
-    if (Status == ERROR_NONE) {
-      Status = VL53L0X_GetLimitCheckEnable(Dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, &SigmaLimitCheckEnable);
-    }
+    Erroneous<bool> SigmaLimitCheckEnable = GetLimitCheckEnable(CHECKENABLE_SIGMA_FINAL_RANGE);
 
     uint8_t SigmaLimitflag = 0;
-    if ((SigmaLimitCheckEnable != 0) && (Status == ERROR_NONE)) {
+    if (SigmaLimitCheckEnable.isOk() && SigmaLimitCheckEnable != 0)) {
       /*
        * compute the Sigma and check with limit
        */
       uint32_t Dmax_mm = 0;
-      FixPoint1616_t SigmaEstimate;
-      Status = VL53L0X_calc_sigma_estimate(Dev, pRangingMeasurementData, &SigmaEstimate, &Dmax_mm);
-      if (Status == ERROR_NONE) {
+      Erroneous<FixPoint1616_t> SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData, Dmax_mm);
+      if (SigmaEstimate.isOk()) {
         pRangingMeasurementData->RangeDMaxMilliMeter = Dmax_mm;
       }
 
