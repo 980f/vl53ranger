@@ -261,17 +261,17 @@ boolean Adafruit_VL53L0X::configSensor(Sense_config_t vl_config){
   case VL53L0X_SENSE_HIGH_ACCURACY:
     // increase timing budget to 200 ms
     if (Status == ERROR_NONE) {
-      setLimitCheckValue(VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE,(FixPoint1616_t) (0.25 * 65536));
+      setLimitCheckValue(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE,(FixPoint1616_t) (0.25 * 65536));
     }
     if (Status == VL53L0X_ERROR_NONE) {
-      setLimitCheckValue(VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE,(FixPoint1616_t) (18 * 65536));
+      setLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE,(FixPoint1616_t) (18 * 65536));
     }
     if (Status == VL53L0X_ERROR_NONE) {
       setMeasurementTimingBudgetMicroSeconds(200000);
     }
     // Not sure about ignore threhold, try turnning it off...
     if (Status == VL53L0X_ERROR_NONE) {
-      Status = VL53L0X_SetLimitCheckEnable( VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
+      Status = VL53L0X_SetLimitCheckEnable( CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
     }
     break;
   } // switch
@@ -288,7 +288,7 @@ boolean Adafruit_VL53L0X::configSensor(Sense_config_t vl_config){
  *   @returns True if address was set successfully, False otherwise
  */
 /**************************************************************************/
-VL53L0X_Error Adafruit_VL53L0X::getSingleRangingMeasurement(VL53L0X_RangingMeasurementData_t *RangingMeasurementData, boolean debug){
+VL53L0X_Error Adafruit_VL53L0X::getSingleRangingMeasurement(RangingMeasurementData_t *RangingMeasurementData, boolean debug){
   VL53L0X_Error Status = VL53L0X_ERROR_NONE;
   FixPoint1616_t LimitCheckCurrent;
 
@@ -307,7 +307,7 @@ VL53L0X_Error Adafruit_VL53L0X::getSingleRangingMeasurement(VL53L0X_RangingMeasu
     }
 
     if (debug) {
-      VL53L0X_GetLimitCheckCurrent(VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD,&LimitCheckCurrent);
+      VL53L0X_GetLimitCheckCurrent(CHECKENABLE_RANGE_IGNORE_THRESHOLD,&LimitCheckCurrent);
 
       Serial.print(F("RANGE IGNORE THRESHOLD: "));
       Serial.println((float) LimitCheckCurrent / 65536.0);
@@ -327,7 +327,7 @@ VL53L0X_Error Adafruit_VL53L0X::getSingleRangingMeasurement(VL53L0X_RangingMeasu
  *   @param pRangingMeasurementData a pointer to the ranging measurement data
  */
 /**************************************************************************/
-void Adafruit_VL53L0X::printRangeStatus(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData){
+void Adafruit_VL53L0X::printRangeStatus(RangingMeasurementData_t *pRangingMeasurementData){
   char buf[VL53L0X_MAX_STRING_LENGTH];
   uint8_t RangeStatus;
 

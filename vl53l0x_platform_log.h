@@ -77,13 +77,25 @@ public:
   ~PerformanceTracer() {
     printf("END %s after %ud, error=%d", location, logclock() - starttime, sum);//todo: compiletime option for error string now that api_strings supports it
   }
+
+  static VL53L0X::Error logError(const char *location,VL53L0X::Error error, bool always= false){
+    if(error!=VL53L0X::ERROR_NONE || always) {
+      printf("ERROR from %s at %ud code=%d", location, logclock(), error);
+    }
+    return error;
+  }
+
 };
 
 #define LOG_FUNCTION_START  PerformanceTracer Error(__FUNCTION__)
-//for additional info put (fmt, ... args) after LOG_FUNCTION_START and before ;
+
+#define LOG_ERROR(errcode) PerformanceTracer::logError(__FUNCTION__,errcode)
+
 #else
 #define LOG_FUNCTION_START
-#define Log(...)
+
+#define LOG_ERROR(errcode)  (errcode)
+
 #endif
 
 #endif /* _VL53L0X_PLATFORM_LOG_H_ */

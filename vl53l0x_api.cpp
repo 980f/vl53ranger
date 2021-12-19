@@ -220,33 +220,23 @@ Error Api::GetOffsetCalibrationDataMicroMeter( int32_t &pOffsetCalibrationDataMi
   return get_offset_calibration_data_micro_meter( pOffsetCalibrationDataMicroMeter);
 }
 
-Error VL53L0X_SetLinearityCorrectiveGain(int16_t LinearityCorrectiveGain){
-  Error Status = ERROR_NONE;
+Error Api::SetLinearityCorrectiveGain(int16_t LinearityCorrectiveGain){
   LOG_FUNCTION_START;
-
   if ((LinearityCorrectiveGain < 0) || (LinearityCorrectiveGain > 1000)) {
-    Status = Error_INVALID_PARAMS;
-  } else {
+    return ERROR_INVALID_PARAMS;
+  }
     PALDevDataSet(this, LinearityCorrectiveGain, LinearityCorrectiveGain);
 
     if (LinearityCorrectiveGain != 1000) {
       /* Disable FW Xtalk */
-      Status = VL53L0X_WrWord( Dev, REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, 0);
+      return comm.Write( REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, uint16_t (0));
     }
-  }
 
-
-  return Status;
+  return ERROR_NONE;
 } // VL53L0X_SetLinearityCorrectiveGain
 
-Error GetLinearityCorrectiveGain(uint16_t *pLinearityCorrectiveGain){
-  Error Status = ERROR_NONE;
-  LOG_FUNCTION_START;
-
-  *pLinearityCorrectiveGain = PALDevDataGet(Dev, LinearityCorrectiveGain);
-
-
-  return Status;
+  uint16_t  Api::GetLinearityCorrectiveGain(){
+  return PALDevDataGet(this, LinearityCorrectiveGain);
 }
 
 Error VL53L0X_SetGroupParamHold(uint8_t GroupParamHold){
@@ -271,11 +261,11 @@ Error GetUpperLimitMilliMeter(uint16_t *pUpperLimitMilliMeter){
 
 Error GetTotalSignalRate(FixPoint1616_t *pTotalSignalRate){
   Error Status = ERROR_NONE;
-  VL53L0X_RangingMeasurementData_t LastRangeDataBuffer;
+  RangingMeasurementData_t LastRangeDataBuffer;
 
   LOG_FUNCTION_START;
 
-  LastRangeDataBuffer = PALDevDataGet(Dev, LastRangeMeasure);
+  LastRangeDataBuffer = PALDevDataGet(this, LastRangeMeasure);
 
   Status = Get_total_signal_rate(Dev, &LastRangeDataBuffer, pTotalSignalRate);
 
@@ -366,7 +356,7 @@ Error Api::DataInit() {
   PALDevDataSet(this, StopVariable, StopVariable);
 }
   /* Enable all check */
-  for (i = 0; i < VL53L0X_CHECKENABLE_NUMBER_OF_CHECKS; i++) {
+  for (i = 0; i < CHECKENABLE_NUMBER_OF_CHECKS; i++) {
     if (Status == ERROR_NONE) {
       Status |= VL53L0X_SetLimitCheckEnable(Dev, i, 1);
     } else {
@@ -376,38 +366,38 @@ Error Api::DataInit() {
 
   /* Disable the following checks */
   if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckEnable( Dev, VL53L0X_CHECKENABLE_SIGNAL_REF_CLIP, 0);
+    Status = VL53L0X_SetLimitCheckEnable( Dev, CHECKENABLE_SIGNAL_REF_CLIP, 0);
   }
 
   if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckEnable( Dev, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
+    Status = VL53L0X_SetLimitCheckEnable( Dev, CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
   }
 
   if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckEnable( Dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_MSRC, 0);
+    Status = VL53L0X_SetLimitCheckEnable( Dev, CHECKENABLE_SIGNAL_RATE_MSRC, 0);
   }
 
   if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckEnable( Dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_PRE_RANGE, 0);
+    Status = VL53L0X_SetLimitCheckEnable( Dev, CHECKENABLE_SIGNAL_RATE_PRE_RANGE, 0);
   }
 
   /* Limit default values */
   if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckValue(Dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE,
+    Status = VL53L0X_SetLimitCheckValue(Dev, CHECKENABLE_SIGMA_FINAL_RANGE,
         (FixPoint1616_t)(18 * 65536));
   }
   if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckValue( Dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE,
+    Status = VL53L0X_SetLimitCheckValue( Dev, CHECKENABLE_SIGNAL_RATE_FINAL_RANGE,
       (FixPoint1616_t)(25 * 65536 / 100));
     /* 0.25 * 65536 */
   }
 
   if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckValue( Dev, VL53L0X_CHECKENABLE_SIGNAL_REF_CLIP, (FixPoint1616_t)(35 * 65536));
+    Status = VL53L0X_SetLimitCheckValue( Dev, CHECKENABLE_SIGNAL_REF_CLIP, (FixPoint1616_t)(35 * 65536));
   }
 
   if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetLimitCheckValue( Dev, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD,
+    Status = VL53L0X_SetLimitCheckValue( Dev, CHECKENABLE_RANGE_IGNORE_THRESHOLD,
       (FixPoint1616_t)(0 * 65536));
   }
 
@@ -458,16 +448,16 @@ Error GetTuningSettingBuffer( uint8_t **ppTuningSettingBuffer,uint8_t *pUseInter
 
   LOG_FUNCTION_START;
 
-  *ppTuningSettingBuffer = PALDevDataGet(Dev, pTuningSettingsPointer);
-  *pUseInternalTuningSettings = PALDevDataGet(Dev, UseInternalTuningSettings);
+  *ppTuningSettingBuffer = PALDevDataGet(this, pTuningSettingsPointer);
+  *pUseInternalTuningSettings = PALDevDataGet(this, UseInternalTuningSettings);
 
 
   return Status;
 } // GetTuningSettingBuffer
 
-Error VL53L0X_StaticInit(VL53L0X_DEV Dev){
+Error Api::StaticInit(){
   Error Status = ERROR_NONE;
-  VL53L0X_DeviceParameters_t CurrentParameters = {0};
+  DeviceParameters_t CurrentParameters;
   uint8_t *pTuningSettingBuffer;
   uint16_t tempword = 0;
   uint8_t tempbyte = 0;
@@ -481,7 +471,7 @@ Error VL53L0X_StaticInit(VL53L0X_DEV Dev){
 
   LOG_FUNCTION_START;
 
-  Status = Get_info_from_device(Dev, 1);
+  Status = get_info_from_device( 1);
 
   /* set the ref spad from NVM */
   count = (uint32_t)GetDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount);
@@ -490,117 +480,85 @@ Error VL53L0X_StaticInit(VL53L0X_DEV Dev){
   /* NVM value invalid */
   if ((ApertureSpads > 1) || ((ApertureSpads == 1) && (count > 32)) ||
     ((ApertureSpads == 0) && (count > 12))) {
-    Status = VL53L0X_perform_ref_spad_management(Dev, &refSpadCount, &isApertureSpads);
+    Status = perform_ref_spad_management(refSpadCount, isApertureSpads);
   } else {
     Status = VL53L0X_set_reference_spads(Dev, count, ApertureSpads);
   }
 
   /* Initialize tuning settings buffer to prevent compiler warning. */
   pTuningSettingBuffer = DefaultTuningSettings;
-
-  if (Status == ERROR_NONE) {
-    UseInternalTuningSettings = PALDevDataGet(Dev, UseInternalTuningSettings);
+  ERROR_OUT;
+    UseInternalTuningSettings = PALDevDataGet(this, UseInternalTuningSettings);
 
     if (UseInternalTuningSettings == 0) {
-      pTuningSettingBuffer = PALDevDataGet(Dev, pTuningSettingsPointer);
+      pTuningSettingBuffer = PALDevDataGet(this, pTuningSettingsPointer);
     } else {
       pTuningSettingBuffer = DefaultTuningSettings;
     }
-  }
-
-  if (Status == ERROR_NONE) {
+  ERROR_OUT;
     Status = VL53L0X_load_tuning_settings(Dev, pTuningSettingBuffer);
-  }
+
 
   /* Set interrupt config to new sample ready */
-  if (Status == ERROR_NONE) {
+  ERROR_OUT;
     Status = VL53L0X_SetGpioConfig( Dev, 0, 0, REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY, VL53L0X_INTERRUPTPOLARITY_LOW);
-  }
+  ERROR_OUT;
+    tempword= FFread(0x84);
+  ERROR_OUT;
+  VL53L0X_SETDEVICESPECIFICPARAMETER( Dev, OscFrequencyMHz, VL53L0X_FIXPOINT412TOFIXPOINT1616(tempword));
 
-  if (Status == ERROR_NONE) {
-    Status = comm.WrByte( 0xFF, 0x01);
-    Status |= VL53L0X_RdWord(Dev, 0x84, &tempword);
-    Status |= comm.WrByte( 0xFF, 0x00);
-  }
-
-  if (Status == ERROR_NONE) {
-    VL53L0X_SETDEVICESPECIFICPARAMETER( Dev, OscFrequencyMHz, VL53L0X_FIXPOINT412TOFIXPOINT1616(tempword));
-  }
 
   /* After static init, some device parameters may be changed,
    * so update them */
-  if (Status == ERROR_NONE) {
-    Status = GetDeviceParameters(Dev, &CurrentParameters);
-  }
+  ERROR_OUT;
+  Status = GetDeviceParameters(Dev, &CurrentParameters);
+  ERROR_OUT;
+  Status = GetFractionEnable(Dev, &tempbyte);
+  ERROR_OUT;    PALDevDataSet(this, RangeFractionalEnable, tempbyte);
 
-  if (Status == ERROR_NONE) {
-    Status = GetFractionEnable(Dev, &tempbyte);
-    if (Status == ERROR_NONE) {
-      PALDevDataSet(this, RangeFractionalEnable, tempbyte);
-    }
-  }
-
-  if (Status == ERROR_NONE) {
+  ERROR_OUT;
     PALDevDataSet(this, CurrentParameters, CurrentParameters);
-  }
+
 
   /* read the sequence config and save it */
-  if (Status == ERROR_NONE) {
     Status = comm.RdByte( REG_SYSTEM_SEQUENCE_CONFIG, &tempbyte);
-    if (Status == ERROR_NONE) {
+  ERROR_OUT;
       PALDevDataSet(this, SequenceConfig, tempbyte);
-    }
-  }
+
+
 
   /* Disable MSRC and TCC by default */
-  if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetSequenceStepEnable(Dev, VL53L0X_SEQUENCESTEP_TCC, 0);
-  }
-
-  if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetSequenceStepEnable(Dev, VL53L0X_SEQUENCESTEP_MSRC, 0);
-  }
-
+    Status = SetSequenceStepEnable( SEQUENCESTEP_TCC, false);
+  ERROR_OUT;
+    Status = SetSequenceStepEnable( SEQUENCESTEP_MSRC, false);
+ERROR_OUT;
   /* Set PAL State to standby */
-  if (Status == ERROR_NONE) {
+
     PALDevDataSet(this, PalState, State_IDLE);
-  }
+ERROR_OUT;
 
   /* Store pre-range vcsel period */
-  if (Status == ERROR_NONE) {
     Status = GetVcselPulsePeriod(Dev, VL53L0X_VCSEL_PERIOD_PRE_RANGE, &vcselPulsePeriodPCLK);
-  }
-
-  if (Status == ERROR_NONE) {
+ERROR_OUT;
     VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, PreRangeVcselPulsePeriod, vcselPulsePeriodPCLK);
-  }
-
+ERROR_OUT;
   /* Store final-range vcsel period */
-  if (Status == ERROR_NONE) {
+
     Status = GetVcselPulsePeriod(Dev, VL53L0X_VCSEL_PERIOD_FINAL_RANGE, &vcselPulsePeriodPCLK);
-  }
-
-  if (Status == ERROR_NONE) {
+ERROR_OUT;
     VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, FinalRangeVcselPulsePeriod, vcselPulsePeriodPCLK);
-  }
-
+ERROR_OUT;
   /* Store pre-range timeout */
-  if (Status == ERROR_NONE) {
-    Status = GetSequenceStepTimeout(Dev, VL53L0X_SEQUENCESTEP_PRE_RANGE, &seqTimeoutMilliSecs);
-  }
 
-  if (Status == ERROR_NONE) {
+    Status = GetSequenceStepTimeout(Dev, SEQUENCESTEP_PRE_RANGE, &seqTimeoutMilliSecs);
+ERROR_OUT;
     VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, PreRangeTimeoutMicroSecs, seqTimeoutMilliSecs);
-  }
-
+ERROR_OUT;
   /* Store final-range timeout */
-  if (Status == ERROR_NONE) {
-    Status = GetSequenceStepTimeout( Dev, VL53L0X_SEQUENCESTEP_FINAL_RANGE, &seqTimeoutMilliSecs);
-  }
+    Status = GetSequenceStepTimeout( Dev, SEQUENCESTEP_FINAL_RANGE, &seqTimeoutMilliSecs);
+ERROR_OUT;
+VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, FinalRangeTimeoutMicroSecs, seqTimeoutMilliSecs);
 
-  if (Status == ERROR_NONE) {
-    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, FinalRangeTimeoutMicroSecs, seqTimeoutMilliSecs);
-  }
 
 
   return Status;
@@ -667,10 +625,10 @@ Error Api::SetDeviceParameters( const VL53L0X_DeviceParameters_t &pDeviceParamet
   }
 
   if (Status == ERROR_NONE) {
-    Status = VL53L0X_SetOffsetCalibrationDataMicroMeter( Dev, pDeviceParameters->RangeOffsetMicroMeters);
+    Status = SetOffsetCalibrationDataMicroMeter( Dev, pDeviceParameters->RangeOffsetMicroMeters);
   }
 
-  for (i = 0; i < VL53L0X_CHECKENABLE_NUMBER_OF_CHECKS; i++) {
+  for (i = 0; i < CHECKENABLE_NUMBER_OF_CHECKS; i++) {
     if (Status == ERROR_NONE) {
       Status |= VL53L0X_SetLimitCheckEnable( Dev, i, pDeviceParameters->LimitChecksEnable[i]);
     } else {
@@ -711,7 +669,7 @@ Error Api::GetDeviceParameters(VL53L0X_DeviceParameters_t &pDeviceParameters){
   ERROR_OUT;
     Status = GetOffsetCalibrationDataMicroMeter( Dev, &(pDeviceParameters->RangeOffsetMicroMeters));
   ERROR_OUT;
-    for (unsigned i = 0; i < VL53L0X_CHECKENABLE_NUMBER_OF_CHECKS; i++) {
+    for (unsigned i = 0; i < CHECKENABLE_NUMBER_OF_CHECKS; i++) {
       /* get first the values, then the enables.
        * GetLimitCheckValue will modify the enable
        * flags
@@ -862,19 +820,19 @@ Error VL53L0X_SetSequenceStepEnable(VL53L0X_SequenceStepId SequenceStepId,uint8_
       /* Enable requested sequence step
        */
       switch (SequenceStepId) {
-      case VL53L0X_SEQUENCESTEP_TCC:
+      case SEQUENCESTEP_TCC:
         SequenceConfigNew |= 0x10;
         break;
-      case VL53L0X_SEQUENCESTEP_DSS:
+      case SEQUENCESTEP_DSS:
         SequenceConfigNew |= 0x28;
         break;
-      case VL53L0X_SEQUENCESTEP_MSRC:
+      case SEQUENCESTEP_MSRC:
         SequenceConfigNew |= 0x04;
         break;
-      case VL53L0X_SEQUENCESTEP_PRE_RANGE:
+      case SEQUENCESTEP_PRE_RANGE:
         SequenceConfigNew |= 0x40;
         break;
-      case VL53L0X_SEQUENCESTEP_FINAL_RANGE:
+      case SEQUENCESTEP_FINAL_RANGE:
         SequenceConfigNew |= 0x80;
         break;
       default:
@@ -884,19 +842,19 @@ Error VL53L0X_SetSequenceStepEnable(VL53L0X_SequenceStepId SequenceStepId,uint8_
       /* Disable requested sequence step
        */
       switch (SequenceStepId) {
-      case VL53L0X_SEQUENCESTEP_TCC:
+      case SEQUENCESTEP_TCC:
         SequenceConfigNew &= 0xef;
         break;
-      case VL53L0X_SEQUENCESTEP_DSS:
+      case SEQUENCESTEP_DSS:
         SequenceConfigNew &= 0xd7;
         break;
-      case VL53L0X_SEQUENCESTEP_MSRC:
+      case SEQUENCESTEP_MSRC:
         SequenceConfigNew &= 0xfb;
         break;
-      case VL53L0X_SEQUENCESTEP_PRE_RANGE:
+      case SEQUENCESTEP_PRE_RANGE:
         SequenceConfigNew &= 0xbf;
         break;
-      case VL53L0X_SEQUENCESTEP_FINAL_RANGE:
+      case SEQUENCESTEP_FINAL_RANGE:
         SequenceConfigNew &= 0x7f;
         break;
       default:
@@ -1068,7 +1026,7 @@ Error VL53L0X_SetXTalkCompensationRateMegaCps( FixPoint1616_t XTalkCompensationR
   LOG_FUNCTION_START;
 
   GetPARAMETERFIELD(Dev, XTalkCompensationEnable, Temp8);
-  LinearityCorrectiveGain = PALDevDataGet(Dev, LinearityCorrectiveGain);
+  LinearityCorrectiveGain = PALDevDataGet(this, LinearityCorrectiveGain);
 
   if (Temp8 == 0) { /* disabled write only internal value */
     VL53L0X_SETPARAMETERFIELD(Dev, XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
@@ -1145,45 +1103,29 @@ Error GetNumberOfLimitCheck(uint16_t *pNumberOfLimitCheck){
   Error Status = ERROR_NONE;
   LOG_FUNCTION_START;
 
-  *pNumberOfLimitCheck = VL53L0X_CHECKENABLE_NUMBER_OF_CHECKS;
+  *pNumberOfLimitCheck = CHECKENABLE_NUMBER_OF_CHECKS;
 
 
   return Status;
 }
 
-Error GetLimitCheckInfo( uint16_t LimitCheckId,char *pLimitCheckString){
-  Error Status = ERROR_NONE;
-
-  LOG_FUNCTION_START;
-
-  Status = Get_limit_check_info(Dev, LimitCheckId, pLimitCheckString);
-
-
-  return Status;
+Error Api::GetLimitCheckInfo( uint16_t LimitCheckId,char *pLimitCheckString){
+  return Get_limit_check_info( LimitCheckId, pLimitCheckString);
 }
 
-Error GetLimitCheckStatus(uint16_t LimitCheckId,uint8_t *pLimitCheckStatus){
-  Error Status = ERROR_NONE;
-  uint8_t Temp8;
-
-  LOG_FUNCTION_START;
-
-  if (LimitCheckId >= VL53L0X_CHECKENABLE_NUMBER_OF_CHECKS) {
-    Status = Error_INVALID_PARAMS;
+Erroneous<bool> Api::GetLimitCheckStatus(CheckEnable LimitCheckId){
+  if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
+    return  {false, LOG_ERROR(ERROR_INVALID_PARAMS)};
   } else {
-    GetARRAYPARAMETERFIELD(Dev, LimitChecksStatus, LimitCheckId, Temp8);
-    *pLimitCheckStatus = Temp8;
+    return Data.CurrentParameters.LimitChecksStatus[ LimitCheckId];
   }
-
-
-  return Status;
 } // GetLimitCheckStatus
 
 Error Api::SetLimitCheckEnable(CheckEnable LimitCheckId,uint8_t LimitCheckEnable){
 
   LOG_FUNCTION_START;
 
-  if (LimitCheckId >= VL53L0X_CHECKENABLE_NUMBER_OF_CHECKS) {
+  if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
     return ERROR_INVALID_PARAMS;
   }
   FixPoint1616_t TempFix1616 = 0;
@@ -1202,37 +1144,37 @@ Error Api::SetLimitCheckEnable(CheckEnable LimitCheckId,uint8_t LimitCheckEnable
     }
 
     switch (LimitCheckId) {
-    case VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE:
+    case CHECKENABLE_SIGMA_FINAL_RANGE:
       /* internal computation: */
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksEnable, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, LimitCheckEnableInt);
+      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksEnable, CHECKENABLE_SIGMA_FINAL_RANGE, LimitCheckEnableInt);
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
+    case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
       Status = VL53L0X_WrWord( Dev, REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, VL53L0X_FIXPOINT1616TOFIXPOINT97(TempFix1616));
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_REF_CLIP:
+    case CHECKENABLE_SIGNAL_REF_CLIP:
       /* internal computation: */
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksEnable, VL53L0X_CHECKENABLE_SIGNAL_REF_CLIP, LimitCheckEnableInt);
+      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksEnable, CHECKENABLE_SIGNAL_REF_CLIP, LimitCheckEnableInt);
       break;
 
-    case VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD:
+    case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
       /* internal computation: */
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksEnable, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, LimitCheckEnableInt);
+      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksEnable, CHECKENABLE_RANGE_IGNORE_THRESHOLD, LimitCheckEnableInt);
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_RATE_MSRC:
+    case CHECKENABLE_SIGNAL_RATE_MSRC:
       Temp8 = (uint8_t)(LimitCheckDisable << 1);
       Status = VL53L0X_UpdateByte(Dev, REG_MSRC_CONFIG_CONTROL, 0xFE, Temp8);//clear lsb set bit 1
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
+    case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
       Temp8 = (uint8_t)(LimitCheckDisable << 4);
       Status = VL53L0X_UpdateByte(Dev, REG_MSRC_CONFIG_CONTROL, 0xEF, Temp8);
       break;
 
     default:
-      Status = Error_INVALID_PARAMS;
+      return ERROR_INVALID_PARAMS;
     } // switch
 
 
@@ -1248,19 +1190,9 @@ Error Api::SetLimitCheckEnable(CheckEnable LimitCheckId,uint8_t LimitCheckEnable
   return Status;
 } // VL53L0X_SetLimitCheckEnable
 
-Erroneous<uint8_t> Api::GetLimitCheckEnable(CheckEnable LimitCheckId){
-  LOG_FUNCTION_START;
-  if (LimitCheckId >= VL53L0X_CHECKENABLE_NUMBER_OF_CHECKS) {
-    return {0, ERROR_INVALID_PARAMS};
-  }
-    uint8_t Temp8;
-    GetARRAYPARAMETERFIELD(this, LimitChecksEnable, LimitCheckId, Temp8);//ick: wrappers like this are painful. Is the layering every going to be useful?
-    return {Temp8};
-} // GetLimitCheckEnable
 
-Error VL53L0X_SetLimitCheckValue( uint16_t LimitCheckId,FixPoint1616_t LimitCheckValue){
-  Error Status = ERROR_NONE;
-  uint8_t Temp8;
+Error Api::SetLimitCheckValue( uint16_t LimitCheckId,FixPoint1616_t LimitCheckValue){
+
 
   LOG_FUNCTION_START;
 
@@ -1270,27 +1202,27 @@ Error VL53L0X_SetLimitCheckValue( uint16_t LimitCheckId,FixPoint1616_t LimitChec
     VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksValue, LimitCheckId, LimitCheckValue);
   } else {
     switch (LimitCheckId) {
-    case VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE:
+    case CHECKENABLE_SIGMA_FINAL_RANGE:
       /* internal computation: */
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksValue, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, LimitCheckValue);
+      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksValue, CHECKENABLE_SIGMA_FINAL_RANGE, LimitCheckValue);
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
+    case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
       Status = VL53L0X_WrWord( Dev, REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, VL53L0X_FIXPOINT1616TOFIXPOINT97(LimitCheckValue));
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_REF_CLIP:
+    case CHECKENABLE_SIGNAL_REF_CLIP:
       /* internal computation: */
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksValue, VL53L0X_CHECKENABLE_SIGNAL_REF_CLIP, LimitCheckValue);
+      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksValue, CHECKENABLE_SIGNAL_REF_CLIP, LimitCheckValue);
       break;
 
-    case VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD:
+    case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
       /* internal computation: */
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksValue, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, LimitCheckValue);
+      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksValue, CHECKENABLE_RANGE_IGNORE_THRESHOLD, LimitCheckValue);
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_RATE_MSRC:
-    case VL53L0X_CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
+    case CHECKENABLE_SIGNAL_RATE_MSRC:
+    case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
       Status = VL53L0X_WrWord(Dev, REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, VL53L0X_FIXPOINT1616TOFIXPOINT97(LimitCheckValue));
       break;
 
@@ -1315,13 +1247,13 @@ Error GetLimitCheckValue( uint16_t LimitCheckId,FixPoint1616_t *pLimitCheckValue
 
   switch (LimitCheckId) {
 
-  case VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE:
+  case CHECKENABLE_SIGMA_FINAL_RANGE:
     /* internal computation: */
-    GetARRAYPARAMETERFIELD(Dev, LimitChecksValue, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, TempFix1616);
+    GetARRAYPARAMETERFIELD(Dev, LimitChecksValue, CHECKENABLE_SIGMA_FINAL_RANGE, TempFix1616);
     EnableZeroValue = 0;
     break;
 
-  case VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
+  case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
     Status = VL53L0X_RdWord( Dev, REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, &Temp16);
     if (Status == ERROR_NONE) {
       TempFix1616 = VL53L0X_FIXPOINT97TOFIXPOINT1616(Temp16);
@@ -1329,20 +1261,20 @@ Error GetLimitCheckValue( uint16_t LimitCheckId,FixPoint1616_t *pLimitCheckValue
     EnableZeroValue = 1;
     break;
 
-  case VL53L0X_CHECKENABLE_SIGNAL_REF_CLIP:
+  case CHECKENABLE_SIGNAL_REF_CLIP:
     /* internal computation: */
-    GetARRAYPARAMETERFIELD(Dev, LimitChecksValue, VL53L0X_CHECKENABLE_SIGNAL_REF_CLIP, TempFix1616);
+    GetARRAYPARAMETERFIELD(Dev, LimitChecksValue, CHECKENABLE_SIGNAL_REF_CLIP, TempFix1616);
     EnableZeroValue = 0;
     break;
 
-  case VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD:
+  case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
     /* internal computation: */
-    GetARRAYPARAMETERFIELD(Dev, LimitChecksValue, VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD, TempFix1616);
+    GetARRAYPARAMETERFIELD(Dev, LimitChecksValue, CHECKENABLE_RANGE_IGNORE_THRESHOLD, TempFix1616);
     EnableZeroValue = 0;
     break;
 
-  case VL53L0X_CHECKENABLE_SIGNAL_RATE_MSRC:
-  case VL53L0X_CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
+  case CHECKENABLE_SIGNAL_RATE_MSRC:
+  case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
     Status = VL53L0X_RdWord(Dev, REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, &Temp16);
     if (Status == ERROR_NONE) {
       TempFix1616 = VL53L0X_FIXPOINT97TOFIXPOINT1616(Temp16);
@@ -1377,45 +1309,45 @@ Error GetLimitCheckValue( uint16_t LimitCheckId,FixPoint1616_t *pLimitCheckValue
 
 Error GetLimitCheckCurrent(uint16_t LimitCheckId,FixPoint1616_t *pLimitCheckCurrent){
   Error Status = ERROR_NONE;
-  VL53L0X_RangingMeasurementData_t LastRangeDataBuffer;
+  RangingMeasurementData_t LastRangeDataBuffer;
 
   LOG_FUNCTION_START;
 
-  if (LimitCheckId >= VL53L0X_CHECKENABLE_NUMBER_OF_CHECKS) {
+  if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
     Status = Error_INVALID_PARAMS;
   } else {
     switch (LimitCheckId) {
-    case VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE:
+    case CHECKENABLE_SIGMA_FINAL_RANGE:
       /* Need to run a ranging to have the latest values */
-      *pLimitCheckCurrent = PALDevDataGet(Dev, SigmaEstimate);
+      *pLimitCheckCurrent = PALDevDataGet(this, SigmaEstimate);
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
+    case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
       /* Need to run a ranging to have the latest values */
-      LastRangeDataBuffer = PALDevDataGet(Dev, LastRangeMeasure);
+      LastRangeDataBuffer = PALDevDataGet(this, LastRangeMeasure);
       *pLimitCheckCurrent = LastRangeDataBuffer.SignalRateRtnMegaCps;
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_REF_CLIP:
+    case CHECKENABLE_SIGNAL_REF_CLIP:
       /* Need to run a ranging to have the latest values */
-      *pLimitCheckCurrent = PALDevDataGet(Dev, LastSignalRefMcps);
+      *pLimitCheckCurrent = PALDevDataGet(this, LastSignalRefMcps);
       break;
 
-    case VL53L0X_CHECKENABLE_RANGE_IGNORE_THRESHOLD:
+    case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
       /* Need to run a ranging to have the latest values */
-      LastRangeDataBuffer = PALDevDataGet(Dev, LastRangeMeasure);
+      LastRangeDataBuffer = PALDevDataGet(this, LastRangeMeasure);
       *pLimitCheckCurrent = LastRangeDataBuffer.SignalRateRtnMegaCps;
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_RATE_MSRC:
+    case CHECKENABLE_SIGNAL_RATE_MSRC:
       /* Need to run a ranging to have the latest values */
-      LastRangeDataBuffer = PALDevDataGet(Dev, LastRangeMeasure);
+      LastRangeDataBuffer = PALDevDataGet(this, LastRangeMeasure);
       *pLimitCheckCurrent = LastRangeDataBuffer.SignalRateRtnMegaCps;
       break;
 
-    case VL53L0X_CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
+    case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
       /* Need to run a ranging to have the latest values */
-      LastRangeDataBuffer = PALDevDataGet(Dev, LastRangeMeasure);
+      LastRangeDataBuffer = PALDevDataGet(this, LastRangeMeasure);
       *pLimitCheckCurrent = LastRangeDataBuffer.SignalRateRtnMegaCps;
       break;
 
@@ -1517,8 +1449,8 @@ Error GetDmaxCalParameters( uint16_t *pRangeMilliMeter,FixPoint1616_t *pSignalRa
 
   LOG_FUNCTION_START;
 
-  *pRangeMilliMeter = PALDevDataGet(Dev, DmaxCalRangeMilliMeter);
-  *pSignalRateRtnMegaCps = PALDevDataGet(Dev, DmaxCalSignalRateRtnMegaCps);
+  *pRangeMilliMeter = PALDevDataGet(this, DmaxCalRangeMilliMeter);
+  *pSignalRateRtnMegaCps = PALDevDataGet(this, DmaxCalSignalRateRtnMegaCps);
 
 
   return Status;
@@ -1651,7 +1583,7 @@ Error VL53L0X_StartMeasurement(VL53L0X_DEV Dev){
   Status = comm.WrByte( 0x80, 0x01);
   Status = comm.WrByte( 0xFF, 0x01);
   Status = comm.WrByte( 0x00, 0x00);
-  Status = comm.WrByte( 0x91, PALDevDataGet(Dev, StopVariable));
+  Status = comm.WrByte( 0x91, PALDevDataGet(this, StopVariable));
   Status = comm.WrByte( 0x00, 0x01);
   Status = comm.WrByte( 0xFF, 0x00);
   Status = comm.WrByte( 0x80, 0x00);
@@ -1774,7 +1706,7 @@ Error VL53L0X_WaitDeviceReadyForNewMeasurement(uint32_t MaxLoop){
   return ERROR_NOT_IMPLEMENTED;
 }
 
-Error GetRangingMeasurementData(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData){
+Error GetRangingMeasurementData(RangingMeasurementData_t *pRangingMeasurementData){
   uint8_t DeviceRangeStatus;
   uint8_t RangeFractionalEnable;
   uint8_t PalRangeStatus;
@@ -1787,7 +1719,7 @@ Error GetRangingMeasurementData(VL53L0X_RangingMeasurementData_t *pRangingMeasur
   uint16_t XtalkRangeMilliMeter;
   uint16_t LinearityCorrectiveGain;
   uint8_t localBuffer[12];
-  VL53L0X_RangingMeasurementData_t LastRangeDataBuffer;
+  RangingMeasurementData_t LastRangeDataBuffer;
 
   LOG_FUNCTION_START;
 
@@ -1825,10 +1757,10 @@ Error GetRangingMeasurementData(VL53L0X_RangingMeasurementData_t *pRangingMeasur
     DeviceRangeStatus = localBuffer[0];
 
     /* Get Linearity Corrective Gain */
-    LinearityCorrectiveGain = PALDevDataGet(Dev, LinearityCorrectiveGain);
+    LinearityCorrectiveGain = PALDevDataGet(this, LinearityCorrectiveGain);
 
     /* Get ranging configuration */
-    RangeFractionalEnable = PALDevDataGet(Dev, RangeFractionalEnable);
+    RangeFractionalEnable = PALDevDataGet(this, RangeFractionalEnable);
 
     if (LinearityCorrectiveGain != 1000) {
       tmpuint16 = (uint16_t)((LinearityCorrectiveGain * tmpuint16 + 500) / 1000);
@@ -1877,7 +1809,7 @@ Error GetRangingMeasurementData(VL53L0X_RangingMeasurementData_t *pRangingMeasur
 
   if (Status == ERROR_NONE) {
     /* Copy last read data into Dev buffer */
-    LastRangeDataBuffer = PALDevDataGet(Dev, LastRangeMeasure);
+    LastRangeDataBuffer = PALDevDataGet(this, LastRangeMeasure);
 
     LastRangeDataBuffer.RangeMilliMeter =  pRangingMeasurementData->RangeMilliMeter;
     LastRangeDataBuffer.RangeFractionalPart =  pRangingMeasurementData->RangeFractionalPart;
@@ -1899,7 +1831,7 @@ Error GetMeasurementRefSignal(FixPoint1616_t *pMeasurementRefSignal){
   Error Status = ERROR_NONE;
   LOG_FUNCTION_START;
 
-  *pMeasurementRefSignal = PALDevDataGet(Dev, LastSignalRefMcps);
+  *pMeasurementRefSignal = PALDevDataGet(this, LastSignalRefMcps);
 
 
   return Status;
@@ -1913,7 +1845,7 @@ Error GetHistogramMeasurementData(VL53L0X_HistogramMeasurementData_t *pHistogram
   return Status;
 }
 
-Error VL53L0X_PerformSingleRangingMeasurement(VL53L0X_RangingMeasurementData_t *pRangingMeasurementData){
+Error VL53L0X_PerformSingleRangingMeasurement(RangingMeasurementData_t *pRangingMeasurementData){
   Error Status = ERROR_NONE;
 
   LOG_FUNCTION_START;
@@ -2276,23 +2208,308 @@ Error GetSpadAmbientDamperFactor(uint16_t *pSpadAmbientDamperFactor){
 * Internal functions
 *****************************************************************************/
 
-Error VL53L0X_SetReferenceSpads( uint32_t count,uint8_t isApertureSpads){
-  LOG_FUNCTION_START;
-  Error Status = VL53L0X_set_reference_spads(Dev, count, isApertureSpads);
+  Error Api::perform_ref_spad_management( unsigned &refSpadCount,bool &isApertureSpads) {
 
-  return Status;
-}
+    /*
+     * The reference SPAD initialization procedure determines the minimum
+     * amount of reference spads to be enables to achieve a target reference
+     * signal rate and should be performed once during initialization.
+     *
+     * Either aperture or non-aperture spads are applied but never both.
+     * Firstly non-aperture spads are set, begining with 5 spads, and
+     * increased one spad at a time until the closest measurement to the
+     * target rate is achieved.
+     *
+     * If the target rate is exceeded when 5 non-aperture spads are enabled,
+     * initialization is performed instead with aperture spads.
+     *
+     * When setting spads, a 'Good Spad Map' is applied.
+     *
+     * This procedure operates within a SPAD window of interest of a maximum
+     * 44 spads.
+     * The start point is currently fixed to 180, which lies towards the end
+     * of the non-aperture quadrant and runs in to the adjacent aperture
+     * quadrant.
+     */
 
-Error GetReferenceSpads( uint32_t *pSpadCount,uint8_t *pIsApertureSpads){
-  LOG_FUNCTION_START;
-  Error Status = Get_reference_spads(Dev, pSpadCount, pIsApertureSpads);
+    uint16_t targetRefRate = 0x0A00; /* 20 MCPS in 9:7 format */ //ick:why init with specific value that is immediately overwritten
+    targetRefRate = PALDevDataGet(this, targetRefRate);
 
-  return Status;
-}
+    /*
+     * Initialize Spad arrays.
+     * Currently the good spad map is initialised to 'All good'.
+     * This is a short term implementation. The good spad map will be
+     * provided as an input.
+     */
+      Data.SpadData.RefSpadEnables.clear();
 
-Error VL53L0X_PerformRefSpadManagement(uint32_t *refSpadCount,uint8_t *isApertureSpads){
-  LOG_FUNCTION_START;
-  Error Status = VL53L0X_perform_ref_spad_management(Dev, refSpadCount, isApertureSpads);
+    Error Error = comm.WrByte( 0xFF, 0x01);
+    ERROR_OUT;
+    Error = comm.WrByte( REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
+    ERROR_OUT;
+    Error = comm.WrByte( REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
+    ERROR_OUT;
+    Error = comm.WrByte( 0xFF, 0x00);
+    ERROR_OUT;
+    Error = comm.WrByte( REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect);
+    ERROR_OUT;
+    Error = comm.WrByte(REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
+    ERROR_OUT;
+    /* Perform ref calibration */
+    uint8_t PhaseCal = 0;
+    uint8_t VhvSettings = 0;
+    Error = perform_ref_calibration( &VhvSettings, &PhaseCal, 0);//ick: PhaseCal value then ignored. ditto for VhvSettings
+    ERROR_OUT;
+    /* Enable Minimum NON-APERTURE Spads */
+    uint32_t currentSpadIndex = 0;
+    uint32_t lastSpadIndex = currentSpadIndex;
+    uint32_t needAptSpads = 0;
+    Error = enable_ref_spads( needAptSpads, Dev->Data.SpadData.RefGoodSpadMap, Dev->Data.SpadData.RefSpadEnables, spadArraySize, startSelect, currentSpadIndex, minimumSpadCount, &lastSpadIndex);
+    ERROR_OUT;
+    currentSpadIndex = lastSpadIndex;
+    uint16_t peakSignalRateRef;
+    Error = perform_ref_signal_measurement(Dev, &peakSignalRateRef);
+    ERROR_OUT;
 
-  return Status;
-} // VL53L0X_PerformRefSpadManagement
+    uint8_t isApertureSpads_int = 0;
+    uint32_t refSpadCount_int = 0;
+
+    if (peakSignalRateRef > targetRefRate) { /* Signal rate measurement too high, switch to APERTURE SPADs */
+
+      Data.SpadData.RefSpadEnables.clear();
+
+      /* Increment to the first APERTURE spad */
+      while (!is_aperture(startSelect + currentSpadIndex) && (currentSpadIndex < maxSpadCount)) {
+        currentSpadIndex++;
+      }
+      needAptSpads = 1;
+      Error = enable_ref_spads(Dev, needAptSpads, Dev->Data.SpadData.RefGoodSpadMap, Dev->Data.SpadData.RefSpadEnables, spadArraySize, startSelect, currentSpadIndex, minimumSpadCount, &lastSpadIndex);
+
+      if (Error == ERROR_NONE) {
+        currentSpadIndex = lastSpadIndex;
+        Error = perform_ref_signal_measurement(Dev, &peakSignalRateRef);
+
+        if ((Error == ERROR_NONE) &&
+            (peakSignalRateRef > targetRefRate)) {
+          /* Signal rate still too high after
+           * setting the minimum number of
+           * APERTURE spads. Can do no more
+           * therefore set the min number of
+           * aperture spads as the result.
+           */
+          isApertureSpads_int = 1;
+          refSpadCount_int = minimumSpadCount;
+        }
+      }
+    } else {
+      needAptSpads = 0;
+    }
+    ERROR_OUT;
+    if (peakSignalRateRef < targetRefRate) {
+/* At this point, the minimum number of either aperture
+ * or non-aperture spads have been set. Proceed to add
+ * spads and perform measurements until the target
+ * reference is reached.
+ */
+      isApertureSpads_int = needAptSpads;
+      refSpadCount_int = minimumSpadCount;
+
+      uint8_t lastSpadArray[6];
+      memcpy(lastSpadArray, Dev->Data.SpadData.RefSpadEnables, spadArraySize);
+
+      uint32_t lastSignalRateDiff = abs(peakSignalRateRef - targetRefRate);
+      uint8_t complete = 0;
+      while (!complete) {
+        int32_t nextGoodSpad = 0;
+        get_next_good_spad(Dev->Data.SpadData.RefGoodSpadMap, spadArraySize, currentSpadIndex, &nextGoodSpad);
+        if (nextGoodSpad == -1) {
+          return ERROR_REF_SPAD_INIT;
+        }
+        ++refSpadCount_int;
+/* Cannot combine Aperture and Non-Aperture spads, so
+ * ensure the current spad is of the correct type.
+ */
+        if (is_aperture((uint32_t) startSelect + nextGoodSpad) != needAptSpads) {
+          return ERROR_REF_SPAD_INIT;
+        }
+
+        currentSpadIndex = nextGoodSpad;
+        Error = enable_spad_bit(Dev->Data.SpadData.RefSpadEnables, spadArraySize, currentSpadIndex);
+        ERROR_OUT;
+        currentSpadIndex++;
+/* Proceed to apply the additional spad and
+ * perform measurement. */
+        Error = set_ref_spad_map(Dev, Dev->Data.SpadData.RefSpadEnables);
+
+        ERROR_OUT;
+        Error = perform_ref_signal_measurement(Dev, &peakSignalRateRef);
+        ERROR_OUT;
+        uint32_t signalRateDiff = abs(peakSignalRateRef - targetRefRate);
+
+        if (peakSignalRateRef > targetRefRate) { /* Select the spad map that provides the measurement closest to the target rate, either above or below it. */
+          if (signalRateDiff > lastSignalRateDiff) { /* Previous spad map produced a closer measurement, so choose this. */
+            Error = set_ref_spad_map(Dev, lastSpadArray);
+            memcpy(Dev->Data.SpadData.RefSpadEnables, lastSpadArray, spadArraySize);
+            --refSpadCount_int;
+          }
+          complete = 1;
+        } else { /* Continue to add spads */
+          lastSignalRateDiff = signalRateDiff;
+          memcpy(lastSpadArray, Dev->Data.SpadData.RefSpadEnables, spadArraySize);
+        }
+      } /* while */
+    }
+
+    ERROR_OUT;
+    *refSpadCount = refSpadCount_int;
+    *isApertureSpads = isApertureSpads_int;
+
+    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, RefSpadsInitialised, 1);
+    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadCount, (uint8_t) (*refSpadCount));
+    VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, ReferenceSpadType, *isApertureSpads);
+
+    return ERROR_NONE;
+  } // VL53L0X_perform_ref_spad_management
+
+  Error Api::set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK) {
+    uint8_t vcsel_period_reg;
+    const uint8_t MinPreVcselPeriodPCLK = 12;
+    const uint8_t MaxPreVcselPeriodPCLK = 18;
+    const uint8_t MinFinalVcselPeriodPCLK = 8;
+    const uint8_t MaxFinalVcselPeriodPCLK = 14;
+    uint32_t MeasurementTimingBudgetMicroSeconds;
+    uint32_t FinalRangeTimeoutMicroSeconds;
+    uint32_t PreRangeTimeoutMicroSeconds;
+    uint32_t MsrcTimeoutMicroSeconds;
+    uint8_t PhaseCalInt = 0;
+
+    /* Check if valid clock period requested */
+
+    if ((VCSELPulsePeriodPCLK % 2) != 0) {
+      /* Value must be an even number */
+      return ERROR_INVALID_PARAMS;
+    }
+    if (VcselPeriodType == VCSEL_PERIOD_PRE_RANGE && (VCSELPulsePeriodPCLK < MinPreVcselPeriodPCLK || VCSELPulsePeriodPCLK > MaxPreVcselPeriodPCLK)) {
+      return ERROR_INVALID_PARAMS;
+    }
+    if (VcselPeriodType == VCSEL_PERIOD_FINAL_RANGE && (VCSELPulsePeriodPCLK < MinFinalVcselPeriodPCLK || VCSELPulsePeriodPCLK > MaxFinalVcselPeriodPCLK)) {
+      return ERROR_INVALID_PARAMS;
+    }
+    ErrorAccumulator Error = ERROR_NONE;
+    //BUG: the code below repeatedly ignores errors of writing to ..._PHASE_HIGH.
+    //BUG: the code below repeatedly ignores errors in I2C operations with the result that incoherent settings might be made
+    //... if you are going to ignore errors then make some tables and iterate over them, that takes less code.
+    /* Apply specific settings for the requested clock period */
+    switch (VcselPeriodType) {
+      case VCSEL_PERIOD_PRE_RANGE: {
+        /* Set phase check limits */
+        switch (VCSELPulsePeriodPCLK) {
+          case 12:
+            Error = setValidPhase(0x18, 0x08);
+            break;
+          case 14:
+            Error = setValidPhase(0x30, 0x08);
+            break;
+          case 16:
+            Error = setValidPhase(0x40, 0x08);
+            break;
+          case 18:
+            Error = setValidPhase(0x50, 0x08);
+            break;
+        }
+        break;
+        case VCSEL_PERIOD_FINAL_RANGE:
+          switch (VCSELPulsePeriodPCLK) {
+            case 8:
+              Error = setValidPhase(0x10, 0x08);
+              Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x02);
+              Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x0C);
+              Error |= setPhasecalLimit(0x30);
+              break;
+            case 10:
+              Error = setValidPhase(0x28, 0x08);
+              Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
+              Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x09);
+              Error |= setPhasecalLimit(0x20);
+              break;
+            case 12:
+              Error = setValidPhase(0x38, 0x08);
+              Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
+              Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x08);
+              Error |= setPhasecalLimit(0x20);
+              break;
+            case 14:
+              Error = setValidPhase(0x048, 0x08);
+              Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
+              Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x07);
+              Error |= setPhasecalLimit(0x20);
+              break;
+              break;
+            default:
+              break;
+          }
+      }
+    }
+    /* Re-calculate and apply timeouts, in macro periods */
+
+    if (!Error) {
+      vcsel_period_reg = encode_vcsel_period(VCSELPulsePeriodPCLK);
+
+      /* When the VCSEL period for the pre or final range is changed,
+       * the corresponding timeout must be read from the device using
+       * the current VCSEL period, then the new VCSEL period can be
+       * applied. The timeout then must be written back to the device
+       * using the new VCSEL period.
+       *
+       * For the MSRC timeout, the same applies - this timeout being
+       * dependant on the pre-range vcsel period.
+       */
+      switch (VcselPeriodType) {
+        case VCSEL_PERIOD_PRE_RANGE:
+          Error = get_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE, &PreRangeTimeoutMicroSeconds);
+
+          if (Error == ERROR_NONE) {
+            Error = get_sequence_step_timeout(SEQUENCESTEP_MSRC, &MsrcTimeoutMicroSeconds);
+          }
+
+          if (Error == ERROR_NONE) {
+            Error = comm.WrByte(REG_PRE_RANGE_CONFIG_VCSEL_PERIOD, vcsel_period_reg);
+          }
+
+          if (Error == ERROR_NONE) {
+            Error = set_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE, PreRangeTimeoutMicroSeconds);
+          }
+
+          if (Error == ERROR_NONE) {
+            Error = set_sequence_step_timeout(SEQUENCESTEP_MSRC, MsrcTimeoutMicroSeconds);
+          }
+
+          VL53L0X_SETDEVICESPECIFICPARAMETER(this, PreRange.VcselPulsePeriod, VCSELPulsePeriodPCLK);
+          break;
+        case VCSEL_PERIOD_FINAL_RANGE:
+          Error = get_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, &FinalRangeTimeoutMicroSeconds);
+
+          if (Error == ERROR_NONE) {
+            Error = comm.WrByte(REG_FINAL_RANGE_CONFIG_VCSEL_PERIOD, vcsel_period_reg);
+          }
+          if (Error == ERROR_NONE) {
+            Error = set_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, FinalRangeTimeoutMicroSeconds);
+          }
+          VL53L0X_SETDEVICESPECIFICPARAMETER(this, FinalRange.VcselPulsePeriod, VCSELPulsePeriodPCLK);
+          break;
+        default:
+          return ERROR_INVALID_PARAMS;
+      } // switch
+    }
+
+    /* Finally, the timing budget must be re-applied */
+    if (Error == ERROR_NONE) {
+      VL53L0X_GETPARAMETERFIELD(this, MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
+      return set_measurement_timing_budget_micro_seconds(MeasurementTimingBudgetMicroSeconds);
+    }
+
+    /* Perform the phase calibration. This is needed after changing on
+     * vcsel period.
+     * get_data_enable = 0, restore_config = 1 */
+    return perform_phase_calibration(&PhaseCalInt, 0, 1);
+  } // VL53L0X_set_vcsel_pulse_period

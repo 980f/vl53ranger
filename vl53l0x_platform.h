@@ -54,19 +54,17 @@ namespace VL53L0X {
  */
 /** In ST's work this guy's fields were embedded in the Device causing unnecessary sharing of information. */
   struct Physical {
+
     /*!< user specific field */
     ArduinoWirer wirer;
-//senseless parameter until we have a base class instead of explicit TwoWire    uint8_t comms_type;   /*!< Type of comms : VL53L0X_COMMS_I2C or VL53L0X_COMMS_SPI */
-    uint16_t comms_speed_khz; /*!< Comms speed [kHz] : typically 400kHz for I2C */
 
-    Physical(TwoWire &i2c, uint8_t I2cDevAddr, uint16_t comms_speed_khz = 400) :
-      wirer(i2c, I2cDevAddr), comms_speed_khz(comms_speed_khz) {
+    Physical(Arg &&args) :wirer(args){
       //do nothing so that we can have statically constructed instances.
     }
 
     /** it appears that applications typically have done this init themselves instead of calling this one. */
     bool init() {
-      wirer.i2c_init(comms_speed_khz);
+      wirer.i2c_init();
     }
 
 /**
@@ -215,7 +213,8 @@ namespace VL53L0X {
     DevData_t Data; /*!< embed ST Ewok Dev  data as "Data"*/
     Physical comm; //not a base as eventually we will pass in a reference to a baser class
 
-    Dev_t(TwoWire &i2c, uint8_t I2cDevAddr) : comm(i2c, I2cDevAddr) {
+    Dev_t(Arg &&args) : comm(std::forward<Arg&&>(args)) {
+      //do nothing so that we may static construct.
     }
 
     SemverLite ProductRevision;

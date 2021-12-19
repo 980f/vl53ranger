@@ -30,10 +30,10 @@
 #ifndef VL53L0X__api_H_
 #define VL53L0X__api_H_
 
-//#include "vl53l0x_api_strings.h" //this will be modified to return pointers rather than copy to target, so that they can be used in printf messaging without an intermediate storage
-#include "vl53l0x_def.h"       //
-#include "vl53l0x_platform.h"
-#include "vl53l0x_api_core.h"
+
+//if the core isn't using it then move it to this class #include "vl53l0x_def.h"
+//the platform is below the core #include "vl53l0x_platform.h"
+#include "vl53l0x_api_core.h" //extends this
 
 namespace VL53L0X {
 
@@ -43,7 +43,7 @@ namespace VL53L0X {
     /** once the comm member of the Physical interface is given an abstract interface we can build one and pass it in here instead of passing in its constructor args.
      * before that we can make a macro for the arg list so that we don't have to change it at the three levels ...*/
     //instead of passing the device handle into (nearly) every function place it on the object, reduces visual clutter. 
-    Api(TwoWire &i2c, uint8_t I2cDevAddr) : Core(i2c, I2cDevAddr) {
+    Api(Arg &&args) : Core(args) {
     }
 
 /**
@@ -245,19 +245,13 @@ namespace VL53L0X {
  * @brief Get the linearity corrective gain
  *
  * @par Function Description
- * Should only be used after a successful call to @a DataInit to backup
- * device NVM value
+ * Should only be used after a successful call to @a DataInit to cache device NVM value
  *
- * @note This function Access to the device
+ * @note This function did NOT Access to the device
  *
- * @param   Dev                                Device Handle
- * @param   pLinearityCorrectiveGain           Pointer to the linearity
- * corrective gain in x1000
- * if value is 1000 then no modification is applied.
- * @return  ERROR_NONE                  Success
- * @return  "Other error code"                 See ::Error
+ * @return linearity  corrective gain in x1000
  */
-    Error GetLinearityCorrectiveGain(uint16_t *pLinearityCorrectiveGain);
+    uint16_t  GetLinearityCorrectiveGain();
 
 /**
  * Set Group parameter Hold state
@@ -690,7 +684,6 @@ namespace VL53L0X {
  *
  * @note This function Accesses the device
  *
- * @param   Dev                          Device Handle
  * @param   SequenceStepId	         Sequence step identifier.
  * @param   SequenceStepEnabled          Demanded state {0=Off,1=On}
  *                                       is enabled.
@@ -699,7 +692,7 @@ namespace VL53L0X {
  *                                       supported.
  * @return  "Other error code"           See ::Error
  */
-    Error SetSequenceStepEnable(SequenceStepId SequenceStepId, uint8_t SequenceStepEnabled);
+    Error SetSequenceStepEnable(SequenceStepId SequenceStepId, bool SequenceStepEnabled);
 
 /**
  * @brief Gets the (on/off) state of a requested sequence step.
@@ -1012,30 +1005,6 @@ namespace VL53L0X {
  */
     Error SetLimitCheckEnable(uint16_t LimitCheckId, uint8_t LimitCheckEnable);
 
-/**
- * @brief  Get specific limit check enable state
- *
- * @par Function Description
- * This function get the enable state of a specific limit check.
- * The limit check is identified with the LimitCheckId.
- *
- * @note This function Access to the device
- *
- * @param   Dev                           Device Handle
- * @param   LimitCheckId                  Limit Check ID
- *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
- * @param   pLimitCheckEnable             Pointer to the check limit enable
- * value.
- *  if 1 the check limit
- *        corresponding to LimitCheckId is Enabled
- *  if 0 the check limit
- *        corresponding to LimitCheckId is disabled
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is returned
- *  when LimitCheckId value is out of range.
- * @return  "Other error code"            See ::Error
- */
-    Error GetLimitCheckEnable(uint16_t LimitCheckId, uint8_t *pLimitCheckEnable);
 
 /**
  * @brief  Set a specific limit check value
@@ -1829,6 +1798,33 @@ namespace VL53L0X {
     Erroneous <uint8_t> GetStopCompletedStatus();
     Error check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo);
     Error get_device_info(DeviceInfo_t &pDeviceInfo);
+
+
+    Error perform_ref_spad_management(unsigned &refSpadCount, bool &isApertureSpads);
+
+  private: //calibration.h was high level actions hidden from direct use in api
+    Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
+
+    Error perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter);
+
+    Error set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
+
+    Error get_offset_calibration_data_micro_meter(int32_t &pOffsetCalibrationDataMicroMeter);
+
+    Error apply_offset_adjustment();
+
+    Error set_reference_spads(uint32_t count, uint8_t isApertureSpads);
+
+    Error get_reference_spads(uint32_t *pSpadCount, uint8_t *pIsApertureSpads);
+
+    Error perform_phase_calibration(uint8_t *pPhaseCal, const bool get_data_enable, const bool restore_config);
+
+    Error perform_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable);
+
+    Error set_ref_calibration(uint8_t VhvSettings, uint8_t PhaseCal);
+
+    Error get_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal);
+
   };
 }//end namespace
 #endif /* __H_ */

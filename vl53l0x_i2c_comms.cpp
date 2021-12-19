@@ -8,8 +8,8 @@
 //#define I2C_DEBUG
 
 uint8_t ArduinoWirer::changedAddress(uint8_t newAddress) {
-  uint8_t was = this->deviceAddress;
-  this->deviceAddress = newAddress;
+  uint8_t was = devAddr;
+  devAddr = newAddress;
   return was;
 }
 
@@ -18,7 +18,7 @@ class I2cFramer {
   ArduinoWirer &parent;
 public:
   I2cFramer(ArduinoWirer &parent) : parent(parent) {
-    parent.i2c.beginTransmission(parent.deviceAddress);
+    parent.i2c.beginTransmission(parent.devAddr);
   }
 
   ~I2cFramer() {
@@ -27,7 +27,7 @@ public:
 };
 
 bool ArduinoWirer::write_multi(uint8_t index, uint8_t *pdata, int count) {
-  I2cFramer frameit(*this);
+  I2cFramer frameit(*this);//begins transmission and arranges to end it regardless of how we exit this method.
   if (i2c.write(index) != 1) {
     return false;
   }
@@ -69,10 +69,10 @@ bool ArduinoWirer::read_multi(uint8_t index, uint8_t *pdata, int count) {
     count = -count;//now positive
     pdata += count;//past end
   }
-  i2c.beginTransmission(deviceAddress);
+    i2c.beginTransmission(devAddr);
   i2c.write(index);
   i2c.endTransmission();
-  auto didit = i2c.requestFrom(deviceAddress, count);
+  auto didit = i2c.requestFrom(devAddr, count);
   if (didit != count) {
     return false;
   }
@@ -106,5 +106,10 @@ bool ArduinoWirer::read_multi(uint8_t index, uint8_t *pdata, int count) {
   Serial.println();
 #endif
   return true;
+}
+
+void ArduinoWirer::i2c_init() {
+  i2c.begin();
+  i2c.setClock(1000* comms_speed_khz);
 }
 

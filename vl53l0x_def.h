@@ -37,7 +37,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef _VL53L0X_DEF_H_
 #define _VL53L0X_DEF_H_
 
-#include "build.h"
+#include "build.h"  //options for a particular build/localization for a platform
+
 /** @defgroup VL53L0X_globaldefine_group VL53L0X Defines
  *	@brief	  VL53L0X Defines
  *	@{
@@ -89,6 +90,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vl53l0x_device.h"
 #include "vl53l0x_types.h"
+#include "vl53l0x_spadarray.h"
 
 namespace VL53L0X {
 
@@ -99,11 +101,10 @@ namespace VL53L0X {
   struct SemverLite {
     uint8_t major;   /*!< Product revision major */
     uint8_t minor;/*!< Product revision minor */
-    bool operator ==(SemverLite other) const {
+    bool operator==(SemverLite other) const {
       return major == other.major && minor == other.minor;
     }
-
-  } ;
+  };
 
   /** @brief Defines the parameters of the Get Version Functions
  */
@@ -113,7 +114,7 @@ namespace VL53L0X {
     uint8_t build;     /*!< build number */
   };
 
-  using InfoText= const char *;//formerly expensive: char [VL53L0X_MAX_STRING_LENGTH];
+  using InfoText = const char *;//formerly expensive: char [VL53L0X_MAX_STRING_LENGTH];
 
 /** @brief Defines the parameters of the Get Device Info Functions
  */
@@ -130,8 +131,8 @@ namespace VL53L0X {
  *	@{
  */
 
-//this enum is the negative of the C version, we will restore the negation in C wrappers.
-  enum Error : int8_t {
+//this enum is the negative of the C version, we may restore the negation in C wrappers.
+  enum Error {
     ERROR_NONE = 0
     , ERROR_CALIBRATION_WARNING /*!< Warning invalid calibration data may be in use
         \a	VL53L0X_InitData()
@@ -155,7 +156,6 @@ namespace VL53L0X {
     , ERROR_DIVISION_BY_ZERO = 40 /*!< In the function a division by zero occurs */
     , ERROR_REF_SPAD_INIT = 50 /*!< Error during reference SPAD initialization */
     , ERROR_NOT_IMPLEMENTED = 99  /*!< Tells requested functionality has not been implemented yet or not compatible with the device */
-
   };
 
   /** C++ is too strict for the legacy weirdness Error |= Error to compile, so:*/
@@ -181,8 +181,8 @@ namespace VL53L0X {
     }
 
     /** @returns whether there is no error */
-    bool operator ~(){
-      return sum==ERROR_NONE;
+    bool operator~() {
+      return sum == ERROR_NONE;
     }
   };
 
@@ -285,8 +285,9 @@ namespace VL53L0X {
     FixPoint1616_t XTalkCompensationRateMegaCps; /*!< CrossTalk compensation rate in Mega counts per seconds.	*/
     int32_t RangeOffsetMicroMeters; /*!< Range offset adjustment (mm).	*/
 
-    uint8_t LimitChecksEnable[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Limit Check enable for this device. */
-    uint8_t LimitChecksStatus[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Status of the check linked to last measurement. */
+    //todo: struct and single array.
+    bool LimitChecksEnable[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Limit Check enable for this device. */
+    bool LimitChecksStatus[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Status of the check linked to last measurement. */
     FixPoint1616_t LimitChecksValue[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
 
     uint8_t WrapAroundCheckEnable; /*!< Tells if Wrap Around Check shall be enable or not */
@@ -357,10 +358,6 @@ namespace VL53L0X {
     /*!< Error status of the current measurement. \n
     see @a ::VL53L0X_DeviceError @a VL53L0X_GetStatusErrorString() */
   };
-
-  //appears as a const int in a few places:
-#define REF_SPAD_BUFFER_SIZE 6
-  using SpadArray = uint8_t[REF_SPAD_BUFFER_SIZE];
 
   /**
  * @struct VL53L0X_SpadData_t
@@ -490,23 +487,23 @@ namespace VL53L0X {
   };
 
   /** @returns the bit within the packed SequenceStep control byte for the given @param sid  choice */
-  constexpr unsigned bitFor(SequenceStepId sid){
-      switch (sid) {
-        case SEQUENCESTEP_TCC:
-          return 4;
-        case SEQUENCESTEP_DSS:
-          return  3;
-        case SEQUENCESTEP_MSRC:
-          return  2;
-        case SEQUENCESTEP_PRE_RANGE:
-          return  6;
-          break;
-        case SEQUENCESTEP_FINAL_RANGE:
-          return  7;
-        default:
-          return ~0;
-      } // switch
-    }
+  constexpr unsigned bitFor(SequenceStepId sid) {
+    switch (sid) {
+      case SEQUENCESTEP_TCC:
+        return 4;
+      case SEQUENCESTEP_DSS:
+        return 3;
+      case SEQUENCESTEP_MSRC:
+        return 2;
+      case SEQUENCESTEP_PRE_RANGE:
+        return 6;
+        break;
+      case SEQUENCESTEP_FINAL_RANGE:
+        return 7;
+      default:
+        return ~0;
+    } // switch
+  }
 
 /** @defgroup VL53L0X_define_SchedulerSequence_group Defines the steps
  * carried out by the scheduler during a range measurement.
@@ -515,17 +512,17 @@ namespace VL53L0X {
  *	i.e. enabled/disabled.
  */
   struct SchedulerSequenceSteps_t {
-    bool TccOn=false ;       /*!<Reports if Target Centre Check On  */
-    bool MsrcOn=false ;       /*!<Reports if MSRC On  */
-    bool DssOn=false ;        /*!<Reports if DSS On  */
-    bool PreRangeOn=false ;   /*!<Reports if Pre-Range On	*/
-    bool FinalRangeOn=false ; /*!<Reports if Final-Range On  */
-    SchedulerSequenceSteps_t &unpack(uint8_t devicebyte){
-      TccOn= getBit(bitFor(SEQUENCESTEP_TCC),devicebyte);
-      DssOn=getBit(bitFor(SEQUENCESTEP_DSS),devicebyte);
-      MsrcOn= getBit(bitFor(SEQUENCESTEP_MSRC),devicebyte);
-      PreRangeOn= getBit(bitFor(SEQUENCESTEP_PRE_RANGE),devicebyte);
-      FinalRangeOn= getBit(bitFor(SEQUENCESTEP_FINAL_RANGE),devicebyte);
+    bool TccOn = false;       /*!<Reports if Target Centre Check On  */
+    bool MsrcOn = false;       /*!<Reports if MSRC On  */
+    bool DssOn = false;        /*!<Reports if DSS On  */
+    bool PreRangeOn = false;   /*!<Reports if Pre-Range On	*/
+    bool FinalRangeOn = false; /*!<Reports if Final-Range On  */
+    SchedulerSequenceSteps_t &unpack(uint8_t devicebyte) {
+      TccOn = getBit(bitFor(SEQUENCESTEP_TCC), devicebyte);
+      DssOn = getBit(bitFor(SEQUENCESTEP_DSS), devicebyte);
+      MsrcOn = getBit(bitFor(SEQUENCESTEP_MSRC), devicebyte);
+      PreRangeOn = getBit(bitFor(SEQUENCESTEP_PRE_RANGE), devicebyte);
+      FinalRangeOn = getBit(bitFor(SEQUENCESTEP_FINAL_RANGE), devicebyte);
       return *this;
     }
 

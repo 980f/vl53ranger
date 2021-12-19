@@ -102,45 +102,61 @@ typedef signed char int8_t;
 /** @}  */
 #endif /* _STDINT_H */
 
-template<typename Intish> constexpr bool getBit(const unsigned bitnum,const Intish data){
-  if( bitnum/8 > sizeof(Intish)){
+template<typename Intish> constexpr bool getBit(const unsigned bitnum, const Intish data) {
+  if (bitnum / 8 > sizeof(Intish)) {
     //todo: compiletime error if bitnum/8 is greater than bytes in the data
     return false;
   }
-  return (data&(1<<bitnum))!=0;
+  return (data & (1 << bitnum)) != 0;
 }
 
-template<typename Intish> constexpr uint8_t getByte(const unsigned bytenum,const Intish data){
-  if( bytenum > sizeof(Intish)){
-    //todo: compiletime error if bitnum/8 is greater than bytes in the data
+template<unsigned bitnum, typename Intish> constexpr bool getBit(const Intish data) {
+  static_assert(bitnum / 8 < sizeof(Intish));
+  return (data & (1 << bitnum)) != 0;
+}
+
+template<unsigned msbit,unsigned lsbit, typename Intish> constexpr bool getBits(const Intish data) {
+  static_assert(msbit / 8 < sizeof(Intish));
+  static_assert(lsbit / 8 < sizeof(Intish));
+  static_assert(msbit>=lsbit);
+  //to generate a mask for bit MS start with 10000 with the 1 to the left of the msbit then subtract some power of two from that.
+  return (data & ((1 << msbit+1)-(1<<lsbit))) >>lsbit;
+}
+
+template<typename Intish> constexpr uint8_t getByte(const unsigned bytenum, const Intish data) {
+  if (bytenum > sizeof(Intish)) {
     return false;
   }
-  return data>>(8*bytenum);
+  return data >> (8 * bytenum);
+}
+
+template<unsigned bytenum, typename Intish> constexpr uint8_t getByte(const Intish data) {
+  static_assert(bytenum < sizeof(Intish), "operand doesn't have that many bytes");
+  return data >> (8 * bytenum);
 }
 
 /** @returns @param num divided by @param denom, rounded */
-template <typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom){
-  return (denom!=0)? (num+(denom>>1))/denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
+template<typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom) {
+  return (denom != 0) ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
 }
 
 /** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
-template <typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned powerof2) {
+template<typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned powerof2) {
   return (num + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
 }
 
 /** @returns @param num divided by @param denom, rounded */
-template <typename IntishOver> IntishOver milli(IntishOver num){
-  return roundedDivide(num,1000);
+template<typename IntishOver> IntishOver milli(IntishOver num) {
+  return roundedDivide(num, 1000);
 }
 
-template <typename Intish> constexpr Intish boost(unsigned shift,Intish value){
-  return value<<shift;
+template<typename Intish> constexpr Intish boost(unsigned shift, Intish value) {
+  return value << shift;
 }
-
 
 /** alters @param value to be no greater than @param max */
-template <typename Intish> constexpr void lessen(Intish &value, Intish max){
-  if (value> max) {
+template<typename Intish> constexpr void lessen(Intish &value, Intish max) {
+  if (value > max) {
     /* Clip to prevent overflow. Will ensure safe max result. */
     value = max;
   }
@@ -148,13 +164,13 @@ template <typename Intish> constexpr void lessen(Intish &value, Intish max){
 
 /** @returns value squared
  * might add saturation which is rarely checked at present */
-template <typename Intish> Intish squared(Intish num) {
-  return num*num;
+template<typename Intish> Intish squared(Intish num) {
+  return num * num;
 }
 
-
 /** use where fractional values are expected
- *
+ * Formerly the gyration in here were explicitly repeated in very many places, each having to be checked for rogue tile error.
+ * Now we know that adding half the denominator before dividing in order to round always uses the same value for that halving, in one spot it did not!
  * Given a floating point value f it's .16 bit point is (int)(f*(1<<16))*/
 template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixPoint {
   //todo:2 compute Rawtype from whole and fract.
@@ -163,10 +179,14 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
     mask = (1 << fract) - 1
     , size = (fract + whole) / 2
     , powerShifter = 1 << fract
-      , half= 1<<(fract-1)
+    , half = 1 << (fract - 1)
   };
 
   operator RawType() const {
+    return raw;
+  }
+
+  operator RawType &() const {
     return raw;
   }
 
@@ -180,7 +200,7 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
     return *this;
   }
 
-  FixPoint () :raw(0){
+  FixPoint() : raw(0) {
   }
 
   FixPoint &operator=(float eff) {
@@ -199,9 +219,8 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
     return *this;
   }
 
-
-  FixPoint (float eff){
-    *this=eff;
+  FixPoint(float eff) {
+    *this = eff;
   }
 
   /** @returns nearest integer to nominal value */
@@ -211,24 +230,23 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
 
   /** @returns the raw value of this scaled by 2^ @param  bits, roundeding */
   RawType scaled(unsigned bits) const {
-    return roundedScale(raw,bits);
+    return roundedScale(raw, bits);
   }
 
   /** @returns this after dividing by 2^ @param bits, rounding */
-  FixPoint &shrink(unsigned bits){
-    raw=this->scaled(bits);
+  FixPoint &shrink(unsigned bits) {
+    raw = this->scaled(bits);
     return *this;
   }
 
   /** @returns this after dividing by 2^ @param bits, rounding */
-  RawType boosted(unsigned bits) const{
-    return raw<<bits;
+  RawType boosted(unsigned bits) const {
+    return raw << bits;
   }
 
-
   /** @returns this after dividing by 2^ @param bits, rounding */
-  FixPoint &boost(unsigned bits){
-    raw<<=bits;
+  FixPoint &boost(unsigned bits) {
+    raw <<= bits;
     return *this;
   }
 
@@ -236,14 +254,13 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
     return squared(raw);
   }
 
-  FixPoint &square(){
-    raw*=raw;
+  FixPoint &square() {
+    raw *= raw;
     return *this;
   }
 
-
   /** @returns this after ensuring that it is no greater than @param max */
-  FixPoint &lessen(FixPoint max){
+  FixPoint &lessen(FixPoint max) {
     if (raw > max.raw) {
       /* Clip to prevent overflow. Will ensure safe max result. */
       raw = max.raw;
@@ -251,38 +268,37 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
     return *this;
   }
 
-  /** @returns integer part times 1000 rounded to integer. Might overflow. */
-  RawType millis()const {
+  /** @returns integer part after times 1000, rounded to integer. Might overflow. */
+  RawType millis() const {
     return ((raw * 1000) + half) >> fract;
   }
 
-  template<unsigned other_whole, unsigned other_fract>  FixPoint &operator=(FixPoint<other_whole, other_fract> other) {
+  template<unsigned other_whole, unsigned other_fract> FixPoint &operator=(FixPoint<other_whole, other_fract> other) {
 //e.g: <16,16>other  to <9,7> this (uint16_t)((Value >> 9) & 0xFFFF)
     const int bitdiff = fract - other_fract;
-    if (size >= other.size) {//we are expanding so inflate and shrink
+    if constexpr (size >= other.size) {//we are expanding so inflate and shrink
       raw = other.raw;//radix point is still at other_fract position
-      if (bitdiff < 0) {//truncating some bits on the ls end
+      if constexpr (bitdiff < 0) {//truncating some bits on the ls end
         raw >>= (-bitdiff);
-      } else { //##do not convert this to a ternary until use is debugged
+      } else if constexpr (bitdiff > 0) {
         raw <<= (bitdiff);
       }
     } else { //shrinking so must align before truncating
-      if (bitdiff < 0) {//truncating some bits on the ls end
+      if constexpr (bitdiff < 0) {//truncating some bits on the ls end
         other.raw >>= (-bitdiff);
-      } else { //##do not convert this to a ternary until use is debugged
+      } else if constexpr(bitdiff > 0) {
         other.raw <<= (bitdiff);
       }
-      raw = other.raw;//radix point is still at other_fract position
+      raw = other.raw;
     }
   }
 
   /** rounding /= */
   template<typename Intish> FixPoint &divideby(Intish denom) {
-    raw= roundedDivide(raw,denom);
+    raw = roundedDivide(raw, denom);
     return *this;
   }
 };
-
 
 using FixPoint1616_t = FixPoint<16, 16, uint32_t>;
 

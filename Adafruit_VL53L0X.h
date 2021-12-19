@@ -30,7 +30,7 @@
 #include "Wire.h"
 #include "vl53l0x_api.h"
 
-#define VL53L0X_I2C_ADDR 0x29 ///< Default sensor I2C address
+//#define VL53L0X_I2C_ADDR 0x29 ///< Default sensor I2C address in Arduino format (7 bit)
 
 /**************************************************************************/
 /*!
@@ -48,7 +48,7 @@ public:
     , VL53L0X_SENSE_HIGH_ACCURACY
   } ;
 
-  Adafruit_VL53L0X(uint8_t i2c_addr = VL53L0X_I2C_ADDR, TwoWire &i2c = Wire) : MyDevice(i2c,i2c_addr){
+  Adafruit_VL53L0X(uint8_t i2c_addr = VL53L0X_I2C_ADDR>>1, TwoWire &i2c = Wire) : MyDevice({i2c,i2c_addr,400}){
     //but do not begin or start etc so that we can static init if we wish.
   }
 

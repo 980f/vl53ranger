@@ -52,11 +52,9 @@ namespace VL53L0X {
   }
 
 
-//replaced need with constructor  Error sequence_step_enabled(SequenceStepId SequenceStepId,uint8_t SequenceConfig,uint8_t *pSequenceStepEnabled);
-
   class Core : public Dev_t {
   public:
-    Core(TwoWire &i2c, uint8_t I2cDevAddr) : Dev_t(i2c, I2cDevAddr) {
+    Core(Arg &&args) : Dev_t(args) {
       //do nothing here so that we can statically construct
     }
 
@@ -102,7 +100,35 @@ namespace VL53L0X {
 
     Erroneous<FixPoint1616_t> get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
-    Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t *pRangingMeasurementData, uint8_t *pPalRangeStatus);
+    /** RMD not const due to setting of darkMM */
+    Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount,RangingMeasurementData_t &pRangingMeasurementData, uint8_t *pPalRangeStatus);
+
+    /**
+ * @brief  Get specific limit check enable state
+ *
+ * @par Function Description
+ * This function get the enable state of a specific limit check.
+ * The limit check is identified with the LimitCheckId.
+ *
+ * @note This function Access to the device
+ *
+ * @param   Dev                           Device Handle
+ * @param   LimitCheckId                  Limit Check ID
+ *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
+ * @param   pLimitCheckEnable             Pointer to the check limit enable
+ * value.
+ *  if 1 the check limit
+ *        corresponding to LimitCheckId is Enabled
+ *  if 0 the check limit
+ *        corresponding to LimitCheckId is disabled
+ * @return  ERROR_NONE             Success
+ * @return  ERROR_INVALID_PARAMS   This error is returned
+ *  when LimitCheckId value is out of range.
+ * @return  "Other error code"            See ::Error
+ */
+    Erroneous<bool> GetLimitCheckEnable(CheckEnable LimitCheckId);
+
+
 
     class MagicTrio {
       ErrorAccumulator Status;
@@ -124,10 +150,29 @@ namespace VL53L0X {
       return MagicTrio(comm);
     }
 
-  private:  //common code fragments or what were file static but didn't actually have the 'static' like they should have.
+
+
+
+
+  protected:  //common code fragments or what were file static but didn't actually have the 'static' like they should have.
     Error setValidPhase(uint8_t high, uint8_t low);
 
     Error setPhasecalLimit(uint8_t value);
+
+    Error FFwrap(RegSystem index,uint8_t value ){
+      ErrorAccumulator Status = comm.WrByte( 0xFF, 0x01);
+      Status |= comm.WrByte( index, value);
+      Status |= comm.WrByte( 0xFF, 0x00);
+      return Status;
+    }
+
+    template<typename Intish> Erroneous<Intish> FFread(RegSystem index){
+      Erroneous<Intish> value;
+      value.error = comm.WrByte( 0xFF, 0x01);
+      value.error |= comm.RdWord(index, &value.wrapped);
+      value.error |= comm.WrByte( 0xFF, 0x00);
+      return value;
+    }
 
   protected: //some of this functionality was in api.cpp but used by core.cpp
     Error device_read_strobe();
@@ -143,35 +188,10 @@ namespace VL53L0X {
 
     Error SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable);
 
-
-   //some functions were split out into their own files but referred back into api and core. The header is insert here while the implementations are still in their own cpp file.
-#if IncludeCalibrators
-
-  public: //perhaps protected?
-    Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
-
-    Error perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter);
-
-    Error set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
-
-    Error get_offset_calibration_data_micro_meter(int32_t &pOffsetCalibrationDataMicroMeter);
-
-    Error apply_offset_adjustment();
-    Error perform_ref_spad_management(uint32_t *refSpadCount, uint8_t *isApertureSpads);
-
-    Error set_reference_spads(uint32_t count, uint8_t isApertureSpads);
-
-    Error get_reference_spads(uint32_t *pSpadCount, uint8_t *pIsApertureSpads);
-
-    Error perform_phase_calibration(uint8_t *pPhaseCal, const uint8_t get_data_enable, const uint8_t restore_config);
-
-    Error perform_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable);
-
-    Error set_ref_calibration(uint8_t VhvSettings, uint8_t PhaseCal);
-
-    Error get_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal);
-#endif
-
+    Error set_ref_spad_map(SpadArray &refSpadArray);
+    Error get_ref_spad_map(SpadArray &refSpadArray);
   };
+
+
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

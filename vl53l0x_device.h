@@ -36,6 +36,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vl53l0x_types.h"
 
+
+#define VL53L0X_I2C_ADDR 0x52 //< Default sensor I2C address in 8 Bit format
+
 namespace VL53L0X {
 /** @defgroup VL53L0X_DevSpecDefines_group VL53L0X cut1.1 Device Specific
  * Defines
@@ -101,11 +104,11 @@ namespace VL53L0X {
 
   };
 #if 0  //the following were redundant definitions for the GpioFunctionality
-#define VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_DISABLED 0x00
-#define VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_LEVEL_LOW 0x01
-#define VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_LEVEL_HIGH 0x02
-#define VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_OUT_OF_WINDOW 0x03
-#define VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY 0x04
+#define REG_SYSTEM_INTERRUPT_GPIO_DISABLED 0x00
+#define REG_SYSTEM_INTERRUPT_GPIO_LEVEL_LOW 0x01
+#define REG_SYSTEM_INTERRUPT_GPIO_LEVEL_HIGH 0x02
+#define REG_SYSTEM_INTERRUPT_GPIO_OUT_OF_WINDOW 0x03
+#define REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY 0x04
 #endif
 /** @} end of VL53L0X_GpioFunctionality_group */
 
@@ -113,17 +116,17 @@ namespace VL53L0X {
 
   enum SysRange {
     REG_SYSRANGE_START = 0x000
-    , /** mask existing bit in #VL53L0X_REG_SYSRANGE_START*/
+    , /** mask existing bit in #REG_SYSRANGE_START*/
     REG_SYSRANGE_MODE_MASK = 0x0F
-    , /** bit 0 in #VL53L0X_REG_SYSRANGE_START write 1 toggle state in continuous mode and arm next shot in single shot mode */
+    , /** bit 0 in #REG_SYSRANGE_START write 1 toggle state in continuous mode and arm next shot in single shot mode */
     REG_SYSRANGE_MODE_START_STOP = (1 << 0)
-    , /** bit 1 write 0 in #VL53L0X_REG_SYSRANGE_START set single shot mode */
+    , /** bit 1 write 0 in #REG_SYSRANGE_START set single shot mode */
     REG_SYSRANGE_MODE_SINGLESHOT = (0 << 1)
-    , /** bit 1 write 1 in #VL53L0X_REG_SYSRANGE_START set back-to-back operation mode */
+    , /** bit 1 write 1 in #REG_SYSRANGE_START set back-to-back operation mode */
     REG_SYSRANGE_MODE_BACKTOBACK = (1 << 1)
-    , /** bit 2 write 1 in #VL53L0X_REG_SYSRANGE_START set timed operation mode */
+    , /** bit 2 write 1 in #REG_SYSRANGE_START set timed operation mode */
     REG_SYSRANGE_MODE_TIMED = (1 << 2)
-    , /** bit 3 write 1 in #VL53L0X_REG_SYSRANGE_START set histogram operation mode */
+    , /** bit 3 write 1 in #REG_SYSRANGE_START set histogram operation mode */
     REG_SYSRANGE_MODE_HISTOGRAM = (1 << 3)
     ,
     //no defines for the next 8 bit2?
@@ -180,15 +183,15 @@ namespace VL53L0X {
     , REG_FINAL_RANGE_CONFIG_VCSEL_PERIOD = 0x70
     , REG_FINAL_RANGE_CONFIG_TIMEOUT_MACROP_HI = 0x71
     , REG_FINAL_RANGE_CONFIG_TIMEOUT_MACROP_LO = 0x72
-    , REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS = 0x0020 //ick: is the following a register or a value?
+    , REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS = 0x20 // fp3.13
     , REG_MSRC_CONFIG_TIMEOUT_MACROP = 0x46
     , REG_SOFT_RESET_GO2_SOFT_RESET_N = 0xbf
     , REG_IDENTIFICATION_MODEL_ID = 0xc0
     , REG_IDENTIFICATION_REVISION_ID = 0xc2
     , REG_OSC_CALIBRATE_VAL = 0xf8
-    , REG_GLOBAL_CONFIG_VCSEL_WIDTH = 0x032 //register or value?
+    , REG_GLOBAL_CONFIG_VCSEL_WIDTH = 0x32 //register or value?
     , REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_BASE = 0xB0 //note: there were 6 defines with a numerical suffix, this is the base for a function that generates them
-    , REG_GLOBAL_CONFIG_REF_EN_START_SELECT = 0xB6
+    , REG_GLOBAL_CONFIG_REF_EN_START_SELECT = 0xB6  //first spad to pay any attention to, hardcoded to 180 as of this code rewrite
     , REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD = 0x4E  /* 0x14E */
     , REG_DYNAMIC_SPAD_REF_EN_START_OFFSET = 0x4F /* 0x14F */
     , REG_POWER_MANAGEMENT_GO1_POWER_FORCE = 0x80
@@ -196,7 +199,7 @@ namespace VL53L0X {
     , REG_ALGO_PHASECAL_LIM = 0x30 /* 0x130 */
     , REG_ALGO_PHASECAL_CONFIG_TIMEOUT = 0x30
 
-      //formerly hidden inside code
+      //formerly hidden inside code, naming for documentation purposes
       ,Private_Strober=0x83  /** strobe related */
       ,Private_04=0x04 /** ?completion status */
       ,Private_PowerMode=0x80
@@ -204,12 +207,12 @@ namespace VL53L0X {
     };
 
   /** the following defines were dropped in favor of a function:
-//#define VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_0 0x0B0
-//#define VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_1 0x0B1
-//#define VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_2 0x0B2
-//#define VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_3 0x0B3
-//#define VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_4 0x0B4
-//#define VL53L0X_REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_5 0x0B5 */
+//#define REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_0 0x0B0
+//#define REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_1 0x0B1
+//#define REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_2 0x0B2
+//#define REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_3 0x0B3
+//#define REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_4 0x0B4
+//#define REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_5 0x0B5 */
   constexpr uint8_t REG_GLOBAL_CONFIG_SPAD_ENABLES_REF(unsigned which) {
     return (REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_BASE + which);
   }

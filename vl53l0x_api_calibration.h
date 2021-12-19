@@ -32,16 +32,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vl53l0x_def.h"
 #include "vl53l0x_platform.h"
 
-//#include "vl53l0x_api_core.h"
+#include "vl53l0x_api.h"   //calibration is added high level BLOCKING procedures
 namespace VL53L0X {
 
-  class Core;
-
-  class Calibrator {
-    Core &core;
-
-    Calibrator(Core &core) : core(core) {
-    }
+  class Calibrator: public Api {
+  public:
+  public: //perhaps protected?
 
 
   };
