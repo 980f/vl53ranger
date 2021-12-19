@@ -282,16 +282,12 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
     return *this;
   }
 };
-template<unsigned whole, unsigned fract, typename RawType= uint32_t>
-static RawType quadrature_sum(FixPoint<whole, fract, RawType> a, FixPoint<whole, fract, RawType> b){
-  //todo: debate whether the guard in the non-class quadrature_sum should apply
-//      if (a > 65535 || b > 65535) {
-//        return 65535;
-//      }
-  return isqrt(a.squared()+ b.squared());
-}
+
 
 using FixPoint1616_t = FixPoint<16, 16, uint32_t>;
+
+const FixPoint1616_t Unity {1.0};//0x10000 which is one greater than 0x0000FFFF
+
 //types seen in macros that used to do the conversions:
 using FixPoint97_t = FixPoint<9, 7, uint16_t>;
 using FixPoint88_t = FixPoint<8, 8, uint16_t>;

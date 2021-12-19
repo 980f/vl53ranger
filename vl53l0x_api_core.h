@@ -42,6 +42,15 @@ namespace VL53L0X {
   uint16_t encode_timeout(uint32_t timeout_macro_clks);
   uint32_t calc_timeout_mclks(uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
 
+  template<unsigned whole, unsigned fract, typename RawType= uint32_t>
+  static RawType quadrature_sum(FixPoint<whole, fract, RawType> a, FixPoint<whole, fract, RawType> b){
+    //todo: debate whether the guard in the non-class quadrature_sum should apply
+//      if (a > 65535 || b > 65535) {
+//        return 65535;
+//      }
+    return isqrt(a.squared()+ b.squared());
+  }
+
 
 //replaced need with constructor  Error sequence_step_enabled(SequenceStepId SequenceStepId,uint8_t SequenceConfig,uint8_t *pSequenceStepEnabled);
 
@@ -66,6 +75,7 @@ namespace VL53L0X {
 
     Erroneous<bool> GetSequenceStepEnable(SequenceStepId StepId); // GetSequenceStepEnable
 
+    SemverLite GetProductRevision();
 
     /** VCSELPulsePeriodPCLK */
     Erroneous<uint8_t> get_vcsel_pulse_period(VcselPeriod VcselPeriodType);
@@ -132,6 +142,36 @@ namespace VL53L0X {
     uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
 
     Error SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable);
+
+
+   //some functions were split out into their own files but referred back into api and core. The header is insert here while the implementations are still in their own cpp file.
+#if IncludeCalibrators
+
+  public: //perhaps protected?
+    Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
+
+    Error perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter);
+
+    Error set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
+
+    Error get_offset_calibration_data_micro_meter(int32_t &pOffsetCalibrationDataMicroMeter);
+
+    Error apply_offset_adjustment();
+    Error perform_ref_spad_management(uint32_t *refSpadCount, uint8_t *isApertureSpads);
+
+    Error set_reference_spads(uint32_t count, uint8_t isApertureSpads);
+
+    Error get_reference_spads(uint32_t *pSpadCount, uint8_t *pIsApertureSpads);
+
+    Error perform_phase_calibration(uint8_t *pPhaseCal, const uint8_t get_data_enable, const uint8_t restore_config);
+
+    Error perform_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable);
+
+    Error set_ref_calibration(uint8_t VhvSettings, uint8_t PhaseCal);
+
+    Error get_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal);
+#endif
+
   };
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

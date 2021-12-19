@@ -49,9 +49,6 @@ namespace VL53L0X {
   const uint32_t cMinTimingBudgetMicroSeconds = 20000;
 
 
-  //we will be getting rid of this, so dup something to get a compile until we do.
-#define VL53L0X_COPYSTRING(target, string) strcpy(target,string)
-
   void reverse_bytes(uint8_t *data, uint32_t size) {
     uint8_t tempData;
     uint32_t mirrorIndex;
@@ -132,8 +129,7 @@ namespace VL53L0X {
   } // VL53L0X_quadrature_sum
 
   Error Core::device_read_strobe() {
-    LOG_FUNCTION_START
-    ("");
+    LOG_FUNCTION_START;
     auto onexit = autoCloser(Private_Strober, 0x00, 0x01);
     if (onexit) {
       /* polling with timeout to avoid deadlock*/
@@ -354,30 +350,12 @@ namespace VL53L0X {
     }
   } // VL53L0X_encode_timeout
 
-  bool sequence_step_enabled(SequenceStepId SequenceStepId, uint8_t SequenceConfig) {
-    LOG_FUNCTION_START
-    ("");
-    unsigned bitnumber;
-    switch (SequenceStepId) {//ick: formerly masked then shifted, find the bit and mask and shrink in just one place.
-      case SEQUENCESTEP_TCC:
-        bitnumber = 4;
-        break;
-      case SEQUENCESTEP_DSS:
-        bitnumber = 3;
-        break;
-      case SEQUENCESTEP_MSRC:
-        bitnumber = 2;
-        break;
-      case SEQUENCESTEP_PRE_RANGE:
-        bitnumber = 6;
-        break;
-      case SEQUENCESTEP_FINAL_RANGE:
-        bitnumber = 7;
-        break;
-      default:
-        return false;
-    } // switch
-
+  bool sequence_step_enabled(SequenceStepId stepId, uint8_t SequenceConfig) {
+    LOG_FUNCTION_START;
+    unsigned bitnumber = bitFor(stepId);
+    if (bitnumber > 7) {
+      return false;//
+    }
     return (SequenceConfig >> bitnumber) & 1;
   } // sequence_step_enabled
 
@@ -390,16 +368,14 @@ namespace VL53L0X {
 
 /* To convert ms into register value */
   uint32_t calc_timeout_mclks(uint32_t timeout_period_us, uint8_t vcsel_period_pclks) {
-    uint32_t macro_period_ps = calc_macro_period_ps(vcsel_period_pclks);
-    uint32_t macro_period_ns = (macro_period_ps + 500) / 1000;
-    return (uint32_t) (((timeout_period_us * 1000) + (macro_period_ns / 2)) / macro_period_ns);
+    const uint32_t macro_period_ns = roundedDivide(calc_macro_period_ps(vcsel_period_pclks), 1000);
+    return roundedDivide(timeout_period_us * 1000, macro_period_ns);
   } // VL53L0X_calc_timeout_mclks
 
 /* To convert register value into us */
   uint32_t calc_timeout_us(uint16_t timeout_period_mclks, uint8_t vcsel_period_pclks) {
-    uint32_t macro_period_ps = calc_macro_period_ps(vcsel_period_pclks);
-    uint32_t macro_period_ns = (macro_period_ps + 500) / 1000;
-    return ((timeout_period_mclks * macro_period_ns) + (macro_period_ns / 2)) / 1000;
+    const uint32_t macro_period_ns = roundedDivide(calc_macro_period_ps(vcsel_period_pclks), 1000);
+    return ((timeout_period_mclks * macro_period_ns) + (macro_period_ns / 2)) / 1000;//BUG: rogue tile? the ns/2 and 1000 do not make sense together here
   } // VL53L0X_calc_timeout_us
 
   template<typename Scalar> bool Core::fetch(Erroneous<Scalar> &item, RegSystem reg) {
@@ -414,8 +390,7 @@ namespace VL53L0X {
   }
 
   Error Core::SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable) {
-    LOG_FUNCTION_START
-    ("");
+    LOG_FUNCTION_START;
 
     uint16_t LinearityCorrectiveGain = PALDevDataGet(this, LinearityCorrectiveGain);
 
@@ -423,7 +398,7 @@ namespace VL53L0X {
     if ((XTalkCompensationEnable == 0) || (LinearityCorrectiveGain != 1000)) {
       TempFix1616.raw = 0;
     } else {
-      GetPARAMETERFIELD((this->Data), XTalkCompensationRateMegaCps, TempFix1616.raw);
+      VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationRateMegaCps, TempFix1616.raw);
     }
 
     /* the following register has a format 3.13 */
@@ -582,7 +557,7 @@ namespace VL53L0X {
   }
 
   Error Core::setPhasecalLimit(uint8_t value) {
-    ErrorAccumulator Error{ERROR_NONE};
+    ErrorAccumulator Error {ERROR_NONE};
     //todo: RAII FF thingy
     Error |= comm.WrByte(0xff, 0x01);
     Error |= comm.WrByte(REG_ALGO_PHASECAL_LIM, value);
@@ -724,8 +699,7 @@ namespace VL53L0X {
     /* Finally, the timing budget must be re-applied */
     if (Error == ERROR_NONE) {
       VL53L0X_GETPARAMETERFIELD(this, MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
-
-      return SetMeasurementTimingBudgetMicroSeconds(MeasurementTimingBudgetMicroSeconds);
+      return set_measurement_timing_budget_micro_seconds(MeasurementTimingBudgetMicroSeconds);
     }
 
     /* Perform the phase calibration. This is needed after changing on
@@ -760,8 +734,7 @@ namespace VL53L0X {
 
 
   Erroneous<SchedulerSequenceSteps_t> Core::get_sequence_step_enables() {
-    LOG_FUNCTION_START
-    ("");
+    LOG_FUNCTION_START;
     Erroneous<uint8_t> SequenceConfig;
     if (fetch(SequenceConfig, REG_SYSTEM_SEQUENCE_CONFIG)) {
       return {SequenceConfig.wrapped};
@@ -771,9 +744,7 @@ namespace VL53L0X {
 
 
   Error Core::set_measurement_timing_budget_micro_seconds(uint32_t MeasurementTimingBudgetMicroSeconds) {
-
-    LOG_FUNCTION_START("");
-
+    LOG_FUNCTION_START;
     if (MeasurementTimingBudgetMicroSeconds < cMinTimingBudgetMicroSeconds) {
       return ERROR_INVALID_PARAMS;
     }
@@ -973,39 +944,36 @@ namespace VL53L0X {
     return ERROR_NONE;
   } // VL53L0X_load_tuning_settings
 
-  Erroneous<FixPoint1616_t> Core::get_total_xtalk_rate(const RangingMeasurementData_t *pRangingMeasurementData) {
+  Erroneous<FixPoint1616_t> Core::get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
 
-    Erroneous<uint8_t> xtalkCompEnable = GetXTalkCompensationEnable();
+    uint8_t xtalkCompEnable;
+    VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationEnable, xtalkCompEnable);
+//todo: lost test value of xtalkCompeEnable
 
-    if (xtalkCompEnable.isOk()) {
-      FixPoint1616_t xtalkPerSpadMegaCps;
-      VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationRateMegaCps, xtalkPerSpadMegaCps);
+    FixPoint1616_t xtalkPerSpadMegaCps;
+    VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationRateMegaCps, xtalkPerSpadMegaCps);
 
-      /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
-      FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData->EffectiveSpadRtnCount * xtalkPerSpadMegaCps.raw;
+    /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
+    FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData.EffectiveSpadRtnCount * xtalkPerSpadMegaCps.raw;
 
-      /* FixPoint0824 >> 8 = FixPoint1616 */
-      return totalXtalkMegaCps.shrink(8);
-    }
-    return {0, xtalkCompEnable.error};//0 if caller ignores error
+    /* FixPoint0824 >> 8 = FixPoint1616 */
+    return totalXtalkMegaCps.shrink(8);
   } // VL53L0X_get_total_xtalk_rate
 
-  Erroneous<FixPoint1616_t> get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
-    LOG_FUNCTION_START
-    ("");
+  Erroneous<FixPoint1616_t> Core::get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
+    LOG_FUNCTION_START;
     Erroneous<FixPoint1616_t> totalXtalkMegaCps {pRangingMeasurementData.SignalRateRtnMegaCps};//default in case returned error is ignored
     return get_total_xtalk_rate(pRangingMeasurementData);
   } // VL53L0X_get_total_signal_rate
 
-  uint32_t Core::calc_dmax(const FixPoint1616_t totalSignalRate_mcps, const FixPoint1616_t totalCorrSignalRate_mcps, const FixPoint1616_t pwMult, const uint32_t sigmaEstimateP1, const FixPoint1616_t sigmaEstimateP2, const uint32_t peakVcselDuration_us) {
+  uint32_t Core::calc_dmax(const FixPoint1616_t totalSignalRate_mcps, const FixPoint1616_t totalCorrSignalRate_mcps, const FixPoint1616_t pwMult, const uint32_t sigmaEstimateP1,  FixPoint1616_t sigmaEstimateP2, const uint32_t peakVcselDuration_us) {
     const uint32_t cSigmaLimit = 18;
     const FixPoint1616_t cSignalLimit {0.25};// = 0x4000;     /* 0.25 */
     const FixPoint1616_t cSigmaEstRef {0.0001};// = 0x00000042; /* 0.001 */
     const uint32_t cAmbEffWidthSigmaEst_ns = 6;
     const uint32_t cAmbEffWidthDMax_ns = 7;
 
-    LOG_FUNCTION_START
-    ("");
+    LOG_FUNCTION_START;
 
     uint32_t dmaxCalRange_mm = PALDevDataGet(this, DmaxCalRangeMilliMeter);
     FixPoint1616_t dmaxCalSignalRateRtn_mcps = PALDevDataGet(this, DmaxCalSignalRateRtnMegaCps);
@@ -1056,7 +1024,7 @@ namespace VL53L0X {
     sigmaEstP2Tmp.raw *= cAmbEffWidthDMax_ns;//todo: multiplyByRatio function. Can be given greater range than is easy to achieve inline.
 
     FixPoint1616_t minSignalNeeded_p3;
-    if (sigmaEstP2Tmp.raw > 0xffff) {// >=1.0
+    if (sigmaEstP2Tmp.raw >= Unity) {// >=1.0
       minSignalNeeded_p3 = uint32_t(0xfff00000);
     } else {
       /* DMAX uses a different ambient width from sigma, so apply correction.
@@ -1300,7 +1268,6 @@ namespace VL53L0X {
       /* FixPoint1616/uint32 = FixPoint1616 */
       FixPoint1616_t pwMult = deltaT_ps.raw / cVcselPulseWidth_ps; /* smaller than 1.0f */ //ick: not rounded
 
-      const FixPoint1616_t Unity {1.0};
       /*
        * FixPoint1616 * FixPoint1616 = FixPoint3232, however both
        * values are small enough such that32 bits will not be

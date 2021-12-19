@@ -111,13 +111,11 @@ namespace VL53L0X {
  *
  * @note This function doesn't access to the device
  *
- * @param   RangeStatus         The RangeStatus code as stored on
- * @a RangingMeasurementData_t
- * @param   pRangeStatusString  The returned RangeStatus string.
- * @return  ERROR_NONE   Success
- * @return  "Other error code"  See ::Error
+ * @param   RangeStatus         The RangeStatus code as stored on a RangingMeasurementData_t
+ * @return  pointer to const text.
  */
-    Error GetRangeStatusString(uint8_t RangeStatus, char *pRangeStatusString);
+
+    const char *GetRangeStatusString(uint8_t RangeStatus);
 
 /**
  * @brief Human readable error string for a given Error Code
@@ -135,12 +133,9 @@ namespace VL53L0X {
  * @note This function doesn't access to the device
  *
  * @param   PalErrorCode       The error code as stored on @a Error
- * @param   pPalErrorString    The error string corresponding to the
- * PalErrorCode
- * @return  ERROR_NONE  Success
- * @return  "Other error code" See ::Error
+ * @return  The error string corresponding to the PalErrorCode
  */
-    Error GetPalErrorString(Error PalErrorCode, char *pPalErrorString);
+    const char * GetPalErrorString(Error PalErrorCode);
 
 /**
  * @brief Human readable PAL State string
@@ -148,12 +143,10 @@ namespace VL53L0X {
  * @note This function doesn't access to the device
  *
  * @param   PalStateCode          The State code as stored on @a State
- * @param   pPalStateString       The State string corresponding to the
  * PalStateCode
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ * @return pointer to const text.
  */
-    Error GetPalStateString(State PalStateCode, char *pPalStateString);
+    const char * GetPalStateString(State PalStateCode);
 
 /**
  * @brief Reads the internal state of the PAL for a given Device
@@ -161,12 +154,11 @@ namespace VL53L0X {
  * @note This function doesn't access to the device
  *
  * @param   Dev                   Device Handle
- * @param   pPalState             Pointer to current state of the PAL for a
- * given Device
+ * @param   pPalState             Pointer to current state of the PAL for a given Device
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error GetPalState(State *pPalState);
+    State GetPalState();
 
 /**
  * @brief Set the power mode for a given Device
@@ -203,7 +195,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error GetPowerMode(PowerModes *pPowerMode);
+    Erroneous<PowerModes> GetPowerMode( );
 
 /**
  * Set or over-hide part to part calibration offset
@@ -233,7 +225,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                  Success
  * @return  "Other error code"                 See ::Error
  */
-    Error GetOffsetCalibrationDataMicroMeter(int32_t *pOffsetCalibrationDataMicroMeter);
+    Erroneous<int32_t> GetOffsetCalibrationDataMicroMeter( );
 
 /**
  * Set the linearity corrective gain
@@ -1354,16 +1346,12 @@ namespace VL53L0X {
  * This function check if interrupt mode is used then check is done accordingly.
  * If perform function clear the interrupt, this function will not work,
  * like in case of @a PerformSingleRangingMeasurement().
- * The previous function is blocking function, GetMeasurementDataReady
+ * WaitDeviceReadyForNewMeasurement is blocking function, GetMeasurementDataReady
  * is used for non-blocking capture.
  *
  * @note This function Access to the device
  *
- * @param   Dev                    Device Handle
- * @param   pMeasurementDataReady  Pointer to Measurement Data Ready.
- *  0=data not ready, 1 = data ready
- * @return  ERROR_NONE      Success
- * @return  "Other error code"     See ::Error
+ * @return whether we have a definite indication of data being ready.
  */
     Erroneous<bool> GetMeasurementDataReady();
 
@@ -1839,6 +1827,8 @@ namespace VL53L0X {
 /** @} cut11_group */
 
     Erroneous <uint8_t> GetStopCompletedStatus();
+    Error check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo);
+    Error get_device_info(DeviceInfo_t &pDeviceInfo);
   };
 }//end namespace
 #endif /* __H_ */

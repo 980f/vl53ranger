@@ -43,28 +43,7 @@ namespace VL53L0X {
     Calibrator(Core &core) : core(core) {
     }
 
-    Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t *pXTalkCompensationRateMegaCps);
 
-    Error perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter);
-
-    Error set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
-
-    Error get_offset_calibration_data_micro_meter(int32_t *pOffsetCalibrationDataMicroMeter);
-
-    Error apply_offset_adjustment();
-    Error perform_ref_spad_management(uint32_t *refSpadCount, uint8_t *isApertureSpads);
-
-    Error set_reference_spads(uint32_t count, uint8_t isApertureSpads);
-
-    Error get_reference_spads(uint32_t *pSpadCount, uint8_t *pIsApertureSpads);
-
-    Error perform_phase_calibration(uint8_t *pPhaseCal, const uint8_t get_data_enable, const uint8_t restore_config);
-
-    Error perform_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable);
-
-    Error set_ref_calibration(uint8_t VhvSettings, uint8_t PhaseCal);
-
-    Error get_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal);
   };
 }
 #endif /* _VL53L0X_API_CALIBRATION_H_ */

@@ -37,6 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef _VL53L0X_DEF_H_
 #define _VL53L0X_DEF_H_
 
+#include "build.h"
 /** @defgroup VL53L0X_globaldefine_group VL53L0X Defines
  *	@brief	  VL53L0X Defines
  *	@{
@@ -112,12 +113,14 @@ namespace VL53L0X {
     uint8_t build;     /*!< build number */
   };
 
+  using InfoText= const char *;//formerly expensive: char [VL53L0X_MAX_STRING_LENGTH];
+
 /** @brief Defines the parameters of the Get Device Info Functions
  */
   struct DeviceInfo_t {
-    char Name[VL53L0X_MAX_STRING_LENGTH];     /*!< Name of the Device e.g. Left_Distance */
-    char Type[VL53L0X_MAX_STRING_LENGTH];     /*!< Type of the Device e.g VL53L0X */
-    char ProductId[VL53L0X_MAX_STRING_LENGTH];    /*!< Product Identifier String	(//ick:limited to 17+null in places) */
+    InfoText Name;     /*!< Name of the Device e.g. Left_Distance */
+    InfoText Type;     /*!< Type of the Device e.g VL53L0X */
+    InfoText ProductId;    /*!< Product Identifier String	(//ick:limited to 17+null in places) */
     uint8_t ProductType;     /*!< Product Type, VL53L0X = 1, VL53L1 = 2 */
     struct SemverLite ProductRevision;
   };
@@ -487,7 +490,7 @@ namespace VL53L0X {
   };
 
   /** @returns the bit within the packed SequenceStep control byte for the given @param sid  choice */
-  constexpr int bitFor(SequenceStepId sid){
+  constexpr unsigned bitFor(SequenceStepId sid){
       switch (sid) {
         case SEQUENCESTEP_TCC:
           return 4;
@@ -501,7 +504,7 @@ namespace VL53L0X {
         case SEQUENCESTEP_FINAL_RANGE:
           return  7;
         default:
-          return -1;
+          return ~0;
       } // switch
     }
 

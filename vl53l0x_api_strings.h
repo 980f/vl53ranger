@@ -67,8 +67,7 @@ namespace VL53L0X {
 
 }// end name space
 
-
 //note: use links in build to bring in the language of interest.
-#include "vl53l0x.text"
+#include "vl53l0x.text" //moved to cpp file to see who bypassed the interface
 
 #endif // ifndef VL53L0X_API_STRINGS_H_

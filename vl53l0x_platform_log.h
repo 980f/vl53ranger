@@ -68,7 +68,7 @@ public:
     }
   }
   //to mate to old system which allowed an additional bit of info on start messages:
-  void operator()(const char *format="", ...) {
+  void operator()(const char *format, ...) {
     if(*format && enabled) {
       printf(format);//todo: vprintf with passed along ... args. There are only two cases and we should just log those separately)
     }
@@ -79,8 +79,8 @@ public:
   }
 };
 
-#define LOG_FUNCTION_START  PerformanceTracer Error(__FUNCTION__);
-//for additional info put Log(fmt, ... args) after LOG_FUNCTION_START and before ;
+#define LOG_FUNCTION_START  PerformanceTracer Error(__FUNCTION__)
+//for additional info put (fmt, ... args) after LOG_FUNCTION_START and before ;
 #else
 #define LOG_FUNCTION_START
 #define Log(...)

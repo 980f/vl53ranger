@@ -211,7 +211,7 @@ namespace VL53L0X {
 
   };
 
-  struct Dev_t {
+  struct Dev_t { //gets extended  to Core and that to Api
     DevData_t Data; /*!< embed ST Ewok Dev  data as "Data"*/
     Physical comm; //not a base as eventually we will pass in a reference to a baser class
 
@@ -220,7 +220,6 @@ namespace VL53L0X {
 
     SemverLite ProductRevision;
 
-    Erroneous<SemverLite> GetProductRevision();
     /**
  * @brief execute delay in all polling API call
  *
@@ -238,6 +237,8 @@ namespace VL53L0X {
  */
     Error PollingDelay(); /* usually best implemented as a real function */
 
+    /** RAII device to ensure that certain device registers are restored before leaving a chunk of code. It appears that the interface has many more values than can be indexed by one byte of address and so there is a page register, but most accesses presume page 0.
+     * Another instance appears to be an update disable to ensure that a block of many reads does not have content altered during reading. Having a snapshot rather than freeze-thaw would have been kind by the device engineers. */
     class FrameEnder {
       Physical &comm;
       const RegSystem reg;

@@ -354,17 +354,17 @@ void Adafruit_VL53L0X::printRangeStatus(VL53L0X_RangingMeasurementData_t *pRangi
  */
 /**************************************************************************/
 
-uint16_t Adafruit_VL53L0X::readRange(void){
-  VL53L0X_RangingMeasurementData_t measure; // keep our own private copy
+uint16_t Adafruit_VL53L0X::readRange(){
+  VL53L0X::RangingMeasurementData_t measure; // keep our own private copy
 
-  Status = getSingleRangingMeasurement(&measure, false);
+  Status = getSingleRangingMeasurement(measure, false);
   _rangeStatus = measure.RangeStatus;
 
-  if (Status == VL53L0X_ERROR_NONE) {
+  if (Status == VL53L0X::ERROR_NONE) {
     return measure.RangeMilliMeter;
   }
   // Other status return something totally out of bounds...
-  return 0xffff;
+  return ~0;
 } // Adafruit_VL53L0X::readRange
 
 /**************************************************************************/
@@ -374,7 +374,7 @@ uint16_t Adafruit_VL53L0X::readRange(void){
  */
 /**************************************************************************/
 
-uint8_t Adafruit_VL53L0X::readRangeStatus(void){
+uint8_t Adafruit_VL53L0X::readRangeStatus(){
   return _rangeStatus;
 }
 
@@ -385,7 +385,7 @@ uint8_t Adafruit_VL53L0X::readRangeStatus(void){
  */
 /**************************************************************************/
 
-boolean Adafruit_VL53L0X::startRange(void){
+boolean Adafruit_VL53L0X::startRange(){
 
   /* This function will do a complete single ranging
    * Here we fix the mode! */
@@ -406,9 +406,9 @@ boolean Adafruit_VL53L0X::startRange(void){
  */
 /**************************************************************************/
 
-boolean Adafruit_VL53L0X::isRangeComplete(void){
-  Erroneous<bool> api.GetMeasurementDataReady();
-  return (Status != VL53L0X_ERROR_NONE) || (NewDataReady == 1);
+boolean Adafruit_VL53L0X::isRangeComplete(){
+  Erroneous<bool> mready=MyDevice.GetMeasurementDataReady();
+  return mready.isOk()&&mready;//or could trust that when status is bad the mready value has been coerced false.
 }
 
 /**************************************************************************/

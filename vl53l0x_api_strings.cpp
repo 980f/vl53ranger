@@ -34,8 +34,6 @@
 #define countof(array) (sizeof (array) / sizeof (*array))
 #endif
 
-//BUG: platform specific option should not be in this file, how to copy strings is platform specific:
-#define COPYSTRING(target, string) strcpy(target,string)
 
 namespace VL53L0X {
 
