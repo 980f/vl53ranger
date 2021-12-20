@@ -26,14 +26,13 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#ifndef _VL53L0X_INTERRUPT_THRESHOLD_SETTINGS_H_
+#ifdef _VL53L0X_INTERRUPT_THRESHOLD_SETTINGS_H_
+#error "this file should only be included in the C/C++ file which references the array, and there is no reason for there to be more than one of those"
+#endif
 #define _VL53L0X_INTERRUPT_THRESHOLD_SETTINGS_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-uint8_t InterruptThresholdSettings[] = {
+const uint8_t InterruptThresholdSettings[] = {
 
     /* Start of Interrupt Threshold Settings */
     0x1, 0xff, 0x00, 0x1,  0x80, 0x01, 0x1, 0xff, 0x01, 0x1, 0x00, 0x00,
@@ -74,8 +73,4 @@ uint8_t InterruptThresholdSettings[] = {
     0x1, 0x73, 0x07, 0x1,  0x70, 0x01, 0x1, 0xff, 0x01, 0x1, 0x00, 0x01,
     0x1, 0xff, 0x00, 0x00, 0x00, 0x00};
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _VL53L0X_INTERRUPT_THRESHOLD_SETTINGS_H_ */
+ /* _VL53L0X_INTERRUPT_THRESHOLD_SETTINGS_H_ */

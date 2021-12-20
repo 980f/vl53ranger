@@ -390,7 +390,7 @@ boolean Adafruit_VL53L0X::startRange(){
   /* This function will do a complete single ranging
    * Here we fix the mode! */
   // first lets set the device in SINGLE_Ranging mode
-  Status = VL53L0X_SetDeviceMode( VL53L0X_DEVICEMODE_SINGLE_RANGING);
+  Status = VL53L0X_SetDeviceMode( DEVICEMODE_SINGLE_RANGING);
 
   if (Status == VL53L0X_ERROR_NONE) {
     // Lets start up the measurement
@@ -503,7 +503,7 @@ void Adafruit_VL53L0X::stopRangeContinuous(){
   }
 
   if (Status == ERROR_NONE) {
-    Status = MyDevice.ClearInterruptMask( REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+    Status = MyDevice.ClearInterruptMask( GPIOFUNCTIONALITY_NEW_MEASURE_READY);
   }
 } // Adafruit_VL53L0X::stopRangeContinuous
 

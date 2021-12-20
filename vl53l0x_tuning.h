@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef _VL53L0X_TUNING_H_
 #error "this file should only be included in the C/C++ file which references the array, and there is no reason for there to be more than one of those"
 #endif
+#define _VL53L0X_TUNING_H_
 
 static uint8_t DefaultTuningSettings[] = {
 

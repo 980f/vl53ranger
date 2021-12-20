@@ -26,7 +26,7 @@ struct Arg { //the class name here should be made a bit more specific ;)
 
 class ArduinoWirer : public Arg { //inheriting as a cheap way to not have to edit as much existing code while still hiding the details of the constructor args list.
 public:
-  ArduinoWirer(Arg &&arg):Arg(std::forward<Arg&&>(arg)){}
+  ArduinoWirer(Arg &&arg):Arg(std::forward<Arg>(arg)){}
 
   /** one can change the device address, needed for when more than one is on the same i2c link.
    * you will also have to control a pin and that is getting well out of the scope of this layer */
@@ -34,7 +34,7 @@ public:
 // initialize I2C
   void i2c_init();
 /** if @param count is negative then pdata will be byte reversed */
-  bool write_multi(uint8_t index, uint8_t *pdata, int count);
+  bool write_multi(uint8_t index, const uint8_t *pdata, int count);
 /** if @param count is negative then pdata will be byte reversed */
   bool read_multi(uint8_t index, uint8_t *pdata, int count);
 

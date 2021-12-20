@@ -70,12 +70,12 @@ namespace VL53L0X {
 //uint8_t i2c_global_buffer[VL53L0X_MAX_I2C_XFER_SIZE];
 //
 //#define DECL_I2C_BUFFER
-//#define VL53L0X_GetLocalBuffer(Dev, n_byte) i2c_global_buffer
+//#define VL53L0X_GetLocalBuffer( n_byte) i2c_global_buffer
 //
 //#elif I2C_BUFFER_CONFIG == 1
 ///* ON STACK */
 //#define DECL_I2C_BUFFER uint8_t LocBuffer[VL53L0X_MAX_I2C_XFER_SIZE];
-//#define VL53L0X_GetLocalBuffer(Dev, n_byte) LocBuffer
+//#define VL53L0X_GetLocalBuffer( n_byte) LocBuffer
 //#elif I2C_BUFFER_CONFIG == 2
 ///* user define buffer type declare DECL_I2C_BUFFER  as access  via
 // * VL53L0X_GetLocalBuffer */
@@ -97,7 +97,7 @@ namespace VL53L0X {
 //}
 
 
-  Error Physical::WriteMulti(uint8_t index, uint8_t *pdata, int count) {
+  Error Physical::WriteMulti(uint8_t index, const uint8_t *pdata, int count) {
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
       return ERROR_INVALID_PARAMS;//BUG: formerly went ahead and asked for invalid transfer
     }
@@ -127,7 +127,7 @@ namespace VL53L0X {
 
   Error Physical::RdByte( uint8_t index, uint8_t *data) {
     return recode(wirer.Read(index, data));
-  } // VL53L0X_RdByte
+  } // comm.RdByte
 
   Error Physical::RdWord( uint8_t index, uint16_t *data) {
     return recode(wirer.Read( index, data));

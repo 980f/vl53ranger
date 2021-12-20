@@ -115,20 +115,20 @@ namespace VL53L0X {
 /* Device register map */
 
   enum SysRange {
-    REG_SYSRANGE_START = 0x000
-    , /** mask existing bit in #REG_SYSRANGE_START*/
-    REG_SYSRANGE_MODE_MASK = 0x0F
-    , /** bit 0 in #REG_SYSRANGE_START write 1 toggle state in continuous mode and arm next shot in single shot mode */
-    REG_SYSRANGE_MODE_START_STOP = (1 << 0)
-    , /** bit 1 write 0 in #REG_SYSRANGE_START set single shot mode */
-    REG_SYSRANGE_MODE_SINGLESHOT = (0 << 1)
-    , /** bit 1 write 1 in #REG_SYSRANGE_START set back-to-back operation mode */
-    REG_SYSRANGE_MODE_BACKTOBACK = (1 << 1)
-    , /** bit 2 write 1 in #REG_SYSRANGE_START set timed operation mode */
-    REG_SYSRANGE_MODE_TIMED = (1 << 2)
-    , /** bit 3 write 1 in #REG_SYSRANGE_START set histogram operation mode */
-    REG_SYSRANGE_MODE_HISTOGRAM = (1 << 3)
-    ,
+    REG_SYSRANGE_START = 0
+     /** mask existing bit in #REG_SYSRANGE_START*/
+    ,REG_SYSRANGE_MODE_MASK = 0x0F
+     /** bit 0 in #REG_SYSRANGE_START write 1 toggle state in continuous mode and arm next shot in single shot mode */
+    ,REG_SYSRANGE_MODE_START_STOP = (1 << 0)
+     /** bit 1 write 0 in #REG_SYSRANGE_START set single shot mode */
+    ,REG_SYSRANGE_MODE_SINGLESHOT = (0 << 1)
+     /** bit 1 write 1 in #REG_SYSRANGE_START set back-to-back operation mode */
+    ,REG_SYSRANGE_MODE_BACKTOBACK = (1 << 1)
+     /** bit 2 write 1 in #REG_SYSRANGE_START set timed operation mode */
+    ,REG_SYSRANGE_MODE_TIMED = (1 << 2)
+     /** bit 3 write 1 in #REG_SYSRANGE_START set histogram operation mode */
+    ,REG_SYSRANGE_MODE_HISTOGRAM = (1 << 3)
+
     //no defines for the next 8 bit2?
   };
 /** @defgroup VL53L0X_DefineRegisters_group Define Registers

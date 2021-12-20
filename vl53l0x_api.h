@@ -34,6 +34,7 @@
 //if the core isn't using it then move it to this class #include "vl53l0x_def.h"
 //the platform is below the core #include "vl53l0x_platform.h"
 #include "vl53l0x_api_core.h" //extends this
+#include "vl53l0x_platform_log.h"
 
 namespace VL53L0X {
 
@@ -368,7 +369,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error SetTuningSettingBuffer(uint8_t *pTuningSettingBuffer, uint8_t UseInternalTuningSettings);
+    Error SetTuningSettingBuffer(uint8_t *pTuningSettingBuffer, bool UseInternalTuningSettings);
 
 /**
  * @brief Get the tuning settings pointer and the internal external switch
@@ -378,16 +379,11 @@ namespace VL53L0X {
  * value.
  * of the switch to select either external or internal tuning settings.
  *
- * @note This function Access to the device
+ * @note This function DOES NOT Access to the device
  *
- * @param   Dev                        Device Handle
- * @param   ppTuningSettingBuffer      Pointer to tuning settings buffer.
- * @param   pUseInternalTuningSettings Pointer to store Use internal tuning
- *                                     settings value.
- * @return  ERROR_NONE          Success
- * @return  "Other error code"         See ::Error
+ * @return  pointer if not 'use internal' else nullptr
  */
-    Error GetTuningSettingBuffer(uint8_t **ppTuningSettingBuffer, uint8_t *pUseInternalTuningSettings);
+    uint8_t *GetTuningSettingBuffer();
 
 /**
  * @brief Do basic device init (and eventually patch loading)
@@ -530,7 +526,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE               Success
  * @return  "Other error code"              See ::Error
  */
-    Error SetRangeFractionEnable(uint8_t Enable);
+    Error SetRangeFractionEnable(bool Enable);
 
 /**
  * @brief  Gets the fraction enable parameter indicating the resolution of
@@ -550,7 +546,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                   Success
  * @return  "Other error code"                  See ::Error
  */
-    Error GetFractionEnable(uint8_t *pEnable);
+    Error GetFractionEnable(bool &pEnable);
 
 /**
  * @brief  Set a new Histogram mode
@@ -1800,7 +1796,7 @@ namespace VL53L0X {
     Error get_device_info(DeviceInfo_t &pDeviceInfo);
 
 
-    Error perform_ref_spad_management(unsigned &refSpadCount, bool &isApertureSpads);
+    Error   perform_ref_spad_management(unsigned &refSpadCount, bool &isApertureSpads);
 
   private: //calibration.h was high level actions hidden from direct use in api
     Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
@@ -1808,8 +1804,7 @@ namespace VL53L0X {
     Error perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter);
 
     Error set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
-
-    Error get_offset_calibration_data_micro_meter(int32_t &pOffsetCalibrationDataMicroMeter);
+    Erroneous<int32_t> get_offset_calibration_data_micro_meter();
 
     Error apply_offset_adjustment();
 
@@ -1825,6 +1820,9 @@ namespace VL53L0X {
 
     Error get_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal);
 
+    Erroneous <FixPoint1616_t> GetTotalSignalRate();
+    Error waitOnResetIndicator( bool disappear);
+    DeviceModes GetDeviceMode();
   };
 }//end namespace
 #endif /* __H_ */

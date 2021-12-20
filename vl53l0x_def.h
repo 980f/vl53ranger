@@ -160,15 +160,17 @@ namespace VL53L0X {
 
   /** C++ is too strict for the legacy weirdness Error |= Error to compile, so:*/
   struct ErrorAccumulator {
-    Error sum = ERROR_NONE;
+    Error sum;
 
-    ErrorAccumulator(Error first) : sum(first) {
+    ErrorAccumulator(Error first = ERROR_NONE) : sum(first) {
     }
 
+    /** ST's code did this with the raw values, which would have produced garbage if any of the calls actually produced an error, except when all the calls can only produce the I2C failure code */
     ErrorAccumulator &operator|=(Error other) {
       if (other != ERROR_NONE) {
         sum = other;
       }
+      return *this;
     }
 
     ErrorAccumulator &operator=(Error other) {
@@ -181,8 +183,8 @@ namespace VL53L0X {
     }
 
     /** @returns whether there is no error */
-    bool operator~() {
-      return sum == ERROR_NONE;
+    bool operator~() const {
+      return sum != ERROR_NONE;
     }
   };
 
@@ -204,9 +206,10 @@ namespace VL53L0X {
       return error == 0;
     }
 
-    /** syntactic sugar: rarely used monadic function for interesting boolean fact.*/
+    /** @returns "value not present" which is determined by the error not being 'none'
+     * syntactic sugar: rarely used monadic function for interesting boolean fact.*/
     bool operator~() const {
-      return error != 0;
+      return ~error;
     }
 
     void operator|=(Error other) {
@@ -225,8 +228,10 @@ namespace VL53L0X {
 
 /** ERROR_OUT is useful for when there will be no common exit code on an error that terminates a sequence of steps other than returning the first such error.
  * To use it name the VL53L0X_Error member Error (instead of Status), which also allows for if(!Error) which is more readable than if(Status != VL53L0X_ERROR_NONE)
+ *
+ * Error is now an object with an operator~ which is true when there is an error.
  * */
-#define ERROR_OUT if(Error) return Error
+#define ERROR_OUT if(~Error) return {Error}
 
 /** @} VL53L0X_define_Error_group */
 
@@ -399,13 +404,14 @@ namespace VL53L0X {
 
     uint8_t ReferenceSpadCount;  /* used for ref spad management */
     uint8_t ReferenceSpadType;   /* used for ref spad management */
-    uint8_t RefSpadsInitialised; /* reports if ref spads are initialised. */
+    bool RefSpadsInitialised; /* reports if ref spads are initialised. */
+
     uint32_t PartUIDUpper;       /*!< Unique Part ID Upper */
     uint32_t PartUIDLower;       /*!< Unique Part ID Lower */
     FixPoint1616_t SignalRateMeasFixed400mm; /*!< Peek Signal rate at 400 mm*/
   };
 
-/**
+  /**
  * @struct VL53L0X_DevData_t
  *
  * @brief VL53L0X PAL device ST private data structure \n
@@ -423,7 +429,7 @@ namespace VL53L0X {
     DeviceSpecificParameters_t DeviceSpecificParameters;     /*!< Parameters specific to the device */
     SpadData_t SpadData;    /*!< Spad Data */
     uint8_t SequenceConfig;    /*!< Internal value for the sequence config */
-    uint8_t RangeFractionalEnable;    /*!< Enable/Disable fractional part of ranging data */
+    bool RangeFractionalEnable;    /*!< Enable/Disable fractional part of ranging data */
     State PalState;    /*!< Current state of the PAL for this device */
     PowerModes PowerMode;/*!< Current Power Mode	 */
 
@@ -433,7 +439,7 @@ namespace VL53L0X {
      * e.g. 500 = 5.0ns */
 
     uint8_t StopVariable;     /*!< StopVariable used during the stop sequence */
-    uint16_t targetRefRate;     /*!< Target Ambient Rate for Ref spad management */
+    FixPoint<9,7,uint16_t> targetRefRate;     /*!< Target Ambient Rate for Ref spad management */
     FixPoint1616_t SigmaEstimate;     /*!< Sigma Estimate - based on ambient & VCSEL rates and signal_total_events */
     FixPoint1616_t SignalEstimate;     /*!< Signal Estimate - based on ambient & VCSEL rates and cross talk */
     FixPoint1616_t LastSignalRefMcps;     /*!< Latest Signal ref in Mcps */
@@ -540,17 +546,17 @@ namespace VL53L0X {
  */
 
 /* Defines */
-#define VL53L0X_SETPARAMETERFIELD(Dev, field, value) PALDevDataSet(Dev, CurrentParameters.field, value)
+#define VL53L0X_SETPARAMETERFIELD( field, value) PALDevDataSet( CurrentParameters.field, value)
 
-#define VL53L0X_GETPARAMETERFIELD(Dev, field, variable) variable = PALDevDataGet(Dev, CurrentParameters).field
+#define VL53L0X_GETPARAMETERFIELD( field, variable) variable = PALDevDataGet( CurrentParameters).field
 
-#define VL53L0X_SETARRAYPARAMETERFIELD(Dev, field, index, value)   PALDevDataSet(Dev, CurrentParameters.field[index], value)
+#define VL53L0X_SETARRAYPARAMETERFIELD( field, index, value)   PALDevDataSet( CurrentParameters.field[index], value)
 
-#define VL53L0X_GETARRAYPARAMETERFIELD(Dev, field, index, variable)  variable = PALDevDataGet(Dev, CurrentParameters).field[index]
+#define VL53L0X_GETARRAYPARAMETERFIELD( field, index, variable)  variable = PALDevDataGet( CurrentParameters).field[index]
 
-#define VL53L0X_SETDEVICESPECIFICPARAMETER(Dev, field, value) PALDevDataSet(Dev, DeviceSpecificParameters.field, value)
+#define VL53L0X_SETDEVICESPECIFICPARAMETER( field, value) PALDevDataSet( DeviceSpecificParameters.field, value)
 
-#define VL53L0X_GETDEVICESPECIFICPARAMETER(Dev, field)  PALDevDataGet(Dev, DeviceSpecificParameters).field
+#define VL53L0X_GETDEVICESPECIFICPARAMETER( field)  PALDevDataGet( DeviceSpecificParameters).field
 
 #define VL53L0X_FIXPOINT1616TOFIXPOINT97(Value)  (uint16_t)((Value >> 9) & 0xFFFF)
 //BUG: (UB) need to cast/convert before shrink, not after
@@ -579,7 +585,9 @@ namespace VL53L0X {
 #define VL53L0X_FIXPOINT1616TOFIXPOINT102(Value)  (uint16_t)((Value >> 14) & 0x0FFF)
 #define VL53L0X_FIXPOINT102TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 12)
 
-#define VL53L0X_MAKEUINT16(lsb, msb)  (uint16_t)((((uint16_t)msb) << 8) + (uint16_t)lsb)
+constexpr uint16_t MAKEUINT16(uint8_t lsb, uint8_t msb){
+  return uint16_t(msb) << 8 + uint16_t(lsb);
+}
 
 /** @} VL53L0X_define_GeneralMacro_group */
 

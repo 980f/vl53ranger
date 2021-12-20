@@ -46,7 +46,7 @@ namespace VL53L0X {
   const char *limit_check_info(uint16_t LimitCheckId) ;
 
   //was in wrong module, is a device function not a stringifying function:
-//  Error get_device_info(VL53L0X_DEV Dev, VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo);
+//  Error get_device_info(VL53L0X_DEV  VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo);
 
 /** all but one of the get__string|info methods used to return ERROR_NONE, and stuff in an error message to the text.
  * changing those to return void allows us to remove gratuitous checks that were most likely not made.

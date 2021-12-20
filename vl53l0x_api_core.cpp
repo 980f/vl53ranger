@@ -33,6 +33,7 @@ Copyright 2021 Andy Heilveil, github/980F via mutation of source
 #include "vl53l0x_api_calibration.h"
 
 #include "log_api.h"
+#include "vl53l0x_fixpoint.h"
 
 namespace VL53L0X {
 
@@ -170,29 +171,30 @@ namespace VL53L0X {
 
   Error Core::get_info_from_device(uint8_t option) {
     //read into temps so that we only apply if all are read successfully:
+    //we could make a substruct in DeviceSpeciingParameters_t instead of redeclaring most of othem here.
     Erroneous<uint8_t> ModuleId;//BUG: was used when might not have been read, wrapped with status
     Erroneous<uint8_t> Revision;//BUG: see ModuleId.
     uint8_t ReferenceSpadCount(0);
     uint8_t ReferenceSpadType(0);
     Erroneous<uint32_t> PartUIDUpper;
     Erroneous<uint32_t> PartUIDLower;
+
     uint32_t OffsetFixed1104_mm(0);
     int16_t OffsetMicroMeters(0);
     const uint32_t DistMeasTgtFixed1104_mm(400 << 4);
     Erroneous<uint32_t> DistMeasFixed1104_400_mm;
     Erroneous<uint32_t> SignalRateMeasFixed1104_400_mm;
     FixPoint1616_t SignalRateMeasFixed400mmFix {0};
-    char ProductId[VL53L0X_MAX_STRING_LENGTH];/* Product Identifier String  */
+    decltype(DeviceSpecificParameters_t::ProductId) ProductId;/* buffer for Product Identifier String  */
 
     SpadArray NvmRefGoodSpadMap;
 
     LOG_FUNCTION_START;
-    uint8_t ReadDataFromDeviceDone = VL53L0X_GETDEVICESPECIFICPARAMETER(this, ReadDataFromDeviceDone);
+    uint8_t ReadDataFromDeviceDone = VL53L0X_GETDEVICESPECIFICPARAMETER( ReadDataFromDeviceDone);
     uint8_t needs = option & ~ReadDataFromDeviceDone;
 
     /* Each subgroup of this access is done only once after that a GetDeviceInfo or datainit is done */
     if (ReadDataFromDeviceDone != 7) { //if not all done
-      ErrorAccumulator Error {ERROR_NONE};
 
       Error |= comm.WrByte(0x80, 0x01);
       Error |= comm.WrByte(0xFF, 0x01);
@@ -210,18 +212,22 @@ namespace VL53L0X {
 
       if (getBit<0>(needs)) {
         auto packed = packed90<uint32_t>(0x6b);
-        ReferenceSpadCount = (uint8_t) ((packed >> 8) & 0x07f);
-        ReferenceSpadType = (packed >> 15) & 1;
-
+        if(packed.isOk()) {//ick: some error checking has been added by 980f, but it is still not sane.
+          ReferenceSpadCount = getBits<14, 8>(packed.wrapped);
+          ReferenceSpadType = getBit<15>(packed.wrapped);
+        }
         packed = packed90<uint32_t>(0x24);
-        NvmRefGoodSpadMap[0] = getByte<3>(packed.wrapped);
-        NvmRefGoodSpadMap[1] = getByte<2>(packed.wrapped);
-        NvmRefGoodSpadMap[2] = getByte<1>(packed.wrapped);
-        NvmRefGoodSpadMap[3] = getByte<0>(packed.wrapped);
-
+        if(packed.isOk()) {
+          NvmRefGoodSpadMap[0] = getByte<3>(packed.wrapped);
+          NvmRefGoodSpadMap[1] = getByte<2>(packed.wrapped);
+          NvmRefGoodSpadMap[2] = getByte<1>(packed.wrapped);
+          NvmRefGoodSpadMap[3] = getByte<0>(packed.wrapped);
+        }
         packed = packed90<uint32_t>(0x25);
-        NvmRefGoodSpadMap[4] = getByte<3>(packed.wrapped);
-        NvmRefGoodSpadMap[5] = getByte<2>(packed.wrapped);
+        if(packed.isOk()) {
+          NvmRefGoodSpadMap[4] = getByte<3>(packed.wrapped);
+          NvmRefGoodSpadMap[5] = getByte<2>(packed.wrapped);
+        }
       }
 
       if (getBit<1>(needs)) {
@@ -278,37 +284,35 @@ namespace VL53L0X {
     if (ReadDataFromDeviceDone != 7) {
       /* Assign to variable if status is ok */
       if (getBit<0>(needs)) {
-        VL53L0X_SETDEVICESPECIFICPARAMETER(this, ReferenceSpadCount, ReferenceSpadCount);
-        VL53L0X_SETDEVICESPECIFICPARAMETER(this, ReferenceSpadType, ReferenceSpadType);
+        VL53L0X_SETDEVICESPECIFICPARAMETER( ReferenceSpadCount, ReferenceSpadCount);
+        VL53L0X_SETDEVICESPECIFICPARAMETER( ReferenceSpadType, ReferenceSpadType);
 
-        for (unsigned i = 0; i < sizeof(SpadArray); i++) {
-          Data.SpadData.RefGoodSpadMap[i] = NvmRefGoodSpadMap[i];
-        }
+        Data.SpadData.RefGoodSpadMap = NvmRefGoodSpadMap;
       }
 
       if (getBit<1>(needs)) {
-        VL53L0X_SETDEVICESPECIFICPARAMETER(this, ModuleId, ModuleId);
-        VL53L0X_SETDEVICESPECIFICPARAMETER(this, Revision, Revision);
-        strcpy(VL53L0X_GETDEVICESPECIFICPARAMETER(this, ProductId), ProductId);
+        VL53L0X_SETDEVICESPECIFICPARAMETER( ModuleId, ModuleId);
+        VL53L0X_SETDEVICESPECIFICPARAMETER( Revision, Revision);
+        strcpy(VL53L0X_GETDEVICESPECIFICPARAMETER( ProductId), ProductId);
       }
 
       if (getBit<2>(needs)) {
-        VL53L0X_SETDEVICESPECIFICPARAMETER(this, PartUIDUpper, PartUIDUpper);
-        VL53L0X_SETDEVICESPECIFICPARAMETER(this, PartUIDLower, PartUIDLower);
+        VL53L0X_SETDEVICESPECIFICPARAMETER( PartUIDUpper, PartUIDUpper);
+        VL53L0X_SETDEVICESPECIFICPARAMETER( PartUIDLower, PartUIDLower);
 //BUG: originally, types reversed!
 //        SignalRateMeasFixed400mmFix = VL53L0X_FIXPOINT97TOFIXPOINT1616(SignalRateMeasFixed1104_400_mm);
         //ick: the ST code suggests that the 32 bits we extracted from the middle of 64 is really 16 bits in 9.7 format.
         SignalRateMeasFixed400mmFix = SignalRateMeasFixed1104_400_mm << 9;//macro didn't play well with an Erroneous<u32>
-        VL53L0X_SETDEVICESPECIFICPARAMETER(this, SignalRateMeasFixed400mm, SignalRateMeasFixed400mmFix);
+        VL53L0X_SETDEVICESPECIFICPARAMETER( SignalRateMeasFixed400mm, SignalRateMeasFixed400mmFix);
 
         OffsetMicroMeters = 0;
         if (DistMeasFixed1104_400_mm != 0) {
           OffsetFixed1104_mm = DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm;
           OffsetMicroMeters = -((OffsetFixed1104_mm * 1000) >> 4);//ick: truncates
         }
-        PALDevDataSet(this, Part2PartOffsetAdjustmentNVMMicroMeter, OffsetMicroMeters);
+        PALDevDataSet( Part2PartOffsetAdjustmentNVMMicroMeter, OffsetMicroMeters);
       }
-      VL53L0X_SETDEVICESPECIFICPARAMETER(this, ReadDataFromDeviceDone, (ReadDataFromDeviceDone | option));
+      VL53L0X_SETDEVICESPECIFICPARAMETER( ReadDataFromDeviceDone, (ReadDataFromDeviceDone | option));
     }
 
     return ERROR_NONE;
@@ -317,8 +321,8 @@ namespace VL53L0X {
   uint32_t calc_macro_period_ps(uint8_t vcsel_period_pclks) {
     /* The above calculation will produce rounding errors,  therefore set fixed value //ICK: comment refers to non-existent code.
      */
-    const unsigned PLL_period_ps = 1655;//ick: 64 bits for short constant was silly
-    const unsigned macro_period_vclks = 2304;//ick: 32 bits for short constant was silly
+    const unsigned PLL_period_ps = 1655;//ick: 64 bits for short constant was silly, compiler knows to extend as needed
+    const unsigned macro_period_vclks = 2304;//ick: 32 bits for short constant was silly, compiler knows to extend as needed
     //casting the first variable is sufficient to cast the rest, extra parens added in case the compiler disagrees with me :)
     return (static_cast<uint32_t>(vcsel_period_pclks) * macro_period_vclks) * PLL_period_ps;
   } // VL53L0X_calc_macro_period_ps
@@ -335,7 +339,7 @@ namespace VL53L0X {
         ls_byte >>= 1;
         ++ms_byte;
       }
-      return (ms_byte << 8) | ls_byte;//the while repeats until all the bits that the mask formerly here masked is zero, so no point in masking.
+      return MAKEUINT16( ls_byte,ms_byte);//the while repeats until all the bits that the mask formerly here masked is zero, so no point in masking.
     } else {
       return 0;
     }
@@ -383,20 +387,20 @@ namespace VL53L0X {
   Error Core::SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable) {
     LOG_FUNCTION_START;
 
-    uint16_t LinearityCorrectiveGain = PALDevDataGet(this, LinearityCorrectiveGain);
+    uint16_t LinearityCorrectiveGain = PALDevDataGet( LinearityCorrectiveGain);
 
     FixPoint1616_t TempFix1616;
     if ((XTalkCompensationEnable == 0) || (LinearityCorrectiveGain != 1000)) {
       TempFix1616.raw = 0;
     } else {
-      VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationRateMegaCps.raw, TempFix1616.raw);
+      VL53L0X_GETPARAMETERFIELD( XTalkCompensationRateMegaCps.raw, TempFix1616.raw);
     }
 
     /* the following register has a format 3.13 */
     Error |= comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, VL53L0X_FIXPOINT1616TOFIXPOINT313(TempFix1616.raw));
 
     if (~Error) {
-      VL53L0X_SETPARAMETERFIELD(this, XTalkCompensationEnable, bool(XTalkCompensationEnable));
+      VL53L0X_SETPARAMETERFIELD( XTalkCompensationEnable, bool(XTalkCompensationEnable));
     }
     return Error;
   } // VL53L0X_SetXTalkCompensationEnable
@@ -480,7 +484,7 @@ namespace VL53L0X {
         if (CurrentVCSELPulsePeriodPClk.isOk()) {
           uint16_t MsrcRangeTimeOutMClks = calc_timeout_mclks(TimeOutMicroSecs, CurrentVCSELPulsePeriodPClk);
           uint8_t MsrcEncodedTimeOut = saturated<uint8_t, uint16_t>(MsrcRangeTimeOutMClks - 1);
-          VL53L0X_SETDEVICESPECIFICPARAMETER(this, LastEncodedTimeout, MsrcEncodedTimeOut);
+          VL53L0X_SETDEVICESPECIFICPARAMETER( LastEncodedTimeout, MsrcEncodedTimeOut);
           Status = comm.WrByte(REG_MSRC_CONFIG_TIMEOUT_MACROP, MsrcEncodedTimeOut);
         }
       }
@@ -492,11 +496,11 @@ namespace VL53L0X {
           PreRangeTimeOutMClks = calc_timeout_mclks(TimeOutMicroSecs, CurrentVCSELPulsePeriodPClk);
           PreRangeEncodedTimeOut.wrapped = encode_timeout(PreRangeTimeOutMClks);
 
-          VL53L0X_SETDEVICESPECIFICPARAMETER(this, LastEncodedTimeout, PreRangeEncodedTimeOut);
+          VL53L0X_SETDEVICESPECIFICPARAMETER( LastEncodedTimeout, PreRangeEncodedTimeOut);
 
           Status = comm.WrWord(REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI, PreRangeEncodedTimeOut);
           if (Status == ERROR_NONE) {
-            VL53L0X_SETDEVICESPECIFICPARAMETER(this, PreRange.TimeoutMicroSecs, TimeOutMicroSecs);
+            VL53L0X_SETDEVICESPECIFICPARAMETER( PreRange.TimeoutMicroSecs, TimeOutMicroSecs);
           }
         }
       }
@@ -527,7 +531,7 @@ namespace VL53L0X {
 
                 Status = comm.WrWord(0x71, FinalRangeEncodedTimeOut);
                 if (Status == ERROR_NONE) {
-                  VL53L0X_SETDEVICESPECIFICPARAMETER(this, FinalRange.TimeoutMicroSecs, TimeOutMicroSecs);
+                  VL53L0X_SETDEVICESPECIFICPARAMETER( FinalRange.TimeoutMicroSecs, TimeOutMicroSecs);
                 }
               }
             }
@@ -604,7 +608,7 @@ namespace VL53L0X {
 
       uint32_t MsrcDccTccTimeoutMicroSeconds = 2000;
       /* TCC, MSRC and DSS all share the same timeout */
-      Error = get_sequence_step_timeout(SEQUENCESTEP_MSRC, &MsrcDccTccTimeoutMicroSeconds);
+      Error |= get_sequence_step_timeout(SEQUENCESTEP_MSRC, &MsrcDccTccTimeoutMicroSeconds);
       ERROR_OUT;
 
       /* Subtract the TCC, MSRC and DSS timeouts if they are
@@ -649,7 +653,7 @@ namespace VL53L0X {
     if (SchedulerSequenceSteps.wrapped.PreRangeOn) {
       /* Subtract the Pre-range timeout if enabled. */
       uint32_t PreRangeTimeoutMicroSeconds = 0;
-      Error = get_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE, &PreRangeTimeoutMicroSeconds);
+      Error |= get_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE, &PreRangeTimeoutMicroSeconds);
       ERROR_OUT;
       uint32_t SubTimeout = PreRangeTimeoutMicroSeconds + PreRangeOverheadMicroSeconds;
 
@@ -671,9 +675,9 @@ namespace VL53L0X {
        * will be set. Otherwise the remaining time will be applied to
        * the final range.
        */
-      Error = set_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, FinalRangeTimingBudgetMicroSeconds);//BUG: error ignored
+      Error |= set_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, FinalRangeTimingBudgetMicroSeconds);//BUG: error ignored
 
-      VL53L0X_SETPARAMETERFIELD(this, MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
+      VL53L0X_SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
     }
 
     return Error;
@@ -713,7 +717,7 @@ namespace VL53L0X {
       *pMeasurementTimingBudgetMicroSeconds += (FinalRangeTimeoutMicroSeconds + FinalRangeOverheadMicroSeconds);
     }
     ERROR_OUT;
-    VL53L0X_SETPARAMETERFIELD(this, MeasurementTimingBudgetMicroSeconds, *pMeasurementTimingBudgetMicroSeconds);
+    VL53L0X_SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, *pMeasurementTimingBudgetMicroSeconds);
     return Error;
   } // VL53L0X_get_measurement_timing_budget_micro_seconds
 
@@ -722,7 +726,7 @@ namespace VL53L0X {
     uint8_t msb = pTuningSettingBuffer[Index++];
     uint8_t lsb = pTuningSettingBuffer[Index++];
     //the above may NOT be inlined as that would get into 'undefined behavior' territory re 'sequence points'.
-    return VL53L0X_MAKEUINT16(lsb, msb);
+    return MAKEUINT16(lsb, msb);
   }
 
   /**
@@ -740,29 +744,26 @@ namespace VL53L0X {
         /* internal parameters */
         switch (pTuningSettingBuffer[Index++]) {
           case 0: /* uint16_t SigmaEstRefArray -> 2 bytes */
-            PALDevDataSet(this, SigmaEst.RefArray, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet( SigmaEst.RefArray, unpack(pTuningSettingBuffer, Index));
             break;
           case 1: /* uint16_t SigmaEstEffPulseWidth -> 2 bytes */
-            PALDevDataSet(this, SigmaEst.EffPulseWidth, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet( SigmaEst.EffPulseWidth, unpack(pTuningSettingBuffer, Index));
             break;
           case 2: /* uint16_t SigmaEstEffAmbWidth -> 2 bytes */
-            PALDevDataSet(this, SigmaEst.EffAmbWidth, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet( SigmaEst.EffAmbWidth, unpack(pTuningSettingBuffer, Index));
             break;
           case 3: /* uint16_t targetRefRate -> 2 bytes */
-            PALDevDataSet(this, targetRefRate, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet( targetRefRate, unpack(pTuningSettingBuffer, Index));
             break;
           default: /* invalid parameter */
             return ERROR_INVALID_PARAMS;
         } // switch
-      } else if (NumberOfWrites <= 4) {
-        uint8_t localBuffer[4]; /* max */
+      } else if (NumberOfWrites <= 4) { //copy bytes that must be in device endian order.
         uint8_t Address = pTuningSettingBuffer[Index++];
-        for (unsigned i = 0; i < NumberOfWrites; i++) {
-          localBuffer[i] = pTuningSettingBuffer[Index++];
-        }
-        if (comm.WriteMulti(Address, localBuffer, NumberOfWrites)) {
+        if (comm.WriteMulti(Address, &pTuningSettingBuffer[Index], NumberOfWrites)) {
           return ERROR_CONTROL_INTERFACE;
         }
+        Index+=NumberOfWrites;
       } else {
         return ERROR_INVALID_PARAMS;
       }
@@ -770,14 +771,14 @@ namespace VL53L0X {
     return ERROR_NONE;
   } // VL53L0X_load_tuning_settings
 
-  Erroneous<FixPoint1616_t> Core::get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
+  FixPoint1616_t Core::get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
 
     uint8_t xtalkCompEnable;
-    VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationEnable, xtalkCompEnable);
+    VL53L0X_GETPARAMETERFIELD( XTalkCompensationEnable, xtalkCompEnable);
 //todo: lost test value of xtalkCompeEnable
 
     FixPoint1616_t xtalkPerSpadMegaCps;
-    VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationRateMegaCps, xtalkPerSpadMegaCps);
+    VL53L0X_GETPARAMETERFIELD( XTalkCompensationRateMegaCps, xtalkPerSpadMegaCps);
 
     /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
     FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData.EffectiveSpadRtnCount * xtalkPerSpadMegaCps.raw;
@@ -801,12 +802,12 @@ namespace VL53L0X {
 
     LOG_FUNCTION_START;
 
-    uint32_t dmaxCalRange_mm = PALDevDataGet(this, DmaxCalRangeMilliMeter);
-    FixPoint1616_t dmaxCalSignalRateRtn_mcps = PALDevDataGet(this, DmaxCalSignalRateRtnMegaCps);
+    uint32_t dmaxCalRange_mm = PALDevDataGet( DmaxCalRangeMilliMeter);
+    FixPoint1616_t dmaxCalSignalRateRtn_mcps = PALDevDataGet( DmaxCalSignalRateRtnMegaCps);
 
     /* uint32 * FixPoint1616 = FixPoint1616 */
 
-    FixPoint1616_t SignalAt0mm = dmaxCalRange_mm * dmaxCalSignalRateRtn_mcps;
+    FixPoint1616_t SignalAt0mm = dmaxCalRange_mm * dmaxCalSignalRateRtn_mcps.raw;
 
     /* FixPoint1616 >> 8 = FixPoint2408 */
     SignalAt0mm.shrink(8);
@@ -833,7 +834,7 @@ namespace VL53L0X {
       minSignalNeeded_p1 = minSignalNeeded_p1.rounded();
     }
 
-    FixPoint1616_t minSignalNeeded_p2 = pwMult * sigmaEstimateP1;
+    FixPoint1616_t minSignalNeeded_p2 = pwMult.raw * sigmaEstimateP1;
 
     /* FixPoint1616 >> 16 =	 uint32
      * then  uint32 * uint32	=  uint32 */
@@ -850,7 +851,7 @@ namespace VL53L0X {
     sigmaEstP2Tmp.raw *= cAmbEffWidthDMax_ns;//todo: multiplyByRatio function. Can be given greater range than is easy to achieve inline.
 
     FixPoint1616_t minSignalNeeded_p3;
-    if (sigmaEstP2Tmp.raw >= Unity) {// >=1.0
+    if (sigmaEstP2Tmp >= Unity) {// >=1.0
       minSignalNeeded_p3 = uint32_t(0xfff00000);
     } else {
       /* DMAX uses a different ambient width from sigma, so apply correction.
@@ -864,7 +865,7 @@ namespace VL53L0X {
     }
 
     /* FixPoint1814 / uint32 = FixPoint1814
-     * then FixPoint1814 * FixPoint1814 = FixPoint3628 := FixPoint0428 */
+     * then FixPoint1814 squared = FixPoint3628 := FixPoint0428 */
     FixPoint1616_t sigmaLimitTmp = squared(roundedDivide(cSigmaLimit << 14, 1000));
 
     /* FixPoint1616 * FixPoint1616 = FixPoint3232 */
@@ -883,7 +884,7 @@ namespace VL53L0X {
     minSignalNeeded_p4.shrink(14);
 
     /* uint32 + uint32 = uint32 */
-    FixPoint1616_t minSignalNeeded = (minSignalNeeded_p2.raw + minSignalNeeded_p3.raw);
+    FixPoint1616_t minSignalNeeded = minSignalNeeded_p2 + minSignalNeeded_p3;
 
     /* uint32 / uint32 = uint32 */
     minSignalNeeded = roundedDivide(minSignalNeeded, peakVcselDuration_us);
@@ -961,19 +962,18 @@ namespace VL53L0X {
      *	- SigmaEstEffAmbWidth
      */
 
-    LOG_FUNCTION_START
-    ("");
+    LOG_FUNCTION_START;
     Erroneous<FixPoint1616_t> xTalkCompRate_mcps;
-    VL53L0X_GETPARAMETERFIELD(this, XTalkCompensationRateMegaCps, xTalkCompRate_mcps);
+    VL53L0X_GETPARAMETERFIELD( XTalkCompensationRateMegaCps, xTalkCompRate_mcps);
 
     /*
      * We work in kcps rather than mcps as this helps keep within the
      * confines of the 32 Fix1616 type.
      */
 
-    FixPoint1616_t ambientRate_kcps = pRangingMeasurementData->AmbientRateRtnMegaCps.millis();//980f: now rounded instead of truncated
+    FixPoint1616_t ambientRate_kcps = pRangingMeasurementData.AmbientRateRtnMegaCps.millis();//980f: now rounded instead of truncated
 
-    FixPoint1616_t correctedSignalRate_mcps = pRangingMeasurementData->SignalRateRtnMegaCps;
+    FixPoint1616_t correctedSignalRate_mcps = pRangingMeasurementData.SignalRateRtnMegaCps;
 
     FixPoint1616_t totalSignalRate_mcps = get_total_signal_rate(pRangingMeasurementData);
 
@@ -990,16 +990,16 @@ namespace VL53L0X {
 
 
     /* Calculate final range macro periods */
-    finalRangeTimeoutMicroSecs = VL53L0X_GETDEVICESPECIFICPARAMETER(this, FinalRange.TimeoutMicroSecs);
+    finalRangeTimeoutMicroSecs = VL53L0X_GETDEVICESPECIFICPARAMETER( FinalRange.TimeoutMicroSecs);
 
-    finalRangeVcselPCLKS = VL53L0X_GETDEVICESPECIFICPARAMETER(this, FinalRange.VcselPulsePeriod);
+    finalRangeVcselPCLKS = VL53L0X_GETDEVICESPECIFICPARAMETER( FinalRange.VcselPulsePeriod);
 
     finalRangeMacroPCLKS = calc_timeout_mclks(finalRangeTimeoutMicroSecs, finalRangeVcselPCLKS);
 
     /* Calculate pre-range macro periods */
-    preRangeTimeoutMicroSecs = VL53L0X_GETDEVICESPECIFICPARAMETER(this, PreRange.TimeoutMicroSecs);
+    preRangeTimeoutMicroSecs = VL53L0X_GETDEVICESPECIFICPARAMETER( PreRange.TimeoutMicroSecs);
 
-    preRangeVcselPCLKS = VL53L0X_GETDEVICESPECIFICPARAMETER(this, PreRange.VcselPulsePeriod);
+    preRangeVcselPCLKS = VL53L0X_GETDEVICESPECIFICPARAMETER( PreRange.VcselPulsePeriod);
 
     preRangeMacroPCLKS = calc_timeout_mclks(preRangeTimeoutMicroSecs, preRangeVcselPCLKS);
 
@@ -1022,7 +1022,7 @@ namespace VL53L0X {
 
     if (peakSignalRate_kcps.raw == 0) {
 
-      PALDevDataSet(this, SigmaEstimate, cSigmaEstMax);
+      PALDevDataSet( SigmaEstimate, cSigmaEstMax);
       return {cSigmaEstMax};
     } else {
       if (vcselTotalEventsRtn < 1) {
@@ -1161,7 +1161,7 @@ namespace VL53L0X {
       }
 
       pDmm = calc_dmax(totalSignalRate_mcps, correctedSignalRate_mcps, pwMult, sigmaEstimateP1, sigmaEstimateP2, peakVcselDuration_us);
-      PALDevDataSet(this, SigmaEstimate, sigmaEstimate);
+      PALDevDataSet( SigmaEstimate, sigmaEstimate);
       return {sigmaEstimate};
     }
 
@@ -1169,24 +1169,22 @@ namespace VL53L0X {
   }
 
   Erroneous<bool> Core::GetSequenceStepEnable(SequenceStepId StepId) {
-    LOG_FUNCTION_START
-    ("");
-    int seqbit = bitFor(StepId);
-    if (seqbit < 0) {
-      return {false, ERROR_INVALID_PARAMS};
+    LOG_FUNCTION_START;
+    auto seqbit = bitFor(StepId);
+    if (seqbit ==~0) {
+      return LOG_ERROR( ERROR_INVALID_PARAMS);
     }
 
     Erroneous<uint8_t> SequenceConfig;
     if (fetch(SequenceConfig, REG_SYSTEM_SEQUENCE_CONFIG)) {
       return {getBit(seqbit, SequenceConfig.wrapped)};
     }
-    return {false, SequenceConfig.error};
+    return {LOG_ERROR( SequenceConfig.error)};
   }
 
   Erroneous<bool> Core::GetLimitCheckEnable(CheckEnable LimitCheckId){
-
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
-      return {false, ERROR_INVALID_PARAMS};
+      return ERROR_INVALID_PARAMS;
     }
     return Data.CurrentParameters.LimitChecksEnable[LimitCheckId];
   } // GetLimitCheckEnable
@@ -1213,7 +1211,7 @@ namespace VL53L0X {
     }
 
     FixPoint1616_t LastSignalRefMcps = VL53L0X_FIXPOINT97TOFIXPOINT1616(tmpWord);//ick: ignoring error on getting tmpWord value.
-    PALDevDataSet(this, LastSignalRefMcps, LastSignalRefMcps);
+    PALDevDataSet( LastSignalRefMcps, LastSignalRefMcps);
 
     /*
      * Check if Sigma limit is enabled, if yes then do comparison with limit
@@ -1221,8 +1219,8 @@ namespace VL53L0X {
      */
     Erroneous<bool> SigmaLimitCheckEnable = GetLimitCheckEnable(CHECKENABLE_SIGMA_FINAL_RANGE);
 
-    uint8_t SigmaLimitflag = 0;
-    if (SigmaLimitCheckEnable.isOk() && SigmaLimitCheckEnable != 0)) {
+    bool SigmaLimitflag = false;
+    if (SigmaLimitCheckEnable.isOk() && SigmaLimitCheckEnable != 0) {
       /*
        * compute the Sigma and check with limit
        */
@@ -1230,32 +1228,25 @@ namespace VL53L0X {
       Erroneous<FixPoint1616_t> SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData, Dmax_mm);
       if (SigmaEstimate.isOk()) {
         pRangingMeasurementData.RangeDMaxMilliMeter = Dmax_mm;
-      }
-
-      if (Status == ERROR_NONE) {
-        FixPoint1616_t SigmaLimitValue;
-        Status = VL53L0X_GetLimitCheckValue(Dev, CHECKENABLE_SIGMA_FINAL_RANGE, &SigmaLimitValue);
-        if ((SigmaLimitValue > 0) && (SigmaEstimate > SigmaLimitValue)) {
+        auto SigmaLimitValue = GetLimitCheckValue( CHECKENABLE_SIGMA_FINAL_RANGE);
+        if ((SigmaLimitValue > 0) && (SigmaEstimate.wrapped > SigmaLimitValue)) {
           /* Limit Fail */
-          SigmaLimitflag = 1;
+          SigmaLimitflag = true;
         }
       }
+
     }
 
     /*
      * Check if Signal ref clip limit is enabled, if yes then do comparison
      * with limit value and put the result back into pPalRangeStatus.
      */
-    uint8_t SignalRefClipLimitCheckEnable = 0;
+    uint8_t SignalRefClipLimitCheckEnable = GetLimitCheckEnable( CHECKENABLE_SIGNAL_REF_CLIP);
 
-    if (Status == ERROR_NONE) {
-      Status = VL53L0X_GetLimitCheckEnable(Dev, CHECKENABLE_SIGNAL_REF_CLIP, &SignalRefClipLimitCheckEnable);
-    }
 
     uint8_t SignalRefClipflag = 0;
     if ((SignalRefClipLimitCheckEnable != 0) && (Status == ERROR_NONE)) {
-      FixPoint1616_t SignalRefClipValue;
-      Status = VL53L0X_GetLimitCheckValue(Dev, CHECKENABLE_SIGNAL_REF_CLIP, &SignalRefClipValue);
+      FixPoint1616_t SignalRefClipValue=GetLimitCheckValue( CHECKENABLE_SIGNAL_REF_CLIP);
       if ((SignalRefClipValue > 0) && (LastSignalRefMcps > SignalRefClipValue)) {
         /* Limit Fail */
         SignalRefClipflag = 1;
@@ -1270,7 +1261,7 @@ namespace VL53L0X {
      */
     uint8_t RangeIgnoreThresholdLimitCheckEnable = 0;
     if (Status == ERROR_NONE) {
-      Status = VL53L0X_GetLimitCheckEnable(Dev, CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdLimitCheckEnable);
+      Status = VL53L0X_GetLimitCheckEnable( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdLimitCheckEnable);
     }
     uint8_t RangeIgnoreThresholdflag = 0;
 
@@ -1279,7 +1270,7 @@ namespace VL53L0X {
       FixPoint1616_t SignalRatePerSpad = (EffectiveSpadRtnCount != 0) ? (FixPoint1616_t) ((256 * SignalRate) / EffectiveSpadRtnCount) : 0;
 
       FixPoint1616_t RangeIgnoreThresholdValue;
-      Status = VL53L0X_GetLimitCheckValue(Dev, CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdValue);
+      Status = VL53L0X_GetLimitCheckValue( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdValue);
 
       if ((RangeIgnoreThresholdValue > 0) && (SignalRatePerSpad < RangeIgnoreThresholdValue)) {
         /* Limit Fail add 2^6 to range status */
@@ -1307,19 +1298,16 @@ namespace VL53L0X {
 
     /* DMAX only relevant during range error */
     if (*pPalRangeStatus == 0) {
-      pRangingMeasurementData->RangeDMaxMilliMeter = 0;
+      pRangingMeasurementData.RangeDMaxMilliMeter = 0;
     }
 
     /* fill the Limit Check Status */
-    uint8_t SignalRateFinalRangeLimitCheckEnable = 0;
-    Status = VL53L0X_GetLimitCheckEnable(Dev, CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, &SignalRateFinalRangeLimitCheckEnable);
+    bool SignalRateFinalRangeLimitCheckEnable  = GetLimitCheckEnable( CHECKENABLE_SIGNAL_RATE_FINAL_RANGE);
 
-    if (Status == ERROR_NONE) {
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksStatus, CHECKENABLE_SIGMA_FINAL_RANGE, (SigmaLimitCheckEnable == 0) || (SigmaLimitflag == 1));
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksStatus, CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (DeviceRangeStatusInternal == 4) || (SignalRateFinalRangeLimitCheckEnable == 0));
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksStatus, CHECKENABLE_SIGNAL_REF_CLIP, (SignalRefClipLimitCheckEnable == 0) || (SignalRefClipflag == 1));
-      VL53L0X_SETARRAYPARAMETERFIELD(Dev, LimitChecksStatus, CHECKENABLE_RANGE_IGNORE_THRESHOLD, (RangeIgnoreThresholdLimitCheckEnable == 0) || (RangeIgnoreThresholdflag == 1));
-    }
+      VL53L0X_SETARRAYPARAMETERFIELD( LimitChecksStatus, CHECKENABLE_SIGMA_FINAL_RANGE, (SigmaLimitCheckEnable == 0) || (SigmaLimitflag == 1));
+      VL53L0X_SETARRAYPARAMETERFIELD( LimitChecksStatus, CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (DeviceRangeStatusInternal == 4) || !SignalRateFinalRangeLimitCheckEnable);
+      VL53L0X_SETARRAYPARAMETERFIELD( LimitChecksStatus, CHECKENABLE_SIGNAL_REF_CLIP, (SignalRefClipLimitCheckEnable == 0) || (SignalRefClipflag == 1));
+      VL53L0X_SETARRAYPARAMETERFIELD( LimitChecksStatus, CHECKENABLE_RANGE_IGNORE_THRESHOLD, (RangeIgnoreThresholdLimitCheckEnable == 0) || (RangeIgnoreThresholdflag == 1));
 
     return Status;
   } // VL53L0X_get_pal_range_status

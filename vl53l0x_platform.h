@@ -58,7 +58,7 @@ namespace VL53L0X {
     /*!< user specific field */
     ArduinoWirer wirer;
 
-    Physical(Arg &&args) :wirer(args){
+    Physical(Arg &&args) :wirer(std::forward<Arg>(args)){
       //do nothing so that we can have statically constructed instances.
     }
 
@@ -96,9 +96,10 @@ namespace VL53L0X {
  * written
  * @param   count     Number of bytes in the supplied byte buffer
  * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
+ * @return  ERROR_CONTROL_INTERFACE i2c tx buffer overflow
+ * @returns ERROR_BAD_PARAMS count>buffer size.
  */
-    Error WriteMulti(uint8_t index, uint8_t *pdata, int count);
+    Error WriteMulti(uint8_t index, const uint8_t *pdata, int count);
 
 /**
  * Reads the requested number of bytes from the device
@@ -213,7 +214,7 @@ namespace VL53L0X {
     DevData_t Data; /*!< embed ST Ewok Dev  data as "Data"*/
     Physical comm; //not a base as eventually we will pass in a reference to a baser class
 
-    Dev_t(Arg &&args) : comm(std::forward<Arg&&>(args)) {
+    Dev_t(Arg &&args) : comm(std::forward<Arg>(args)) {
       //do nothing so that we may static construct.
     }
 
@@ -289,16 +290,16 @@ namespace VL53L0X {
  * like PALDevDataGet(FilterData.field)[i] or
  * PALDevDataGet(FilterData.MeasurementIndex)++
  */
-#define PALDevDataGet(Dev, field) (Dev->Data.field)
+#define PALDevDataGet(field) (Data.field)
 
 /**
- * @def PALDevDataSet(Dev, field, data)
+ * @def PALDevDataSet( field, data)
  * @brief  Set ST private structure @a VL53L0X_DevData_t data field
  * @param Dev       Device Handle
  * @param field     ST structure field name
  * @param data      Data to be set
  */
-#define PALDevDataSet(Dev, field, data) (Dev->Data.field) = (data)
+#define PALDevDataSet(field, data) (Data.field) = (data)
 
 /**
  * @defgroup VL53L0X_registerAccess_group PAL Register Access Functions

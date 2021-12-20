@@ -26,7 +26,7 @@ public:
   }
 };
 
-bool ArduinoWirer::write_multi(uint8_t index, uint8_t *pdata, int count) {
+bool ArduinoWirer::write_multi(uint8_t index, const uint8_t *pdata, int count) {
   I2cFramer frameit(*this);//begins transmission and arranges to end it regardless of how we exit this method.
   if (i2c.write(index) != 1) {
     return false;

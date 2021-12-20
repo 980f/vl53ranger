@@ -30,6 +30,7 @@
 #define _VL53L0X_API_CORE_H_
 
 #include "vl53l0x_platform.h" //for Dev_t
+#include "vl53l0x_fixpoint.h"
 
 namespace VL53L0X {
   //some device independent functions:
@@ -96,7 +97,7 @@ namespace VL53L0X {
      * */
     Erroneous<FixPoint1616_t> calc_sigma_estimate(const RangingMeasurementData_t &pRangingMeasurementData,  uint32_t &dmm);
 
-    Erroneous<FixPoint1616_t> get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData);
+    FixPoint1616_t get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
     Erroneous<FixPoint1616_t> get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
@@ -169,7 +170,7 @@ namespace VL53L0X {
     template<typename Intish> Erroneous<Intish> FFread(RegSystem index){
       Erroneous<Intish> value;
       value.error = comm.WrByte( 0xFF, 0x01);
-      value.error |= comm.RdWord(index, &value.wrapped);
+      value.error |= comm.ReadMulti(index, reinterpret_cast<uint8_t *>(&value.wrapped),sizeof(Intish) );
       value.error |= comm.WrByte( 0xFF, 0x00);
       return value;
     }
