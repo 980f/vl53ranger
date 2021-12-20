@@ -1823,6 +1823,8 @@ namespace VL53L0X {
     Erroneous <FixPoint1616_t> GetTotalSignalRate();
     Error waitOnResetIndicator( bool disappear);
     DeviceModes GetDeviceMode();
+    unsigned int GetMaxNumberOfROIZones();
+    unsigned int GetNumberOfROIZones();
   };
 }//end namespace
 #endif /* __H_ */

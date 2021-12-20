@@ -1261,7 +1261,7 @@ namespace VL53L0X {
      */
     uint8_t RangeIgnoreThresholdLimitCheckEnable = 0;
     if (Error == ERROR_NONE) {
-      Error = VL53L0X_GetLimitCheckEnable( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdLimitCheckEnable);
+      Error = GetLimitCheckEnable( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdLimitCheckEnable);
     }
     uint8_t RangeIgnoreThresholdflag = 0;
 
@@ -1270,7 +1270,7 @@ namespace VL53L0X {
       FixPoint1616_t SignalRatePerSpad = (EffectiveSpadRtnCount != 0) ? (FixPoint1616_t) ((256 * SignalRate) / EffectiveSpadRtnCount) : 0;
 
       FixPoint1616_t RangeIgnoreThresholdValue;
-      Error = VL53L0X_GetLimitCheckValue( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdValue);
+      Error = GetLimitCheckValue( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdValue);
 
       if ((RangeIgnoreThresholdValue > 0) && (SignalRatePerSpad < RangeIgnoreThresholdValue)) {
         /* Limit Fail add 2^6 to range status */

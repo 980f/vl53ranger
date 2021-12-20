@@ -151,20 +151,20 @@ namespace VL53L0X {
     Error Error = SetOffsetCalibrationDataMicroMeter( 0);
     ERROR_OUT;
     /* Get the value of the TCC */
-    bool SequenceStepEnabled= get_sequence_() VL53L0X_GetSequenceStepEnable( SEQUENCESTEP_TCC, &SequenceStepEnabled);
+    bool SequenceStepEnabled= GetSequenceStepEnable( SEQUENCESTEP_TCC, &SequenceStepEnabled);
     ERROR_OUT;
     /* Disable the TCC */
-    Error = VL53L0X_SetSequenceStepEnable( SEQUENCESTEP_TCC, 0);
+    Error = SetSequenceStepEnable( SEQUENCESTEP_TCC, 0);
     ERROR_OUT;
     /* Disable the RIT */
-    Error = VL53L0X_SetLimitCheckEnable( CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
+    Error = SetLimitCheckEnable( CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
     ERROR_OUT;
     /* Perform 50 measurements and compute the averages */
     uint16_t sum_ranging = 0;
     FixPoint1616_t total_count = 0;
     for (int meas = 0; meas < 50; meas++) {
       RangingMeasurementData_t RangingMeasurementData;
-      Error = VL53L0X_PerformSingleRangingMeasurement( &RangingMeasurementData);
+      Error = PerformSingleRangingMeasurement( &RangingMeasurementData);
       if (Error != ERROR_NONE) {
         break;
       }
@@ -195,12 +195,12 @@ namespace VL53L0X {
 
     /* Restore the TCC */
     if (SequenceStepEnabled != 0) {
-      return VL53L0X_SetSequenceStepEnable( SEQUENCESTEP_TCC, 1);
+      return SetSequenceStepEnable( SEQUENCESTEP_TCC, 1);
     }
     return ERROR_NONE;
   } // VL53L0X_perform_offset_calibration
 
-  Error VL53L0X_set_offset_calibration_data_micro_meter( int32_t OffsetCalibrationDataMicroMeter) {
+  Error Api::set_offset_calibration_data_micro_meter( int32_t OffsetCalibrationDataMicroMeter) {
     const int32_t cMaxOffsetMicroMeter = 511000;
     const int32_t cMinOffsetMicroMeter = -512000;
 
@@ -242,7 +242,7 @@ namespace VL53L0X {
 
   Error Api::apply_offset_adjustment() {
     /* if we run on this function we can read all the NVM info used by the API */
-    Error Error = VL53L0X_get_info_from_device( 7);
+    Error Error = get_info_from_device( 7);
     ERROR_OUT;
     /* Read back current device offset */
     Erroneous<int32_t> CurrentOffsetMicroMeters = GetOffsetCalibrationDataMicroMeter();
@@ -306,7 +306,7 @@ namespace VL53L0X {
 
 
 
-  Error enable_ref_spads( uint8_t apertureSpads, uint8_t goodSpadArray[], uint8_t spadArray[], uint32_t size, uint32_t start, uint32_t offset, uint32_t spadCount, uint32_t *lastSpad) {
+  Error Api::enable_ref_spads( uint8_t apertureSpads, uint8_t goodSpadArray[], uint8_t spadArray[],  uint32_t start, uint32_t offset, uint32_t spadCount, uint32_t *lastSpad) {
 
 
     /*
@@ -357,7 +357,7 @@ namespace VL53L0X {
     return ERROR_NONE;
   } // enable_ref_spads
 
-  Error perform_ref_signal_measurement( uint16_t *refSignalRate) {
+  Error Api::perform_ref_signal_measurement( uint16_t *refSignalRate) {
     /* store the value of the sequence config,
      * this will be reset before the end of the function
      */
@@ -369,7 +369,7 @@ namespace VL53L0X {
     ERROR_OUT;
 
     RangingMeasurementData_t rangingMeasurementData;
-    Error = VL53L0X_PerformSingleRangingMeasurement( &rangingMeasurementData);
+    Error = PerformSingleRangingMeasurement( &rangingMeasurementData);
     //BUG: object ignored above.
     ERROR_OUT;
     Error = comm.WrByte( 0xFF, 0x01);

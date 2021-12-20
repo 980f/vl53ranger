@@ -228,11 +228,11 @@ namespace VL53L0X {
     return PALDevDataGet(LinearityCorrectiveGain);
   }
 
-  Error VL53L0X_SetGroupParamHold(uint8_t GroupParamHold) {
+  Error Api::SetGroupParamHold(uint8_t GroupParamHold) {
     VL53L0X_NYI
   }
 
-  Error GetUpperLimitMilliMeter(uint16_t *pUpperLimitMilliMeter) {
+  Error Api::GetUpperLimitMilliMeter(uint16_t *pUpperLimitMilliMeter) {
     VL53L0X_NYI
   }
 
@@ -932,7 +932,7 @@ namespace VL53L0X {
     Error Error = ERROR_NONE;
     LOG_FUNCTION_START;
 
-    Error = VL53L0X_set_ref_calibration(VhvSettings, PhaseCal);
+    Error = set_ref_calibration(VhvSettings, PhaseCal);
 
     return Error;
   }
@@ -1009,12 +1009,12 @@ namespace VL53L0X {
 
       case CHECKENABLE_SIGNAL_RATE_MSRC:
         Temp8 = (uint8_t) (LimitCheckDisable << 1);
-        Error = VL53L0X_UpdateByte(REG_MSRC_CONFIG_CONTROL, 0xFE, Temp8);//clear lsb set bit 1
+        Error = comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, 0xFE, Temp8);//clear lsb set bit 1
         break;
 
       case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
         Temp8 = (uint8_t) (LimitCheckDisable << 4);
-        Error = VL53L0X_UpdateByte(REG_MSRC_CONFIG_CONTROL, 0xEF, Temp8);
+        Error = comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, 0xEF, Temp8);
         break;
 
       default:
@@ -1280,7 +1280,7 @@ namespace VL53L0X {
     return Error;
   } // VL53L0X_SetDmaxCalParameters
 
-  void GetDmaxCalParameters(uint16_t *pRangeMilliMeter, FixPoint1616_t *pSignalRateRtnMegaCps) {
+  void Api::GetDmaxCalParameters(uint16_t *pRangeMilliMeter, FixPoint1616_t *pSignalRateRtnMegaCps) {
 
     *pRangeMilliMeter = PALDevDataGet(DmaxCalRangeMilliMeter);
     *pSignalRateRtnMegaCps = PALDevDataGet(DmaxCalSignalRateRtnMegaCps);
@@ -1410,7 +1410,7 @@ return perform_offset_calibration(CalDistanceMilliMeter, pOffsetMicroMeter);
           } while (((Byte & StartStopByte) == StartStopByte) && (Error == ERROR_NONE) && (LoopNb < VL53L0X_DEFAULT_MAX_LOOP));
 
           if (LoopNb >= VL53L0X_DEFAULT_MAX_LOOP) {
-            Error = Error_TIME_OUT;
+            Error = ERROR_TIME_OUT;
           }
         }
         break;
@@ -1419,32 +1419,32 @@ return perform_offset_calibration(CalDistanceMilliMeter, pOffsetMicroMeter);
 
         /* Check if need to apply interrupt settings */
         if (Error == ERROR_NONE) {
-          Error = VL53L0X_CheckAndLoadInterruptSettings(1);
+          Error = Api::CheckAndLoadInterruptSettings(1);
         }
 
         Error = comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_BACKTOBACK);
         if (Error == ERROR_NONE) {
           /* Set PAL State to Running */
-          PALDevDataSet(PalState, State_RUNNING);
+          PALDevDataSet(PalState, STATE_RUNNING);
         }
         break;
       case DEVICEMODE_CONTINUOUS_TIMED_RANGING:
         /* Continuous mode
          * Check if need to apply interrupt settings*/
         if (Error == ERROR_NONE) {
-          Error = VL53L0X_CheckAndLoadInterruptSettings(1);
+          Error = Api::CheckAndLoadInterruptSettings(1);
         }
 
         Error = comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_TIMED);
 
         if (Error == ERROR_NONE) {
           /* Set PAL State to Running */
-          PALDevDataSet(PalState, State_RUNNING);
+          PALDevDataSet(PalState, STATE_RUNNING);
         }
         break;
       default:
         /* Selected mode not supported */
-        Error = Error_MODE_NOT_SUPPORTED;
+        Error = ERROR_MODE_NOT_SUPPORTED;
     } // switch
 
 
@@ -1669,11 +1669,11 @@ FixPoint1616_t Api::GetMeasurementRefSignal() {
     return ERROR_NONE;
   } // VL53L0X_SetNumberOfROIZones
 
-  unsigned GetNumberOfROIZones() {
+  unsigned Api::GetNumberOfROIZones() {
     return 1;
   }
 
-  unsigned GetMaxNumberOfROIZones() {
+  unsigned Api::GetMaxNumberOfROIZones() {
     return 1;
   }
 
@@ -1685,9 +1685,9 @@ FixPoint1616_t Api::GetMeasurementRefSignal() {
     LOG_FUNCTION_START;
 
     if (Pin != 0) {
-      Error = Error_GPIO_NOT_EXISTING;
+      Error = ERROR_GPIO_NOT_EXISTING;
     } else if (DeviceMode == DEVICEMODE_GPIO_DRIVE) {
-      if (Polarity == VL53L0X_INTERRUPTPOLARITY_LOW) {
+      if (Polarity == INTERRUPTPOLARITY_LOW) {
         data = 0x10;
       } else {
         data = 1;
@@ -1736,7 +1736,7 @@ FixPoint1616_t Api::GetMeasurementRefSignal() {
             data = 0x04;
             break;
           default:
-            Error = Error_GPIO_FUNCTIONALITY_NOT_SUPPORTED;
+            Error = ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED;
         } // switch
       }
 
@@ -1745,13 +1745,13 @@ FixPoint1616_t Api::GetMeasurementRefSignal() {
       }
 
       if (Error == ERROR_NONE) {
-        if (Polarity == VL53L0X_INTERRUPTPOLARITY_LOW) {
+        if (Polarity == INTERRUPTPOLARITY_LOW) {
           data = 0;
         } else {
           data = (uint8_t) (1 << 4);
         }
 
-        Error = VL53L0X_UpdateByte(REG_GPIO_HV_MUX_ACTIVE_HIGH, 0xEF, data);
+        Error = comm.UpdateByte(REG_GPIO_HV_MUX_ACTIVE_HIGH, 0xEF, data);
       }
 
       if (Error == ERROR_NONE) {
