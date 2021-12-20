@@ -990,7 +990,7 @@ namespace VL53L0X {
 
 
     /* Calculate final range macro periods */
-    finalRangeTimeoutMicroSecs = VL53L0X_GETDEVICESPECIFICPARAMETER( FinalRange.TimeoutMicroSecs);
+    finalRangeTimeoutMicroSecs =   VL53L0X_GETDEVICESPECIFICPARAMETER( FinalRange.TimeoutMicroSecs);
 
     finalRangeVcselPCLKS = VL53L0X_GETDEVICESPECIFICPARAMETER( FinalRange.VcselPulsePeriod);
 
@@ -1005,9 +1005,9 @@ namespace VL53L0X {
 
     vcselWidth = (finalRangeVcselPCLKS == 8) ? 2 : 3;
 
-    peakVcselDuration_us = milli((vcselWidth << 11) * (preRangeMacroPCLKS + finalRangeMacroPCLKS));
+    peakVcselDuration_us = kilo((vcselWidth << 11) * (preRangeMacroPCLKS + finalRangeMacroPCLKS));
     peakVcselDuration_us *= cPllPeriod_ps;
-    peakVcselDuration_us = milli(peakVcselDuration_us);
+    peakVcselDuration_us = kilo(peakVcselDuration_us);
 
     /* Fix1616 >> 8 = Fix2408 */
     totalSignalRate_mcps = totalSignalRate_mcps.shrink(8);
@@ -1056,7 +1056,7 @@ namespace VL53L0X {
       FixPoint1616_t sigmaEstimateP1 = cPulseEffectiveWidth_centi_ns;
 
       /* ((FixPoint1616 << 16)* uint32)/uint32 = FixPoint1616 */
-      FixPoint1616_t sigmaEstimateP2 = (ambientRate_kcps.raw << 16) / peakSignalRate_kcps.raw;
+      FixPoint1616_t sigmaEstimateP2 = ambientRate_kcps.boost(16) / peakSignalRate_kcps.raw;
 
       if (sigmaEstimateP2.raw > cAmbToSignalRatioMax.raw) {
         /* Clip to prevent overflow. Will ensure safe

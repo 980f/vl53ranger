@@ -2,9 +2,7 @@
 // Copyright 2021 by Andy Heilveil, github/980f, on 12/19/21.
 //
 
-#ifndef VL53_VL53L0X_FIXPOINT_H
-#define VL53_VL53L0X_FIXPOINT_H
-
+#pragma once
 
 /** use where fractional values are expected
  * Formerly the gyration in here were explicitly repeated in very many places, each having to be checked for rogue tile error.
@@ -14,20 +12,29 @@
  * todo: automatically generate the RawType based in whole+fract
  *
  * */
-template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixPoint {
-  RawType raw;
+template<unsigned whole, unsigned fract> struct FixPoint {
+
   enum {
     mask = (1 << fract) - 1
-    , size = (fract + whole) / 2
+    , size = (fract + whole)
     , powerShifter = 1 << fract
     , half = 1 << (fract - 1)
   };
+
+  using RawType =
+  typename std::conditional<size <= 8, uint8_t,
+    typename std::conditional<size <= 16, uint16_t,
+      typename std::conditional<size <= 32, uint32_t, uint64_t>::type
+    >::type
+  >::type;
+
+  RawType raw;
 
   operator RawType() const {
     return raw;
   }
 
-  operator RawType &()  {
+  operator RawType &() {
     return raw;
   }
 
@@ -45,6 +52,11 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
   }
 
   FixPoint &operator=(float eff) {
+    raw = FixPoint(eff).raw;//borrow constructor
+    return *this;
+  }
+
+  constexpr FixPoint(float eff) {
     if (eff < 0) { //need to see if this ever occurs or if all entities are strictily positive or checked by app.
       raw = 0;
     } else if (eff == 0.0) {//frequent enough to special case
@@ -57,11 +69,6 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
       raw = RawType(eff * powerShifter);
 #endif
     }
-    return *this;
-  }
-
-  FixPoint(float eff) {
-    *this = eff;
   }
 
   /** @returns nearest integer to nominal value */
@@ -92,7 +99,7 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
   }
 
   RawType squared() const {//todo: add power of 2 divider
-    return squared(raw);
+    return raw * raw;//let us not use VL53L0X namespace, this class is general enough to opensource indepdently of VL53.
   }
 
   FixPoint &square() {
@@ -138,52 +145,60 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
     return !(rhs == *this);
   }
 
-  RawType operator +(const FixPoint &rhs) {
-    return raw+rhs.raw;
+  RawType operator+(const FixPoint &rhs) {
+    return raw + rhs.raw;
   }
-  RawType operator -(const FixPoint &rhs) {
-    return raw-rhs.raw;
+
+  RawType operator-(const FixPoint &rhs) {
+    return raw - rhs.raw;
   }
-  RawType operator *(const FixPoint &rhs) {
-    return raw*rhs.raw;
+
+  RawType operator*(const FixPoint &rhs) {
+    return raw * rhs.raw;
   }
   //force explicit roundedDivided
 
-  FixPoint & operator +=(const FixPoint &rhs) {
-    raw+=rhs.raw;
+  FixPoint &operator+=(const FixPoint &rhs) {
+    raw += rhs.raw;
     return *this;
   }
-  FixPoint & operator -=(const FixPoint &rhs) {
-    raw-=rhs.raw;
+
+  FixPoint &operator-=(const FixPoint &rhs) {
+    raw -= rhs.raw;
     return *this;
   }
-  FixPoint & operator *=(const FixPoint &rhs) {
-     raw*=rhs.raw;
-     return *this;
+
+  FixPoint &operator*=(const FixPoint &rhs) {
+    raw *= rhs.raw;
+    return *this;
   }
 //force explicit roundedDivided
 
-  RawType operator +(RawType rhs) {
-    return raw+rhs.raw;
+  RawType operator+(RawType rhs) {
+    return raw + rhs.raw;
   }
-  RawType operator -(RawType rhs) {
-    return raw-rhs.raw;
+
+  RawType operator-(RawType rhs) {
+    return raw - rhs.raw;
   }
-  RawType operator *(RawType rhs) {
-    return raw*rhs.raw;
+
+  RawType operator*(RawType rhs) {
+    return raw * rhs.raw;
   }
   //force explicit roundedDivided
 
-  FixPoint & operator +=(RawType rhs) {
-    raw+=rhs.raw;
+  FixPoint &operator+=(RawType rhs) {
+    raw += rhs.raw;
     return *this;
   }
-  FixPoint & operator -=(RawType rhs) {
-    raw-=rhs.raw;
+
+  FixPoint &operator-=(RawType rhs) {
+    raw -= rhs.raw;
     return *this;
   }
-  FixPoint & operator *=(RawType rhs) {
-    raw*=rhs.raw;
+
+  FixPoint &operator*=(RawType rhs) {
+    raw *= rhs.raw;
     return *this;
   }
 //force explicit roundedDivided
@@ -219,4 +234,3 @@ template<unsigned whole, unsigned fract, typename RawType= uint32_t> struct FixP
   }
 };
 
-#endif //VL53_VL53L0X_FIXPOINT_H

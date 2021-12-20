@@ -295,7 +295,7 @@ namespace VL53L0X {
     *next = -1;
   } // get_next_good_spad
 
-  bool is_aperture(uint32_t spadIndex) {
+  bool is_aperture(unsigned int spadIndex) {
     /*
      * This function reports if a given spad index is an aperture SPAD by
      * deriving the quadrant.
@@ -306,9 +306,7 @@ namespace VL53L0X {
 
 
 
-  Error Api::enable_ref_spads( uint8_t apertureSpads, uint8_t goodSpadArray[], uint8_t spadArray[],  uint32_t start, uint32_t offset, uint32_t spadCount, uint32_t *lastSpad) {
-
-
+  Error Api::enable_ref_spads( bool apertureSpads, SpadArray goodSpadArray, SpadArray spadArray,  unsigned start, unsigned offset, unsigned spadCount, unsigned *lastSpad) {
     /*
      * This function takes in a spad array which may or may not have SPADS
      * already enabled and appends from a given offset a requested number
@@ -322,7 +320,7 @@ namespace VL53L0X {
     uint32_t currentSpad = offset;
     for (uint32_t index = 0; index < spadCount; index++) {
       int32_t nextGoodSpad;
-      get_next_good_spad(goodSpadArray, size, currentSpad, &nextGoodSpad);
+      get_next_good_spad(goodSpadArray,  currentSpad, &nextGoodSpad);
 
       if (nextGoodSpad == -1) {
         Error = ERROR_REF_SPAD_INIT;
@@ -338,7 +336,7 @@ namespace VL53L0X {
         break;
       }
       currentSpad = (uint32_t) nextGoodSpad;
-      enable_spad_bit(spadArray, size, currentSpad);
+      enable_spad_bit(spadArray, currentSpad);
       currentSpad++;
     }
     *lastSpad = currentSpad;
@@ -365,7 +363,7 @@ namespace VL53L0X {
     /*
      * This function performs a reference signal rate measurement.
      */
-    Error Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, 0xC0);
+    ErrorAccumulator Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, 0xC0);
     ERROR_OUT;
 
     RangingMeasurementData_t rangingMeasurementData;
@@ -391,10 +389,10 @@ namespace VL53L0X {
     //code moved here as it executed regardless of error in the I2C writes
       Data.SpadData.RefSpadEnables.clear();
 
-    uint32_t currentSpadIndex = 0;
+    unsigned currentSpadIndex = 0;
     if (isApertureSpads) {
       /* Increment to the first APERTURE spad */
-      while ((is_aperture(startSelect + currentSpadIndex) == 0) && (currentSpadIndex < maxSpadCount)) {
+      while ((is_aperture(startSelect + currentSpadIndex) == 0) && (currentSpadIndex < SpadArray::MaxCount)) {
         ++currentSpadIndex;
       }
     }

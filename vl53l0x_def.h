@@ -44,46 +44,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *	@{
  */
 
-//todo:0 hide these values via const objects that the compiler can use to trim code versus forcing the trim with #ifdefs
-//... that loses the ability to alter data structures per version of API so maybe we won't.
-
-/** PAL SPECIFICATION major version */
-#define VL53L0X10_SPECIFICATION_VER_MAJOR 1
-/** PAL SPECIFICATION minor version */
-#define VL53L0X10_SPECIFICATION_VER_MINOR 2
-/** PAL SPECIFICATION sub version */
-#define VL53L0X10_SPECIFICATION_VER_SUB 7
-/** PAL SPECIFICATION sub version */
-#define VL53L0X10_SPECIFICATION_VER_REVISION 1440
-
-/** VL53L0X PAL IMPLEMENTATION major version */
-#define VL53L0X10_IMPLEMENTATION_VER_MAJOR 1
-/** VL53L0X PAL IMPLEMENTATION minor version */
-#define VL53L0X10_IMPLEMENTATION_VER_MINOR 0
-/** VL53L0X PAL IMPLEMENTATION sub version */
-#define VL53L0X10_IMPLEMENTATION_VER_SUB 9
-/** VL53L0X PAL IMPLEMENTATION sub version */
-#define VL53L0X10_IMPLEMENTATION_VER_REVISION 3673
-
-//ick: are teh above and below really two sets of different versioning or just badly maintained aliases?
-
-/** PAL SPECIFICATION major version */
-#define VL53L0X_SPECIFICATION_VER_MAJOR 1
-/** PAL SPECIFICATION minor version */
-#define VL53L0X_SPECIFICATION_VER_MINOR 2
-/** PAL SPECIFICATION sub version */
-#define VL53L0X_SPECIFICATION_VER_SUB 7
-/** PAL SPECIFICATION sub version */
-#define VL53L0X_SPECIFICATION_VER_REVISION 1440
-
-/** VL53L0X PAL IMPLEMENTATION major version */
-#define VL53L0X_IMPLEMENTATION_VER_MAJOR 1
-/** VL53L0X PAL IMPLEMENTATION minor version */
-#define VL53L0X_IMPLEMENTATION_VER_MINOR 0
-/** VL53L0X PAL IMPLEMENTATION sub version */
-#define VL53L0X_IMPLEMENTATION_VER_SUB 1
-/** VL53L0X PAL IMPLEMENTATION sub version */
-#define VL53L0X_IMPLEMENTATION_VER_REVISION 4606
 
 #define VL53L0X_DEFAULT_MAX_LOOP 200
 #define VL53L0X_MAX_STRING_LENGTH 32

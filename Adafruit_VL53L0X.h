@@ -20,9 +20,7 @@
 #define ADAFRUIT_VL53L0X_H
 
 #if (ARDUINO >= 100)
-
 #include "Arduino.h"
-
 #else
 #include "WProgram.h"
 #endif
@@ -30,8 +28,10 @@
 #include "Wire.h"
 #include "vl53l0x_api.h"
 
-//#define VL53L0X_I2C_ADDR 0x29 ///< Default sensor I2C address in Arduino format (7 bit)
-
+//value is owned by ST so 980F put it into their headers, and they like 8bit address values
+#ifndef VL53L0X_I2C_ADDR
+VL53L0X_I2C_ADDR 0x52
+#endif
 /**************************************************************************/
 /*!
  *   @brief  Class that stores state and functions for interacting with VL53L0X
@@ -42,17 +42,19 @@ class Adafruit_VL53L0X {
 public:
   /** Sensor configurations */
   enum  Sense_config_t{
-    VL53L0X_SENSE_DEFAULT = 0
-    , VL53L0X_SENSE_LONG_RANGE
-    , VL53L0X_SENSE_HIGH_SPEED
-    , VL53L0X_SENSE_HIGH_ACCURACY
+    SENSE_DEFAULT = 0     //removed prefix that ST puts on their stuff to avoid future confusion
+    , SENSE_LONG_RANGE
+    , SENSE_HIGH_SPEED
+    , SENSE_HIGH_ACCURACY
   } ;
 
   Adafruit_VL53L0X(uint8_t i2c_addr = VL53L0X_I2C_ADDR>>1, TwoWire &i2c = Wire) : MyDevice({i2c,i2c_addr,400}){
     //but do not begin or start etc so that we can static init if we wish.
   }
 
-  boolean begin( boolean debug = false,  Sense_config_t vl_config = VL53L0X_SENSE_DEFAULT);
+  boolean begin( boolean debug = false,  Sense_config_t vl_config = SENSE_DEFAULT);
+
+  /** changing the address is only needed if there are multiple sensors on the bus. */
   boolean setAddress(uint8_t newAddr);
 
   // uint8_t getAddress(void); // not currently implemented
@@ -67,14 +69,18 @@ public:
    *   @returns True if address was set successfully, False otherwise
    */
   /**************************************************************************/
-  VL53L0X::Error rangingTest(VL53L0X::RangingMeasurementData_t pRangingMeasurementData, boolean debug = false){
+  VL53L0X::Error rangingTest(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false){
     return getSingleRangingMeasurement(pRangingMeasurementData, debug);
   }
 
   VL53L0X::Error getSingleRangingMeasurement(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false);
-  void printRangeStatus(VL53L0X::RangingMeasurementData_t *pRangingMeasurementData);
 
+  void printRangeStatus(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData);
+
+  /** the API would be vastly improved internally if they implemented this: */
   VL53L0X::Error Error = VL53L0X::ERROR_NONE; ///< indicates whether or not the sensor has encountered an error
+
+
   // Add similar methods as Adafruit_VL6180X class adapted to range of device
   uint16_t readRange();
   // float readLux(uint8_t gain);
@@ -86,7 +92,7 @@ public:
   uint16_t readRangeResult();
 
   boolean startRangeContinuous(uint16_t period_ms = 50);//hmm: ST shows 33 as a sweet spot between performance and accuracy.
-  void stopRangeContinuous();
+  bool stopRangeContinuous();
 
   //  void setTimeout(uint16_t timeout) { io_timeout = timeout; }
   // uint16_t getTimeout(void) { return io_timeout; }

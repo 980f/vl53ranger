@@ -55,22 +55,9 @@ namespace VL53L0X {
 
   class Core : public Dev_t {
   public:
-    Core(Arg &&args) : Dev_t(args) {
+    Core(Arg &&args) : Dev_t(std::forward<Arg>(args)) {
       //do nothing here so that we can statically construct
     }
-
-    /** values which have the same representation on the I2C message as in program storage can use this wrapper */
-    template<typename Chunk> struct Parameter {
-      Dev_t &parent;
-
-      /** getter */
-      operator Erroneous<Chunk>() {
-      }
-
-      /** setter */
-      bool operator=(Chunk chunk) {
-      }
-    };
 
     Erroneous<bool> GetSequenceStepEnable(SequenceStepId StepId); // GetSequenceStepEnable
 
@@ -83,7 +70,7 @@ namespace VL53L0X {
 
     Error get_info_from_device(uint8_t option);
 
-    Error get_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t *pTimeOutMicroSecs);
+    Error get_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t &pTimeOutMicroSecs);
 
     Error set_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t TimeOutMicroSecs);
 

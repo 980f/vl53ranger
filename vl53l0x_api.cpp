@@ -32,8 +32,8 @@
 #include "vl53l0x_api.h"
 //inserted into core as it tangled the layers to the point of not having them: #include "vl53l0x_api_calibration.h"
 #include "vl53l0x_api_core.h"
-#include "vl53l0x_api_strings.h"
-#include "vl53l0x_interrupt_threshold_settings.h"
+#include "vl53l0x_api_strings.h"  //should get rid of wrapping, only one ever had a concept of error and for that we can return a nullptr.
+#include "vl53l0x_interrupt_threshold_settings.h" //some tuning parameters
 #include "vl53l0x_tuning.h"  //tuning values packed into an array of bytes
 
 #include "log_api.h"
@@ -45,6 +45,8 @@
 #endif
 
 namespace VL53L0X {
+
+#include "versioninfo.h"
 
   Version_t ImplementationVersion {VL53L0X_IMPLEMENTATION_VER_REVISION, {VL53L0X_IMPLEMENTATION_VER_MAJOR, VL53L0X_IMPLEMENTATION_VER_MINOR}, VL53L0X_IMPLEMENTATION_VER_SUB};
 
@@ -619,7 +621,7 @@ namespace VL53L0X {
 
     LOG_FUNCTION_START; Error(" %u", Enable);
 
-    Error = comm.WrByte(REG_SYSTEM_RANGE_CONFIG, Enable);
+    Error |= comm.WrByte(REG_SYSTEM_RANGE_CONFIG, Enable);
 
     if (Error == ERROR_NONE) {
       PALDevDataSet(RangeFractionalEnable, Enable);
@@ -645,7 +647,7 @@ namespace VL53L0X {
     VL53L0X_NYI
   }
 
-  Error Api::GetHistogramMode(HISTOGRAMMODEs *pHistogramMode) {
+  Error Api::GetHistogramMode(HistogramModes *pHistogramMode) {
     VL53L0X_NYI
   }
 
@@ -662,24 +664,20 @@ namespace VL53L0X {
   }
 
   Error Api::GetVcselPulsePeriod(VcselPeriod VcselPeriodType, uint8_t *pVCSELPulsePeriodPCLK) {
-    Error Error = ERROR_NONE;
     LOG_FUNCTION_START;
-
-    Error = Get_vcsel_pulse_period(VcselPeriodType, pVCSELPulsePeriodPCLK);
-
-    return Error;
+    return Get_vcsel_pulse_period(VcselPeriodType, pVCSELPulsePeriodPCLK);
   }
 
   Error Api::SetSequenceStepEnable(SequenceStepId SequenceStepId, uint8_t SequenceStepEnabled) {
-    Error Error = ERROR_NONE;
-    uint8_t SequenceConfig = 0;
-    uint8_t SequenceConfigNew = 0;
+
+
     uint32_t MeasurementTimingBudgetMicroSeconds;
     LOG_FUNCTION_START;
+    uint8_t SequenceConfig = 0;
+    Error |= comm.RdByte(REG_SYSTEM_SEQUENCE_CONFIG, &SequenceConfig);
 
-    Error = comm.RdByte(REG_SYSTEM_SEQUENCE_CONFIG, &SequenceConfig);
 
-    SequenceConfigNew = SequenceConfig;
+    uint8_t SequenceConfigNew = SequenceConfig;
 
     if (Error == ERROR_NONE) {
       if (SequenceStepEnabled == 1) {
@@ -769,7 +767,7 @@ namespace VL53L0X {
 
     /* Read back the current value in case we need to revert back to this.
      */
-    Error = get_sequence_step_timeout(SequenceStepId, &OldTimeOutMicroSeconds);
+    Error = get_sequence_step_timeout(SequenceStepId, OldTimeOutMicroSeconds);
 
     if (Error == ERROR_NONE) {
       Error = set_sequence_step_timeout(SequenceStepId, TimeoutMicroSeconds);
@@ -785,13 +783,13 @@ namespace VL53L0X {
       Error = SetMeasurementTimingBudgetMicroSeconds(MeasurementTimingBudgetMicroSeconds);
 
       if (Error != ERROR_NONE) {
-        Status1 = set_sequence_step_timeout(SequenceStepId, OldTimeOutMicroSeconds);
+        ErrorAccumulator Status1 ( set_sequence_step_timeout(SequenceStepId, OldTimeOutMicroSeconds));
 
         if (Status1 == ERROR_NONE) {
           Status1 = SetMeasurementTimingBudgetMicroSeconds(MeasurementTimingBudgetMicroSeconds);
         }
 
-        Error = Status1;
+        return Status1;
       }
     }
 
@@ -2075,14 +2073,13 @@ FixPoint1616_t Api::GetMeasurementRefSignal() {
       isApertureSpads_int = needAptSpads;
       refSpadCount_int = minimumSpadCount;
 
-      uint8_t lastSpadArray[6];
-      memcpy(lastSpadArray, Dev->Data.SpadData.RefSpadEnables, spadArraySize);
+      SpadArray lastSpadArray=Data.SpadData.RefSpadEnables;
 
       uint32_t lastSignalRateDiff = abs(peakSignalRateRef - targetRefRate);
       uint8_t complete = 0;
       while (!complete) {
         int32_t nextGoodSpad = 0;
-        get_next_good_spad(Dev->Data.SpadData.RefGoodSpadMap, spadArraySize, currentSpadIndex, &nextGoodSpad);
+        get_next_good_spad(Data.SpadData.RefGoodSpadMap, currentSpadIndex, &nextGoodSpad);
         if (nextGoodSpad == -1) {
           return ERROR_REF_SPAD_INIT;
         }
@@ -2090,17 +2087,17 @@ FixPoint1616_t Api::GetMeasurementRefSignal() {
 /* Cannot combine Aperture and Non-Aperture spads, so
  * ensure the current spad is of the correct type.
  */
-        if (is_aperture((uint32_t) startSelect + nextGoodSpad) != needAptSpads) {
+        if (is_aperture( startSelect + nextGoodSpad) != needAptSpads) {
           return ERROR_REF_SPAD_INIT;
         }
 
         currentSpadIndex = nextGoodSpad;
-        Error = enable_spad_bit(Dev->Data.SpadData.RefSpadEnables, spadArraySize, currentSpadIndex);
+        Error = enable_spad_bit(Data.SpadData.RefSpadEnables,  currentSpadIndex);
         ERROR_OUT;
         currentSpadIndex++;
 /* Proceed to apply the additional spad and
  * perform measurement. */
-        Error = set_ref_spad_map(Dev->Data.SpadData.RefSpadEnables);
+        Error = set_ref_spad_map(Data.SpadData.RefSpadEnables);
 
         ERROR_OUT;
         Error = perform_ref_signal_measurement(&peakSignalRateRef);
@@ -2110,13 +2107,13 @@ FixPoint1616_t Api::GetMeasurementRefSignal() {
         if (peakSignalRateRef > targetRefRate) { /* Select the spad map that provides the measurement closest to the target rate, either above or below it. */
           if (signalRateDiff > lastSignalRateDiff) { /* Previous spad map produced a closer measurement, so choose this. */
             Error = set_ref_spad_map(lastSpadArray);
-            memcpy(Dev->Data.SpadData.RefSpadEnables, lastSpadArray, spadArraySize);
+            Data.SpadData.RefSpadEnables= lastSpadArray;
             --refSpadCount_int;
           }
           complete = 1;
         } else { /* Continue to add spads */
           lastSignalRateDiff = signalRateDiff;
-          memcpy(lastSpadArray, Dev->Data.SpadData.RefSpadEnables, spadArraySize);
+          lastSpadArray= Data.SpadData.RefSpadEnables;
         }
       } /* while */
     }

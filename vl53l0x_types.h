@@ -145,11 +145,13 @@ template<typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned p
   return (num + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
 }
 
-/** @returns @param num divided by @param denom, rounded */
-template<typename IntishOver> IntishOver milli(IntishOver num) {
+/** @returns @param num divided by 1000, rounded.
+ * this is somewhat the reverse of FixPoint millis which multiplies the nominal value by 1000 and rounds to integer */
+template<typename IntishOver> IntishOver kilo(IntishOver num) {
   return roundedDivide(num, 1000);
 }
 
+/** @returns @param value multiplied by @param shift power of 2*/
 template<typename Intish> constexpr Intish boost(unsigned shift, Intish value) {
   return value << shift;
 }
@@ -170,19 +172,21 @@ template<typename Intish> Intish squared(Intish num) {
 
 #include "vl53l0x_fixpoint.h"
 
-using FixPoint1616_t = FixPoint<16, 16, uint32_t>;
+using FixPoint1616_t = FixPoint<16, 16>;
+
+/** 0x10000 which is one greater than 0x0000FFFF */
 const FixPoint1616_t Unity {1.0};
 
-//0x10000 which is one greater than 0x0000FFFF
+
 
 //types seen in macros that used to do the conversions:
-using FixPoint97_t = FixPoint<9, 7, uint16_t>;
-using FixPoint88_t = FixPoint<8, 8, uint16_t>;
-using FixPoint412_t = FixPoint<4, 12, uint16_t>;
-using FixPoint313_t = FixPoint<3, 13, uint16_t>;
-using FixPoint102_t = FixPoint<3, 13, uint16_t>;
+using FixPoint97_t = FixPoint<9, 7>;
+using FixPoint88_t = FixPoint<8, 8>;
+using FixPoint412_t = FixPoint<4, 12>;
+using FixPoint313_t = FixPoint<3, 13>;
+using FixPoint102_t = FixPoint<3, 13>;
 
-using FixPoint08_t = FixPoint<0, 8, uint8_t>;
-using FixPoint53_t = FixPoint<5, 3, uint8_t>;
+using FixPoint08_t = FixPoint<0, 8>;
+using FixPoint53_t = FixPoint<5, 3>;
 
 #endif /* VL53L0X_TYPES_H_ */

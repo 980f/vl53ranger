@@ -41,9 +41,9 @@ namespace VL53L0X {
   const char *device_error_string(DeviceError ErrorCode);
   const char *range_status_string(uint8_t RangeStatus);
   const char *pal_error_string(const Error &PalErrorCode);
-  const char *pal_state_string(const State &PalStateCode) ;
-  const char *sequence_steps_info(const SequenceStepId &SequenceStepId) ;
-  const char *limit_check_info(uint16_t LimitCheckId) ;
+  const char *pal_state_string(const State &PalStateCode);
+  const char *sequence_steps_info(const SequenceStepId &SequenceStepId);
+  const char *limit_check_info(uint16_t LimitCheckId);
 
   //was in wrong module, is a device function not a stringifying function:
 //  Error get_device_info(VL53L0X_DEV  VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo);
@@ -53,18 +53,16 @@ namespace VL53L0X {
  * */
   void get_device_error_string(DeviceError ErrorCode, char *pDeviceErrorString);
 
-  void  get_range_status_string(uint8_t RangeStatus, char *pRangeStatusString);
+  void get_range_status_string(uint8_t RangeStatus, char *pRangeStatusString);
 
-  void  get_pal_error_string(Error PalErrorCode, char *pPalErrorString);
+  void get_pal_error_string(Error PalErrorCode, char *pPalErrorString);
 
-  void  get_pal_state_string(State PalStateCode, char *pPalStateString);
+  void get_pal_state_string(State PalStateCode, char *pPalStateString);
 
-  void  get_limit_check_info( uint16_t LimitCheckId, char *pLimitCheckString);
+  void get_limit_check_info(uint16_t LimitCheckId, char *pLimitCheckString);
 
   /** @returns ERROR_INVALID_PARAMS for unknown step id, else ERROR_NONE. */
   Error get_sequence_steps_info(SequenceStepId SequenceStepId, char *pSequenceStepsString);
-
-
 }// end name space
 
 //note: use links in build to bring in the language of interest.
