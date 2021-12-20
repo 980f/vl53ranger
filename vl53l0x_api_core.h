@@ -132,18 +132,18 @@ namespace VL53L0X {
 
 
     class MagicTrio {
-      ErrorAccumulator Status;
+      ErrorAccumulator Error;
       Physical &comm; //not a base as eventually we will pass in a reference to a baser class
     public:
-      MagicTrio(Physical &comm):comm(comm),Status(ERROR_NONE){
-        Status = comm.WrByte( 0x80, 0x01);
-        Status = comm.WrByte(0xFF, 0x01);
-        Status = comm.WrByte( 0x00, 0x00);
+      MagicTrio(Physical &comm):comm(comm),Error(ERROR_NONE){
+        Error = comm.WrByte( 0x80, 0x01);
+        Error = comm.WrByte(0xFF, 0x01);
+        Error = comm.WrByte( 0x00, 0x00);
       }
       ~MagicTrio(){
-        Status = comm.WrByte(0x00, 0x01);
-        Status = comm.WrByte( 0xFF, 0x00);
-        Status = comm.WrByte( 0x80, 0x00);
+        Error = comm.WrByte(0x00, 0x01);
+        Error = comm.WrByte( 0xFF, 0x00);
+        Error = comm.WrByte( 0x80, 0x00);
       }
     };
     /** RAII widget that surrounds some fetches. */
@@ -161,10 +161,10 @@ namespace VL53L0X {
     Error setPhasecalLimit(uint8_t value);
 
     Error FFwrap(RegSystem index,uint8_t value ){
-      ErrorAccumulator Status = comm.WrByte( 0xFF, 0x01);
-      Status |= comm.WrByte( index, value);
-      Status |= comm.WrByte( 0xFF, 0x00);
-      return Status;
+      ErrorAccumulator Error = comm.WrByte( 0xFF, 0x01);
+      Error |= comm.WrByte( index, value);
+      Error |= comm.WrByte( 0xFF, 0x00);
+      return Error;
     }
 
     template<typename Intish> Erroneous<Intish> FFread(RegSystem index){

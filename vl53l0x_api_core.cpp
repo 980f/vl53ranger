@@ -400,7 +400,7 @@ namespace VL53L0X {
     Error |= comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, VL53L0X_FIXPOINT1616TOFIXPOINT313(TempFix1616.raw));
 
     if (~Error) {
-      VL53L0X_SETPARAMETERFIELD( XTalkCompensationEnable, bool(XTalkCompensationEnable));
+      SETPARAMETERFIELD( XTalkCompensationEnable, bool(XTalkCompensationEnable));
     }
     return Error;
   } // VL53L0X_SetXTalkCompensationEnable
@@ -470,7 +470,7 @@ namespace VL53L0X {
   } // get_sequence_step_timeout
 
   Error Core::set_sequence_step_timeout(const SequenceStepId StepId, const uint32_t TimeOutMicroSecs) {
-    Error Status = ERROR_NONE;
+    Error Error = ERROR_NONE;
     Erroneous<uint16_t> PreRangeEncodedTimeOut;
     uint16_t PreRangeTimeOutMClks;
     uint16_t FinalRangeTimeOutMClks;
@@ -485,7 +485,7 @@ namespace VL53L0X {
           uint16_t MsrcRangeTimeOutMClks = calc_timeout_mclks(TimeOutMicroSecs, CurrentVCSELPulsePeriodPClk);
           uint8_t MsrcEncodedTimeOut = saturated<uint8_t, uint16_t>(MsrcRangeTimeOutMClks - 1);
           VL53L0X_SETDEVICESPECIFICPARAMETER( LastEncodedTimeout, MsrcEncodedTimeOut);
-          Status = comm.WrByte(REG_MSRC_CONFIG_TIMEOUT_MACROP, MsrcEncodedTimeOut);
+          Error = comm.WrByte(REG_MSRC_CONFIG_TIMEOUT_MACROP, MsrcEncodedTimeOut);
         }
       }
         break;
@@ -498,8 +498,8 @@ namespace VL53L0X {
 
           VL53L0X_SETDEVICESPECIFICPARAMETER( LastEncodedTimeout, PreRangeEncodedTimeOut);
 
-          Status = comm.WrWord(REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI, PreRangeEncodedTimeOut);
-          if (Status == ERROR_NONE) {
+          Error = comm.WrWord(REG_PRE_RANGE_CONFIG_TIMEOUT_MACROP_HI, PreRangeEncodedTimeOut);
+          if (Error == ERROR_NONE) {
             VL53L0X_SETDEVICESPECIFICPARAMETER( PreRange.TimeoutMicroSecs, TimeOutMicroSecs);
           }
         }
@@ -529,8 +529,8 @@ namespace VL53L0X {
                 FinalRangeTimeOutMClks += PreRangeTimeOutMClks;
                 FinalRangeEncodedTimeOut = encode_timeout(FinalRangeTimeOutMClks);
 
-                Status = comm.WrWord(0x71, FinalRangeEncodedTimeOut);
-                if (Status == ERROR_NONE) {
+                Error = comm.WrWord(0x71, FinalRangeEncodedTimeOut);
+                if (Error == ERROR_NONE) {
                   VL53L0X_SETDEVICESPECIFICPARAMETER( FinalRange.TimeoutMicroSecs, TimeOutMicroSecs);
                 }
               }
@@ -677,7 +677,7 @@ namespace VL53L0X {
        */
       Error |= set_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, FinalRangeTimingBudgetMicroSeconds);//BUG: error ignored
 
-      VL53L0X_SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
+      SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
     }
 
     return Error;
@@ -717,7 +717,7 @@ namespace VL53L0X {
       *pMeasurementTimingBudgetMicroSeconds += (FinalRangeTimeoutMicroSeconds + FinalRangeOverheadMicroSeconds);
     }
     ERROR_OUT;
-    VL53L0X_SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, *pMeasurementTimingBudgetMicroSeconds);
+    SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, *pMeasurementTimingBudgetMicroSeconds);
     return Error;
   } // VL53L0X_get_measurement_timing_budget_micro_seconds
 
@@ -1245,7 +1245,7 @@ namespace VL53L0X {
 
 
     uint8_t SignalRefClipflag = 0;
-    if ((SignalRefClipLimitCheckEnable != 0) && (Status == ERROR_NONE)) {
+    if ((SignalRefClipLimitCheckEnable != 0) && (Error == ERROR_NONE)) {
       FixPoint1616_t SignalRefClipValue=GetLimitCheckValue( CHECKENABLE_SIGNAL_REF_CLIP);
       if ((SignalRefClipValue > 0) && (LastSignalRefMcps > SignalRefClipValue)) {
         /* Limit Fail */
@@ -1260,17 +1260,17 @@ namespace VL53L0X {
      * If (Return signal rate < (1.5 x Xtalk x number of Spads)) : FAIL
      */
     uint8_t RangeIgnoreThresholdLimitCheckEnable = 0;
-    if (Status == ERROR_NONE) {
-      Status = VL53L0X_GetLimitCheckEnable( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdLimitCheckEnable);
+    if (Error == ERROR_NONE) {
+      Error = VL53L0X_GetLimitCheckEnable( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdLimitCheckEnable);
     }
     uint8_t RangeIgnoreThresholdflag = 0;
 
-    if ((RangeIgnoreThresholdLimitCheckEnable != 0) && (Status == ERROR_NONE)) {
+    if ((RangeIgnoreThresholdLimitCheckEnable != 0) && (Error == ERROR_NONE)) {
       /* Compute the signal rate per spad */
       FixPoint1616_t SignalRatePerSpad = (EffectiveSpadRtnCount != 0) ? (FixPoint1616_t) ((256 * SignalRate) / EffectiveSpadRtnCount) : 0;
 
       FixPoint1616_t RangeIgnoreThresholdValue;
-      Status = VL53L0X_GetLimitCheckValue( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdValue);
+      Error = VL53L0X_GetLimitCheckValue( CHECKENABLE_RANGE_IGNORE_THRESHOLD, &RangeIgnoreThresholdValue);
 
       if ((RangeIgnoreThresholdValue > 0) && (SignalRatePerSpad < RangeIgnoreThresholdValue)) {
         /* Limit Fail add 2^6 to range status */
@@ -1278,7 +1278,7 @@ namespace VL53L0X {
       }
     }
 
-    if (Status == ERROR_NONE) {
+    if (Error == ERROR_NONE) {
       if (NoneFlag == 1) {
         *pPalRangeStatus = 255; /* NONE */
       } else if (DeviceRangeStatusInternal == 1 || DeviceRangeStatusInternal == 2 || DeviceRangeStatusInternal == 3) {
@@ -1301,7 +1301,7 @@ namespace VL53L0X {
       pRangingMeasurementData.RangeDMaxMilliMeter = 0;
     }
 
-    /* fill the Limit Check Status */
+    /* fill the Limit Check Error */
     bool SignalRateFinalRangeLimitCheckEnable  = GetLimitCheckEnable( CHECKENABLE_SIGNAL_RATE_FINAL_RANGE);
 
       VL53L0X_SETARRAYPARAMETERFIELD( LimitChecksStatus, CHECKENABLE_SIGMA_FINAL_RANGE, (SigmaLimitCheckEnable == 0) || (SigmaLimitflag == 1));
@@ -1309,7 +1309,7 @@ namespace VL53L0X {
       VL53L0X_SETARRAYPARAMETERFIELD( LimitChecksStatus, CHECKENABLE_SIGNAL_REF_CLIP, (SignalRefClipLimitCheckEnable == 0) || (SignalRefClipflag == 1));
       VL53L0X_SETARRAYPARAMETERFIELD( LimitChecksStatus, CHECKENABLE_RANGE_IGNORE_THRESHOLD, (RangeIgnoreThresholdLimitCheckEnable == 0) || (RangeIgnoreThresholdflag == 1));
 
-    return Status;
+    return Error;
   } // VL53L0X_get_pal_range_status
 
 

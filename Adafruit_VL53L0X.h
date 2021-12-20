@@ -74,7 +74,7 @@ public:
   VL53L0X::Error getSingleRangingMeasurement(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false);
   void printRangeStatus(VL53L0X::RangingMeasurementData_t *pRangingMeasurementData);
 
-  VL53L0X::Error Status = VL53L0X::ERROR_NONE; ///< indicates whether or not the sensor has encountered an error
+  VL53L0X::Error Error = VL53L0X::ERROR_NONE; ///< indicates whether or not the sensor has encountered an error
   // Add similar methods as Adafruit_VL6180X class adapted to range of device
   uint16_t readRange();
   // float readLux(uint8_t gain);
@@ -97,7 +97,7 @@ public:
    */
   /**************************************************************************/
   boolean timeoutOccurred(){
-    return false;//why not Status==ERROR_TIMEOUT?
+    return false;//why not Error==ERROR_TIMEOUT?
   }
 
   boolean configSensor(Sense_config_t vl_config);

@@ -119,11 +119,11 @@ namespace VL53L0X {
 
   Error Physical::WrWord( uint8_t index, uint16_t data) {
     return recode(wirer.Write( index, data));
-  } // VL53L0X_WrWord
+  } // comm.WrWord
 
   Error Physical::WrDWord(uint8_t index, uint32_t data) {
     return recode(wirer.Write( index, data));
-  } // VL53L0X_WrDWord
+  } // comm.WrDWord
 
   Error Physical::RdByte( uint8_t index, uint8_t *data) {
     return recode(wirer.Read(index, data));
@@ -131,11 +131,11 @@ namespace VL53L0X {
 
   Error Physical::RdWord( uint8_t index, uint16_t *data) {
     return recode(wirer.Read( index, data));
-  } // VL53L0X_RdWord
+  } // comm.RdWord
 
   Error Physical::RdDWord(uint8_t index, uint32_t *data) {
     return recode(wirer.Read( index, data) != 0);
-  } // VL53L0X_RdDWord
+  } // comm.RdDWord
 
   Error Physical::UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData) {
     uint8_t data;

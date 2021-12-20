@@ -108,7 +108,7 @@ namespace VL53L0X {
     Erroneous<DeviceError> GetDeviceErrorStatus();
 
 /**
- * @brief Human readable Range Status string for a given RangeStatus
+ * @brief Human readable Range Error string for a given RangeStatus
  *
  * @note This function doesn't access to the device
  *
@@ -953,10 +953,10 @@ namespace VL53L0X {
     Error GetLimitCheckInfo(uint16_t LimitCheckId, char *pLimitCheckString);
 
 /**
- * @brief  Return a the Status of the specified check limit
+ * @brief  Return a the Error of the specified check limit
  *
  * @par Function Description
- * This function returns the Status of the specified check limit.
+ * This function returns the Error of the specified check limit.
  * The value indicate if the check is fail or not.
  * The limit check is identified with the LimitCheckId.
  *
@@ -966,7 +966,7 @@ namespace VL53L0X {
  * @param   LimitCheckId                  Limit Check ID
  *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
  * @param   pLimitCheckStatus             Pointer to the
- *  Limit Check Status of the given check limit.
+ *  Limit Check Error of the given check limit.
  * LimitCheckStatus :
  * 0 the check is not fail
  * 1 the check if fail or not enabled

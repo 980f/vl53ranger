@@ -227,7 +227,7 @@ namespace VL53L0X {
   };
 
 /** ERROR_OUT is useful for when there will be no common exit code on an error that terminates a sequence of steps other than returning the first such error.
- * To use it name the VL53L0X_Error member Error (instead of Status), which also allows for if(!Error) which is more readable than if(Status != VL53L0X_ERROR_NONE)
+ * To use it name the VL53L0X_Error member Error (instead of Error), which also allows for if(!Error) which is more readable than if(Error != VL53L0X_ERROR_NONE)
  *
  * Error is now an object with an operator~ which is true when there is an error.
  * */
@@ -292,7 +292,7 @@ namespace VL53L0X {
 
     //todo: struct and single array.
     bool LimitChecksEnable[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Limit Check enable for this device. */
-    bool LimitChecksStatus[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Status of the check linked to last measurement. */
+    bool LimitChecksStatus[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Error of the check linked to last measurement. */
     FixPoint1616_t LimitChecksValue[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
 
     uint8_t WrapAroundCheckEnable; /*!< Tells if Wrap Around Check shall be enable or not */
@@ -343,7 +343,7 @@ namespace VL53L0X {
 
     uint8_t ZoneId;  /*!< Denotes which zone and range scheduler stage the range data relates to. */
     uint8_t RangeFractionalPart; /*!< Fractional part of range distance. Final value is a FixPoint168 value. */
-    uint8_t RangeStatus;  /*!< Range Status for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
+    uint8_t RangeStatus;  /*!< Range Error for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
   };
 
 #define VL53L0X_HISTOGRAM_BUFFER_SIZE 24
@@ -546,7 +546,7 @@ namespace VL53L0X {
  */
 
 /* Defines */
-#define VL53L0X_SETPARAMETERFIELD( field, value) PALDevDataSet( CurrentParameters.field, value)
+#define SETPARAMETERFIELD( field, value) PALDevDataSet( CurrentParameters.field, value)
 
 #define VL53L0X_GETPARAMETERFIELD( field, variable) variable = PALDevDataGet( CurrentParameters).field
 

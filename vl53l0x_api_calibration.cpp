@@ -189,7 +189,7 @@ namespace VL53L0X {
     *pOffsetMicroMeter = (CalDistanceAsInt_mm - StoredMeanRangeAsInt) * 1000;
 
     /* Apply the calculated offset */
-    VL53L0X_SETPARAMETERFIELD(  RangeOffsetMicroMeters, *pOffsetMicroMeter);
+    SETPARAMETERFIELD(  RangeOffsetMicroMeters, *pOffsetMicroMeter);
     Error = SetOffsetCalibrationDataMicroMeter( *pOffsetMicroMeter);
     ERROR_OUT;
 
@@ -219,9 +219,9 @@ namespace VL53L0X {
      */
     const int16_t cOffsetRange = 4096;
     uint32_t encodedOffsetVal = (OffsetCalibrationDataMicroMeter / 250) + ((OffsetCalibrationDataMicroMeter >= 0) ? 0 : cOffsetRange);
-    Error Status = VL53L0X_WrWord( REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, encodedOffsetVal);
+    Error Error = comm.WrWord( REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, encodedOffsetVal);
 
-    return Status;
+    return Error;
   } // VL53L0X_set_offset_calibration_data_micro_meter
 
   Error Api::get_offset_calibration_data_micro_meter( int32_t *pOffsetCalibrationDataMicroMeter) {
@@ -232,7 +232,7 @@ namespace VL53L0X {
     uint16_t RangeOffsetRegister;
     Error Error = ERROR_NONE;
 
-    Error = VL53L0X_RdWord( REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, &RangeOffsetRegister);
+    Error = comm.RdWord( REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, &RangeOffsetRegister);
     ERROR_OUT;
     RangeOffsetRegister &= 0x0fff;
     /* Apply 12 bit 2's compliment conversion */
@@ -256,7 +256,7 @@ namespace VL53L0X {
     Error = SetOffsetCalibrationDataMicroMeter( CorrectedOffsetMicroMeters);
     ERROR_OUT;
     /* store current, adjusted offset */
-    VL53L0X_SETPARAMETERFIELD( RangeOffsetMicroMeters, CorrectedOffsetMicroMeters);
+    SETPARAMETERFIELD( RangeOffsetMicroMeters, CorrectedOffsetMicroMeters);
 
     return ERROR_NONE;
   } // VL53L0X_apply_offset_adjustment
@@ -374,7 +374,7 @@ namespace VL53L0X {
     ERROR_OUT;
     Error = comm.WrByte( 0xFF, 0x01);
     ERROR_OUT;
-    Error = VL53L0X_RdWord( REG_RESULT_PEAK_SIGNAL_RATE_REF, refSignalRate);
+    Error = comm.RdWord( REG_RESULT_PEAK_SIGNAL_RATE_REF, refSignalRate);
     ERROR_OUT;
     Error = comm.WrByte( 0xFF, 0x00);
     ERROR_OUT;
@@ -431,7 +431,7 @@ namespace VL53L0X {
   } // VL53L0X_set_reference_spads
 
   Error Api::get_reference_spads( uint32_t *pSpadCount, uint8_t *pIsApertureSpads) {
-    Error Status = ERROR_NONE;
+    Error Error = ERROR_NONE;
 
 
     uint32_t spadsEnabled;
@@ -445,9 +445,9 @@ namespace VL53L0X {
       /* obtain spad info from device.*/
 
       SpadArray refSpadArray;
-      Status = get_ref_spad_map( refSpadArray);
+      Error = get_ref_spad_map( refSpadArray);
 
-      if (Status == ERROR_NONE) {
+      if (Error == ERROR_NONE) {
         /* count enabled spads within spad map array and
          * determine if Aperture or Non-Aperture.
          */
@@ -465,7 +465,7 @@ namespace VL53L0X {
       }
     }
 
-    return Status;
+    return Error;
   } // VL53L0X_get_reference_spads
 
   Error Api::perform_single_ref_calibration( uint8_t vhv_init_byte) {
@@ -550,29 +550,29 @@ namespace VL53L0X {
     uint8_t SequenceConfig = restore_config ? PALDevDataGet( SequenceConfig) : 0;
 
     /* Run PhaseCal */
-    Error Status = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, 0x02);
+    Error Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, 0x02);
 
-    if (Status == ERROR_NONE) {
-      Status = perform_single_ref_calibration( 0x0);
+    if (Error == ERROR_NONE) {
+      Error = perform_single_ref_calibration( 0x0);
     }
 
     /* Read PhaseCal from device */
-    if ((Status == ERROR_NONE) && (get_data_enable == 1)) {
+    if ((Error == ERROR_NONE) && (get_data_enable == 1)) {
       uint8_t VhvSettingsint;//ick: ignored
-      Status = ref_calibration_io( 1, 0, 0, &VhvSettingsint, pPhaseCal, 0, 1);
+      Error = ref_calibration_io( 1, 0, 0, &VhvSettingsint, pPhaseCal, 0, 1);
     } else {
       *pPhaseCal = 0;
     }
 
-    if ((Status == ERROR_NONE) && restore_config) {
+    if ((Error == ERROR_NONE) && restore_config) {
       /* restore the previous Sequence Config */
-      Status = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
-      if (Status == ERROR_NONE) {
+      Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
+      if (Error == ERROR_NONE) {
         PALDevDataSet( SequenceConfig, SequenceConfig);
       }
     }
 
-    return Status;
+    return Error;
   } // VL53L0X_perform_phase_calibration
 
   Error Api::perform_ref_calibration( uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable) {
@@ -583,21 +583,21 @@ namespace VL53L0X {
 
     /* In the following function we don't save the config to optimize
      * writes on device. Config is saved and restored only once. */
-    Error Status = perform_vhv_calibration( pVhvSettings, get_data_enable, 0);
+    Error Error = perform_vhv_calibration( pVhvSettings, get_data_enable, 0);
 
-    if (Status == ERROR_NONE) {
-      Status = Api::perform_phase_calibration( pPhaseCal, get_data_enable, 0);
+    if (Error == ERROR_NONE) {
+      Error = Api::perform_phase_calibration( pPhaseCal, get_data_enable, 0);
     }
 
-    if (Status == ERROR_NONE) {
+    if (Error == ERROR_NONE) {
       /* restore the previous Sequence Config */
-      Status = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
-      if (Status == ERROR_NONE) {
+      Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
+      if (Error == ERROR_NONE) {
         PALDevDataSet(SequenceConfig, SequenceConfig);
       }
     }
 
-    return Status;
+    return Error;
   } // VL53L0X_perform_ref_calibration
 
   Error Api::set_ref_calibration( uint8_t VhvSettings, uint8_t PhaseCal) {

@@ -51,7 +51,7 @@ namespace VL53L0X {
  *
  *  This enum is Device specific it should be updated in the implementation
  *  Use @a VL53L0X_GetStatusErrorString() to get the string.
- *  It is related to Status Register of the Device.
+ *  It is related to Error Register of the Device.
  *  @{
  */
   enum DeviceError : uint8_t {
