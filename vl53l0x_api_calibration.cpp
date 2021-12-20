@@ -189,7 +189,7 @@ namespace VL53L0X {
     *pOffsetMicroMeter = (CalDistanceAsInt_mm - StoredMeanRangeAsInt) * 1000;
 
     /* Apply the calculated offset */
-    SETPARAMETERFIELD(  RangeOffsetMicroMeters, *pOffsetMicroMeter);
+    VL53L0X_SETPARAMETERFIELD(  RangeOffsetMicroMeters, *pOffsetMicroMeter);
     Error = SetOffsetCalibrationDataMicroMeter( *pOffsetMicroMeter);
     ERROR_OUT;
 
@@ -256,7 +256,7 @@ namespace VL53L0X {
     Error = SetOffsetCalibrationDataMicroMeter( CorrectedOffsetMicroMeters);
     ERROR_OUT;
     /* store current, adjusted offset */
-    SETPARAMETERFIELD( RangeOffsetMicroMeters, CorrectedOffsetMicroMeters);
+    VL53L0X_SETPARAMETERFIELD( RangeOffsetMicroMeters, CorrectedOffsetMicroMeters);
 
     return ERROR_NONE;
   } // VL53L0X_apply_offset_adjustment

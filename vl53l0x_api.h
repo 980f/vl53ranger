@@ -53,9 +53,9 @@ namespace VL53L0X {
  *
  * @note This function doesn't access to the device
 */
-    static Version_t ImplementationVersion;
+    static const Version_t ImplementationVersion;
 
-    static Version_t PalSpecVersion;
+    static const Version_t PalSpecVersion;
 
 
 /** @defgroup cut11_group VL53L0X cut1.1 Function Definition

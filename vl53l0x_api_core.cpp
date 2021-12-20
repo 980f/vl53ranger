@@ -393,14 +393,14 @@ namespace VL53L0X {
     if ((XTalkCompensationEnable == 0) || (LinearityCorrectiveGain != 1000)) {
       TempFix1616.raw = 0;
     } else {
-      VL53L0X_GETPARAMETERFIELD( XTalkCompensationRateMegaCps.raw, TempFix1616.raw);
+      TempFix1616= VL53L0X_GETPARAMETERFIELD( XTalkCompensationRateMegaCps.raw);
     }
 
     /* the following register has a format 3.13 */
     Error |= comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, VL53L0X_FIXPOINT1616TOFIXPOINT313(TempFix1616.raw));
 
     if (~Error) {
-      SETPARAMETERFIELD( XTalkCompensationEnable, bool(XTalkCompensationEnable));
+      VL53L0X_SETPARAMETERFIELD( XTalkCompensationEnable, bool(XTalkCompensationEnable));
     }
     return Error;
   } // VL53L0X_SetXTalkCompensationEnable
@@ -677,7 +677,7 @@ namespace VL53L0X {
        */
       Error |= set_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, FinalRangeTimingBudgetMicroSeconds);//BUG: error ignored
 
-      SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
+      VL53L0X_SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
     }
 
     return Error;
@@ -717,7 +717,7 @@ namespace VL53L0X {
       *pMeasurementTimingBudgetMicroSeconds += (FinalRangeTimeoutMicroSeconds + FinalRangeOverheadMicroSeconds);
     }
     ERROR_OUT;
-    SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, *pMeasurementTimingBudgetMicroSeconds);
+    VL53L0X_SETPARAMETERFIELD( MeasurementTimingBudgetMicroSeconds, *pMeasurementTimingBudgetMicroSeconds);
     return Error;
   } // VL53L0X_get_measurement_timing_budget_micro_seconds
 
@@ -773,12 +773,10 @@ namespace VL53L0X {
 
   FixPoint1616_t Core::get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
 
-    uint8_t xtalkCompEnable;
-    VL53L0X_GETPARAMETERFIELD( XTalkCompensationEnable, xtalkCompEnable);
+    uint8_t xtalkCompEnable=VL53L0X_GETPARAMETERFIELD( XTalkCompensationEnable);
 //todo: lost test value of xtalkCompeEnable
 
-    FixPoint1616_t xtalkPerSpadMegaCps;
-    VL53L0X_GETPARAMETERFIELD( XTalkCompensationRateMegaCps, xtalkPerSpadMegaCps);
+    FixPoint1616_t xtalkPerSpadMegaCps=   VL53L0X_GETPARAMETERFIELD( XTalkCompensationRateMegaCps);
 
     /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
     FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData.EffectiveSpadRtnCount * xtalkPerSpadMegaCps.raw;
@@ -963,8 +961,7 @@ namespace VL53L0X {
      */
 
     LOG_FUNCTION_START;
-    Erroneous<FixPoint1616_t> xTalkCompRate_mcps;
-    VL53L0X_GETPARAMETERFIELD( XTalkCompensationRateMegaCps, xTalkCompRate_mcps);
+    Erroneous<FixPoint1616_t> xTalkCompRate_mcps=VL53L0X_GETPARAMETERFIELD( XTalkCompensationRateMegaCps);
 
     /*
      * We work in kcps rather than mcps as this helps keep within the

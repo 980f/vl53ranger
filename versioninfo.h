@@ -19,7 +19,7 @@
 /** VL53L0X PAL IMPLEMENTATION sub version */
 #define VL53L0X10_IMPLEMENTATION_VER_REVISION 3673
 
-//ick: are teh above and below really two sets of different versioning or just badly maintained aliases?
+//ick: are the above and below really two sets of different versioning or just badly maintained aliases?
 
 /** PAL SPECIFICATION major version */
 #define VL53L0X_SPECIFICATION_VER_MAJOR 1

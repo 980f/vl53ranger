@@ -506,13 +506,13 @@ namespace VL53L0X {
  */
 
 /* Defines */
-#define SETPARAMETERFIELD( field, value) PALDevDataSet( CurrentParameters.field, value)
+#define VL53L0X_SETPARAMETERFIELD( field, value) PALDevDataSet( CurrentParameters.field, value)
 
-#define VL53L0X_GETPARAMETERFIELD( field, variable) variable = PALDevDataGet( CurrentParameters).field
+#define VL53L0X_GETPARAMETERFIELD( field)  PALDevDataGet( CurrentParameters).field
 
 #define VL53L0X_SETARRAYPARAMETERFIELD( field, index, value)   PALDevDataSet( CurrentParameters.field[index], value)
 
-#define VL53L0X_GETARRAYPARAMETERFIELD( field, index, variable)  variable = PALDevDataGet( CurrentParameters).field[index]
+#define VL53L0X_GETARRAYPARAMETERFIELD( field, index)  PALDevDataGet( CurrentParameters).field[index]
 
 #define VL53L0X_SETDEVICESPECIFICPARAMETER( field, value) PALDevDataSet( DeviceSpecificParameters.field, value)
 

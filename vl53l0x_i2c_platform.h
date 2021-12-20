@@ -4,7 +4,7 @@
  * 980F modified the multi() returns to reverse byte order on the fly if count is negative.
  **/
 #include <Wire.h>
-
+#include <move.h>
 /**
  * declarations for user supplied interface to i2c or spi bus.
  *

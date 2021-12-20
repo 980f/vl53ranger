@@ -48,12 +48,12 @@ namespace VL53L0X {
 
 #include "versioninfo.h"
 
-  Version_t ImplementationVersion {VL53L0X_IMPLEMENTATION_VER_REVISION, {VL53L0X_IMPLEMENTATION_VER_MAJOR, VL53L0X_IMPLEMENTATION_VER_MINOR}, VL53L0X_IMPLEMENTATION_VER_SUB};
+  const Version_t Api::ImplementationVersion {VL53L0X_IMPLEMENTATION_VER_REVISION, {VL53L0X_IMPLEMENTATION_VER_MAJOR, VL53L0X_IMPLEMENTATION_VER_MINOR}, VL53L0X_IMPLEMENTATION_VER_SUB};
+
+  const Version_t Api::PalSpecVersion {VL53L0X_SPECIFICATION_VER_REVISION, VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR, VL53L0X_SPECIFICATION_VER_SUB};
 
 /* Group PAL General Functions */
 
-
-  Version_t PalSpecVersion {VL53L0X_SPECIFICATION_VER_REVISION, VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR, VL53L0X_SPECIFICATION_VER_SUB};
 
   Erroneous<bool> Api::measurement_poll_for_completion() {
     LOG_FUNCTION_START;
@@ -293,7 +293,7 @@ namespace VL53L0X {
     VL53L0X_SETDEVICESPECIFICPARAMETER(OscFrequencyMHz, 9.44f);//618660);
 
     /* Set Default XTalkCompensationRateMegaCps to 0  */
-    SETPARAMETERFIELD(XTalkCompensationRateMegaCps, 0.0f);
+    VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, 0.0f);
 
     /* Get default parameters */
     DeviceParameters_t CurrentParameters;
@@ -604,7 +604,7 @@ namespace VL53L0X {
       case DEVICEMODE_GPIO_DRIVE:
       case DEVICEMODE_GPIO_OSC:
         /* Supported modes */
-        SETPARAMETERFIELD(DeviceMode, deviceMode);
+        VL53L0X_SETPARAMETERFIELD(DeviceMode, deviceMode);
         break;
       default:
         /* Unsupported mode */
@@ -759,22 +759,23 @@ namespace VL53L0X {
   } // GetSequenceStepsInfo
 
   Error Api::SetSequenceStepTimeout(SequenceStepId SequenceStepId, FixPoint1616_t TimeOutMilliSecs) {
-    auto TimeoutMicroSeconds = TimeOutMilliSecs.millis();
-    uint32_t MeasurementTimingBudgetMicroSeconds;
-    FixPoint1616_t OldTimeOutMicroSeconds;
 
     LOG_FUNCTION_START;
 
     /* Read back the current value in case we need to revert back to this.
      */
+
+    FixPoint1616_t OldTimeOutMicroSeconds;
     Error = get_sequence_step_timeout(SequenceStepId, OldTimeOutMicroSeconds);
 
     if (Error == ERROR_NONE) {
+      auto TimeoutMicroSeconds = TimeOutMilliSecs.millis();
       Error = set_sequence_step_timeout(SequenceStepId, TimeoutMicroSeconds);
     }
 
     if (Error == ERROR_NONE) {
-      VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
+
+      uint32_t MeasurementTimingBudgetMicroSeconds=VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds);
 
       /* At this point we don't know if the requested value is valid,
        *  therefore proceed to update the entire timing budget and
@@ -831,7 +832,7 @@ namespace VL53L0X {
     }
 
     if (Error == ERROR_NONE) {
-      SETPARAMETERFIELD(InterMeasurementPeriodMilliSeconds, InterMeasurementPeriodMilliSeconds);
+      VL53L0X_SETPARAMETERFIELD(InterMeasurementPeriodMilliSeconds, InterMeasurementPeriodMilliSeconds);
     }
 
     return Error;
@@ -854,7 +855,7 @@ namespace VL53L0X {
       if (osc_calibrate_val != 0) {
         *pInterMeasurementPeriodMilliSeconds = IMPeriodMilliSeconds / osc_calibrate_val;
       }
-      SETPARAMETERFIELD(InterMeasurementPeriodMilliSeconds, *pInterMeasurementPeriodMilliSeconds);
+      VL53L0X_SETPARAMETERFIELD(InterMeasurementPeriodMilliSeconds, *pInterMeasurementPeriodMilliSeconds);
     }
 
     return Error;
@@ -873,16 +874,15 @@ namespace VL53L0X {
 
   Error Api::SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps) {
 
-    uint8_t Temp8;
+
     uint16_t LinearityCorrectiveGain;
     uint16_t data;
     LOG_FUNCTION_START;
-
-    VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable, Temp8);
+    uint8_t Temp8=VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
     LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
 
     if (Temp8 == 0) { /* disabled write only internal value */
-      SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
     } else {
       /* the following register has a format 3.13 */
       if (LinearityCorrectiveGain == 1000) {
@@ -894,7 +894,7 @@ namespace VL53L0X {
       Error = comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, data);
 
       if (Error == ERROR_NONE) {
-        SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
+        VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
       }
     }
 
@@ -914,12 +914,12 @@ namespace VL53L0X {
         /* the Xtalk is disabled return value from memory */
         GetPARAMETERFIELD(XTalkCompensationRateMegaCps, TempFix1616);
         *pXTalkCompensationRateMegaCps = TempFix1616;
-        SETPARAMETERFIELD(XTalkCompensationEnable, 0);
+        VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, 0);
       } else {
         TempFix1616 = VL53L0X_FIXPOINT313TOFIXPOINT1616(Value);
         *pXTalkCompensationRateMegaCps = TempFix1616;
-        SETPARAMETERFIELD(XTalkCompensationRateMegaCps, TempFix1616);
-        SETPARAMETERFIELD(XTalkCompensationEnable, 1);
+        VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, TempFix1616);
+        VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, 1);
       }
     }
 
@@ -1223,7 +1223,7 @@ namespace VL53L0X {
 
     if (Error == ERROR_NONE) {
       PALDevDataSet(SequenceConfig, Byte);
-      SETPARAMETERFIELD(WrapAroundCheckEnable, WrapAroundCheckEnableInt);
+      VL53L0X_SETPARAMETERFIELD(WrapAroundCheckEnable, WrapAroundCheckEnableInt);
     }
 
     return Error;
@@ -1245,7 +1245,7 @@ namespace VL53L0X {
       }
     }
     if (Error == ERROR_NONE) {
-      SETPARAMETERFIELD(WrapAroundCheckEnable, *pWrapAroundCheckEnable);
+      VL53L0X_SETPARAMETERFIELD(WrapAroundCheckEnable, *pWrapAroundCheckEnable);
     }
 
     return Error;
@@ -2262,7 +2262,7 @@ FixPoint1616_t Api::GetMeasurementRefSignal() {
 
     /* Finally, the timing budget must be re-applied */
     if (Error == ERROR_NONE) {
-      VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds, MeasurementTimingBudgetMicroSeconds);
+      MeasurementTimingBudgetMicroSeconds=VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds);
       return set_measurement_timing_budget_micro_seconds(MeasurementTimingBudgetMicroSeconds);
     }
 
