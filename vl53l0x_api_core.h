@@ -37,14 +37,16 @@ namespace VL53L0X {
   void reverse_bytes(uint8_t *data, uint32_t size);
   uint8_t encode_vcsel_period(uint8_t vcsel_period_pclks);
   uint8_t decode_vcsel_period(uint8_t vcsel_period_reg);
+  /** restoring form of integer square root
+   * todo: template arg types, return is half as many bits as given and we could use the extra range on some calculations*/
   uint32_t isqrt(uint32_t num);
   uint32_t quadrature_sum(uint32_t a, uint32_t b);
   uint32_t decode_timeout(uint16_t encoded_timeout);
   uint16_t encode_timeout(uint32_t timeout_macro_clks);
   uint32_t calc_timeout_mclks(uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
 
-  template<unsigned whole, unsigned fract, typename RawType= uint32_t>
-  static RawType quadrature_sum(FixPoint<whole, fract, RawType> a, FixPoint<whole, fract, RawType> b){
+  template<unsigned whole, unsigned fract>
+  static auto quadrature_sum(FixPoint<whole, fract> a, FixPoint<whole, fract> b)-> typename decltype(a)::RawType {
     //todo: debate whether the guard in the non-class quadrature_sum should apply
 //      if (a > 65535 || b > 65535) {
 //        return 65535;
@@ -66,15 +68,19 @@ namespace VL53L0X {
     /** VCSELPulsePeriodPCLK */
     Erroneous<uint8_t> get_vcsel_pulse_period(VcselPeriod VcselPeriodType);
 
+    /**
+     * todo: refactoring dropped a call to  perform_phase_calibration(&PhaseCalInt, false, true); which is in API, not CORE.
+     * ... callers of this method should call that.
+     * */
     Error set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
 
     Error get_info_from_device(uint8_t option);
 
-    Error get_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t &pTimeOutMicroSecs);
+    Erroneous<uint32_t> get_sequence_step_timeout(SequenceStepId SequenceStepId);
 
     Error set_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t TimeOutMicroSecs);
 
-    Error get_measurement_timing_budget_micro_seconds(uint32_t *pMeasurementTimingBudgetMicroSeconds);
+    Erroneous<uint32_t> get_measurement_timing_budget_micro_seconds();
 
     Error set_measurement_timing_budget_micro_seconds(uint32_t MeasurementTimingBudgetMicroSeconds);
 
@@ -116,7 +122,27 @@ namespace VL53L0X {
  */
     Erroneous<bool> GetLimitCheckEnable(CheckEnable LimitCheckId);
 
-
+/**
+ * @brief  Get a specific limit check value
+ *
+ * @par Function Description
+ * This function get a specific limit check value from device then it updates
+ * internal values and check enables.
+ * The limit check is identified with the LimitCheckId.
+ *
+ * @note This function Access to the device
+ *
+ * @param   Dev                           Device Handle
+ * @param   LimitCheckId                  Limit Check ID
+ *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
+ * @param   pLimitCheckValue              Pointer to Limit
+ *  check Value for a given LimitCheckId.
+ * @return  ERROR_NONE             Success
+ * @return  ERROR_INVALID_PARAMS   This error is returned
+ *  when LimitCheckId value is out of range.
+ * @return  "Other error code"            See ::Error
+ */
+    Erroneous<FixPoint1616_t> GetLimitCheckValue(CheckEnable LimitCheckId);
 
     class MagicTrio {
       ErrorAccumulator Error;
@@ -139,17 +165,14 @@ namespace VL53L0X {
     }
 
 
-
-
-
   protected:  //common code fragments or what were file static but didn't actually have the 'static' like they should have.
     Error setValidPhase(uint8_t high, uint8_t low);
 
     Error setPhasecalLimit(uint8_t value);
 
-    Error FFwrap(RegSystem index,uint8_t value ){
+    template<typename Intish> Error FFwrap(RegSystem index,Intish value ){
       ErrorAccumulator Error = comm.WrByte( 0xFF, 0x01);
-      Error |= comm.WrByte( index, value);
+      Error |= comm.WriteMulti( index,reinterpret_cast<uint8_t*>(&value),sizeof(Intish));
       Error |= comm.WrByte( 0xFF, 0x00);
       return Error;
     }
@@ -170,7 +193,8 @@ namespace VL53L0X {
     Erroneous<uint32_t> middleof64(unsigned int which);
 
 /** gets value from device, @returns whether it worked OK.*/
-    template<typename Scalar> bool fetch(Erroneous<Scalar> &item, RegSystem reg);
+    template<unsigned whole, unsigned fract> bool fetch(Erroneous<FixPoint<whole,fract>> &item, RegSystem reg) ;
+      template<typename Scalar> bool fetch(Erroneous<Scalar> &item, RegSystem reg);
     Erroneous <SchedulerSequenceSteps_t> get_sequence_step_enables();
     uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
 
@@ -178,6 +202,9 @@ namespace VL53L0X {
 
     Error set_ref_spad_map(SpadArray &refSpadArray);
     Error get_ref_spad_map(SpadArray &refSpadArray);
+    Erroneous <uint8_t> get_SequenceConfig();
+    Erroneous <uint8_t> getSequenceConfig();
+    Error set_SequenceConfig(uint8_t packed, bool andCache);
   };
 
 

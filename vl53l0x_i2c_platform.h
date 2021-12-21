@@ -1,10 +1,11 @@
+#pragma once
 /**
  * The implementation of all of these methods return 0.
  *
  * 980F modified the multi() returns to reverse byte order on the fly if count is negative.
  **/
 #include <Wire.h>
-#include <move.h>
+#include <utility>
 /**
  * declarations for user supplied interface to i2c or spi bus.
  *

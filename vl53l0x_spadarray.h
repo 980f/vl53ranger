@@ -5,6 +5,8 @@
 #ifndef VL53_VL53L0X_SPADARRAY_H
 #define VL53_VL53L0X_SPADARRAY_H
 
+#include "bitmanipulators.h"
+
 /** spad arrays are arrays of bits of whether a spad exists or is enabled
  * If we were willing to commit to a more recent c++ standard we would use a bitarray inside this class. */
 class SpadArray {
@@ -30,6 +32,7 @@ public:
         fine = 0;
         ++coarse;
       }
+      return *this;
     }
 
     bool isValid() const {
@@ -75,6 +78,36 @@ public:
     }
     return true;
   }
+
+  class Pointer{
+    SpadArray &storage;
+    SpadArray::Index index;
+  public:
+    Pointer(SpadArray&wrapped):storage(wrapped), index(0){}
+
+    Pointer &operator=(unsigned absolute){
+      index=absolute;
+      return *this;
+    }
+
+    BitAlias operator *(){
+      return BitAlias(storage[index.coarse],index.fine);
+    }
+
+    Pointer &operator ++(){
+      ++index;
+      return *this;
+    }
+
+//    /** post increment is a touch expensive, returns a copy of this which is about 8 bytes with a weird lifetime */
+//    Pointer &operator ++(int ){
+//      Pointer post=*this;
+//      ++index;
+//      return post;
+//    }
+
+  };
+
 };
 
 #endif //VL53_VL53L0X_SPADARRAY_H

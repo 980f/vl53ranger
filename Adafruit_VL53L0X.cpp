@@ -55,8 +55,6 @@ using namespace VL53L0X; //usually bad form but this class is a wrapper for this
  */
 /**************************************************************************/
 boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
-  uint32_t refSpadCount;
-  uint8_t isApertureSpads;
   uint8_t VhvSettings;
   uint8_t PhaseCal;
 
@@ -124,13 +122,13 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
       Serial.println(F("VL53L0X: PerformRefSpadManagement"));
     }
 
-    Error = MyDevice.PerformRefSpadManagement(&refSpadCount, &isApertureSpads); // Device Initialization
+    auto info = MyDevice.PerformRefSpadManagement(); // Device Initialization
 
     if (debug) {
       Serial.print(F("refSpadCount = "));
-      Serial.print(refSpadCount);
+      Serial.print(info.count);
       Serial.print(F(", isApertureSpads = "));
-      Serial.println(isApertureSpads);
+      Serial.println(info.isAperture);
     }
   }
 

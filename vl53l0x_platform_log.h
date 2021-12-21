@@ -38,7 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * @brief platform log function definition
  */
 
-//do this via compile command line:  #define VL53L0X_LOG_ENABLE 0
+//do this via compile command line or build.h:  #define VL53L0X_LOG_ENABLE 0
 
 enum TRACE_LEVEL {
   NONE

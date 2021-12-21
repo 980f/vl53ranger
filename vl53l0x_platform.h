@@ -65,6 +65,7 @@ namespace VL53L0X {
     /** it appears that applications typically have done this init themselves instead of calling this one. */
     bool init() {
       wirer.i2c_init();
+      return true;
     }
 
 /**
@@ -79,6 +80,7 @@ namespace VL53L0X {
  * @return  whether lock was achieved
  */
     bool LockSequenceAccess() {
+      return true;//NYI
     }
 
 /**
@@ -87,6 +89,7 @@ namespace VL53L0X {
  * @return whether unlock worked.
  */
     bool UnlockSequenceAccess() {
+      return true;//NYI
     }
 
 /**
@@ -290,7 +293,7 @@ namespace VL53L0X {
  * like PALDevDataGet(FilterData.field)[i] or
  * PALDevDataGet(FilterData.MeasurementIndex)++
  */
-#define PALDevDataGet(field) (Data.field)
+#define PALDevDataGet(field) Data.field
 
 /**
  * @def PALDevDataSet( field, data)
@@ -299,7 +302,7 @@ namespace VL53L0X {
  * @param field     ST structure field name
  * @param data      Data to be set
  */
-#define PALDevDataSet(field, data) (Data.field) = (data)
+#define PALDevDataSet(field, data) Data.field = data
 
 /**
  * @defgroup VL53L0X_registerAccess_group PAL Register Access Functions

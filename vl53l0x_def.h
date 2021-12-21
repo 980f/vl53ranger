@@ -51,6 +51,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vl53l0x_device.h"
 #include "vl53l0x_types.h"
 #include "vl53l0x_spadarray.h"
+#include "bitmanipulators.h"
 
 namespace VL53L0X {
 
@@ -142,7 +143,7 @@ namespace VL53L0X {
       return sum;
     }
 
-    /** @returns whether there is no error */
+    /** @returns whether there is an error, made to match Erroneous usage */
     bool operator~() const {
       return sum != ERROR_NONE;
     }
@@ -192,6 +193,8 @@ namespace VL53L0X {
  * Error is now an object with an operator~ which is true when there is an error.
  * */
 #define ERROR_OUT if(~Error) return {Error}
+#define EXIT_ON(erroneous)     if(~erroneous){  return erroneous; }
+#define ERROR_ON(erroneous)     if(~erroneous){  return erroneous.error; }
 
 /** @} VL53L0X_define_Error_group */
 
@@ -357,7 +360,7 @@ namespace VL53L0X {
 
     SigmaEstimates SigmaEst;
 
-    uint8_t ReadDataFromDeviceDone; /* Indicate if read from device has been done (==1) or not (==0) */
+    uint8_t ReadDataFromDeviceDone; /* 3bits for subsets of device data having been read */
     uint8_t ModuleId;               /* Module ID */
     uint8_t Revision;               /* test Revision */
     char ProductId[VL53L0X_MAX_STRING_LENGTH];/* Product Identifier String  */
@@ -371,6 +374,7 @@ namespace VL53L0X {
     FixPoint1616_t SignalRateMeasFixed400mm; /*!< Peek Signal rate at 400 mm*/
   };
 
+  using Tunings= const uint8_t *;
   /**
  * @struct VL53L0X_DevData_t
  *
@@ -399,11 +403,11 @@ namespace VL53L0X {
      * e.g. 500 = 5.0ns */
 
     uint8_t StopVariable;     /*!< StopVariable used during the stop sequence */
-    FixPoint<9,7,uint16_t> targetRefRate;     /*!< Target Ambient Rate for Ref spad management */
+    FixPoint<9, 7> targetRefRate;     /*!< Target Ambient Rate for Ref spad management */
     FixPoint1616_t SigmaEstimate;     /*!< Sigma Estimate - based on ambient & VCSEL rates and signal_total_events */
     FixPoint1616_t SignalEstimate;     /*!< Signal Estimate - based on ambient & VCSEL rates and cross talk */
     FixPoint1616_t LastSignalRefMcps;     /*!< Latest Signal ref in Mcps */
-    uint8_t *pTuningSettingsPointer;     /*!< Pointer for Tuning Settings table */
+    Tunings pTuningSettingsPointer;     /*!< Pointer for Tuning Settings table */
     uint8_t UseInternalTuningSettings;     /*!< Indicate if we use	 Tuning Settings table */
     uint16_t LinearityCorrectiveGain;     /*!< Linearity Corrective Gain value in x1000 */
     uint16_t DmaxCalRangeMilliMeter;     /*!< Dmax Calibration Range millimeter */
@@ -483,12 +487,19 @@ namespace VL53L0X {
     bool DssOn = false;        /*!<Reports if DSS On  */
     bool PreRangeOn = false;   /*!<Reports if Pre-Range On	*/
     bool FinalRangeOn = false; /*!<Reports if Final-Range On  */
+
+    /** @returns whether one of the three that share a timeout are set */
+    bool anyOfMsrcDccTcc() const {
+      return TccOn || MsrcOn || DssOn;
+    }
+
+    /** SequenceConfig byte bit assignments*/
     SchedulerSequenceSteps_t &unpack(uint8_t devicebyte) {
-      TccOn = getBit(bitFor(SEQUENCESTEP_TCC), devicebyte);
-      DssOn = getBit(bitFor(SEQUENCESTEP_DSS), devicebyte);
-      MsrcOn = getBit(bitFor(SEQUENCESTEP_MSRC), devicebyte);
-      PreRangeOn = getBit(bitFor(SEQUENCESTEP_PRE_RANGE), devicebyte);
-      FinalRangeOn = getBit(bitFor(SEQUENCESTEP_FINAL_RANGE), devicebyte);
+      TccOn = getBit<bitFor(SEQUENCESTEP_TCC)>(devicebyte);
+      DssOn = getBit<bitFor(SEQUENCESTEP_DSS)>(devicebyte);
+      MsrcOn = getBit<bitFor(SEQUENCESTEP_MSRC)>(devicebyte);
+      PreRangeOn = getBit<bitFor(SEQUENCESTEP_PRE_RANGE)>(devicebyte);
+      FinalRangeOn = getBit<bitFor(SEQUENCESTEP_FINAL_RANGE)>(devicebyte);
       return *this;
     }
 
@@ -506,18 +517,19 @@ namespace VL53L0X {
  */
 
 /* Defines */
-#define VL53L0X_SETPARAMETERFIELD( field, value) PALDevDataSet( CurrentParameters.field, value)
+#define VL53L0X_SETPARAMETERFIELD(field, value) PALDevDataSet( CurrentParameters.field, value)
 
-#define VL53L0X_GETPARAMETERFIELD( field)  PALDevDataGet( CurrentParameters).field
+#define VL53L0X_GETPARAMETERFIELD(field)  PALDevDataGet( CurrentParameters).field
 
-#define VL53L0X_SETARRAYPARAMETERFIELD( field, index, value)   PALDevDataSet( CurrentParameters.field[index], value)
+#define VL53L0X_SETARRAYPARAMETERFIELD(field, index, value)   PALDevDataSet( CurrentParameters.field[index], value)
 
-#define VL53L0X_GETARRAYPARAMETERFIELD( field, index)  PALDevDataGet( CurrentParameters).field[index]
+#define VL53L0X_GETARRAYPARAMETERFIELD(field, index)  PALDevDataGet( CurrentParameters).field[index]
 
-#define VL53L0X_SETDEVICESPECIFICPARAMETER( field, value) PALDevDataSet( DeviceSpecificParameters.field, value)
+#define VL53L0X_SETDEVICESPECIFICPARAMETER(field, value) PALDevDataSet( DeviceSpecificParameters.field, value)
 
-#define VL53L0X_GETDEVICESPECIFICPARAMETER( field)  PALDevDataGet( DeviceSpecificParameters).field
+#define VL53L0X_GETDEVICESPECIFICPARAMETER(field)  PALDevDataGet( DeviceSpecificParameters).field
 
+//todo: remove all these via FixPoint types
 #define VL53L0X_FIXPOINT1616TOFIXPOINT97(Value)  (uint16_t)((Value >> 9) & 0xFFFF)
 //BUG: (UB) need to cast/convert before shrink, not after
 #define VL53L0X_FIXPOINT97TOFIXPOINT1616(Value) (FixPoint1616_t)((Value) << 9)
@@ -545,9 +557,9 @@ namespace VL53L0X {
 #define VL53L0X_FIXPOINT1616TOFIXPOINT102(Value)  (uint16_t)((Value >> 14) & 0x0FFF)
 #define VL53L0X_FIXPOINT102TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 12)
 
-constexpr uint16_t MAKEUINT16(uint8_t lsb, uint8_t msb){
-  return uint16_t(msb) << 8 + uint16_t(lsb);
-}
+  constexpr uint16_t MAKEUINT16(uint8_t lsb, uint8_t msb) {
+    return uint16_t(msb) << 8 + uint16_t(lsb);
+  }
 
 /** @} VL53L0X_define_GeneralMacro_group */
 

@@ -56,6 +56,18 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     return *this;
   }
 
+  template <typename Intish> explicit  FixPoint(Intish stuff){
+    raw=stuff;
+  }
+
+  /** two ints init item to ratio, with boost of numerator by @param boostit which defaults to 16*/
+  template <typename IntishUp,typename IntishDown>
+  constexpr FixPoint(IntishUp num,IntishDown denom,unsigned boostit=16){
+    raw=num;//expand to 32 bits asap.
+    boost(boostit);
+    divideby(denom);
+  }
+
   constexpr FixPoint(float eff) {
     if (eff < 0) { //need to see if this ever occurs or if all entities are strictily positive or checked by app.
       raw = 0;
@@ -87,7 +99,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     return *this;
   }
 
-  /** @returns this after dividing by 2^ @param bits, rounding */
+  /** @returns value of this after multiplying by 2^ @param bits */
   RawType boosted(unsigned bits) const {
     return raw << bits;
   }

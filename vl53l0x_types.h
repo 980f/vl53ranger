@@ -102,39 +102,7 @@ typedef signed char int8_t;
 /** @}  */
 #endif /* _STDINT_H */
 
-template<typename Intish> constexpr bool getBit(const unsigned bitnum, const Intish data) {
-  if (bitnum / 8 > sizeof(Intish)) {
-    //todo: compiletime error if bitnum/8 is greater than bytes in the data
-    return false;
-  }
-  return (data & (1 << bitnum)) != 0;
-}
-
-template<unsigned bitnum, typename Intish> constexpr bool getBit(const Intish data) {
-  static_assert(bitnum / 8 < sizeof(Intish));
-  return (data & (1 << bitnum)) != 0;
-}
-
-template<unsigned msbit,unsigned lsbit, typename Intish> constexpr bool getBits(const Intish data) {
-  static_assert(msbit / 8 < sizeof(Intish));
-  static_assert(lsbit / 8 < sizeof(Intish));
-  static_assert(msbit>=lsbit);
-  //to generate a mask for bit MS start with 10000 with the 1 to the left of the msbit then subtract some power of two from that.
-  return (data & ((1 << msbit+1)-(1<<lsbit))) >>lsbit;
-}
-
-template<typename Intish> constexpr uint8_t getByte(const unsigned bytenum, const Intish data) {
-  if (bytenum > sizeof(Intish)) {
-    return false;
-  }
-  return data >> (8 * bytenum);
-}
-
-template<unsigned bytenum, typename Intish> constexpr uint8_t getByte(const Intish data) {
-  static_assert(bytenum < sizeof(Intish), "operand doesn't have that many bytes");
-  return data >> (8 * bytenum);
-}
-
+////////////////////////////////////
 /** @returns @param num divided by @param denom, rounded */
 template<typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom) {
   return (denom != 0) ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.

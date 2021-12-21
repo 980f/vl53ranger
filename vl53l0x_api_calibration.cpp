@@ -45,14 +45,21 @@ static const unsigned startSelect = 180;// was 0xB4 but is not a bit pattern, ra
 
 static const unsigned minimumSpadCount = 3;
 
+
 namespace VL53L0X {
+
+  //offset field is 12 bits and signed.
+  const int16_t cOffsetMask = (1 << 12)-1; //bit field 11=>0
+  const int16_t cOffsetMax = cOffsetMask>>1;//max positive value of 12 bits
+  const int16_t cOffsetMin = -(cOffsetMask+1);//most negative value
+
 
   Error Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps) {
     if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
       return ERROR_INVALID_PARAMS;
     }
     /* Disable the XTalk compensation */
-    Error Error = SetXTalkCompensationEnable( 0);
+    ErrorAccumulator Error = SetXTalkCompensationEnable( 0);
     ERROR_OUT;
 
     /* Disable the RIT */
@@ -63,32 +70,32 @@ namespace VL53L0X {
     unsigned sum_ranging = 0;//bug: former use of 16 bit begs for integer overflow
     unsigned sum_spads = 0;//... which we will tolerate only on processors whose natural int is 16 bits
     FixPoint1616_t sum_signalRate = 0;
-    FixPoint1616_t total_count = 0;
-    for (uint8_t xtalk_meas = 0; xtalk_meas < 50; xtalk_meas++) {
+    uint32_t total_count = 0;//unsigned is probably adequate
+    for (uint8_t xtalk_meas = 0; xtalk_meas < 50; xtalk_meas++) {//ick: buried constant
       RangingMeasurementData_t RangingMeasurementData;
       Error =PerformSingleRangingMeasurement( &RangingMeasurementData);
 
       if (Error != ERROR_NONE) {
-        return total_count == 0 ? ERROR_RANGE_ERROR : Error;
+        return total_count == 0 ? ERROR_RANGE_ERROR : Error.sum;//ick: could use some refinement why error is overridden if first measurement fails for any reason.
       }
 
       /* The range is valid when RangeStatus = 0 */
       if (RangingMeasurementData.RangeStatus == 0) {
         sum_ranging += RangingMeasurementData.RangeMilliMeter;
-        sum_signalRate.raw += RangingMeasurementData.SignalRateRtnMegaCps.raw;
+        sum_signalRate += RangingMeasurementData.SignalRateRtnMegaCps;
         sum_spads += RangingMeasurementData.EffectiveSpadRtnCount / 256;
-        ++total_count.raw;
+        ++total_count;
       }
     }
     /* no valid values found */
-    if (total_count.raw == 0) {
+    if (total_count == 0) {
       return ERROR_RANGE_ERROR;
     }
 
     /* FixPoint1616_t / uint16_t = FixPoint1616_t */
-    FixPoint1616_t xTalkStoredMeanSignalRate = sum_signalRate.raw / total_count.raw;//ick: not rounded
-    FixPoint1616_t xTalkStoredMeanRange = (FixPoint1616_t) ( (sum_ranging << 16) / total_count);
-    FixPoint1616_t xTalkStoredMeanRtnSpads = (FixPoint1616_t) ((uint32_t) (sum_spads << 16) / total_count);
+    FixPoint1616_t xTalkStoredMeanSignalRate ( sum_signalRate,total_count,0);//ick: was not rounded prior to 980f
+    FixPoint1616_t xTalkStoredMeanRange (  sum_ranging, total_count);//round the division
+    FixPoint1616_t xTalkStoredMeanRtnSpads (sum_spads, total_count);
 
     /* Round Mean Spads to Whole Number.
      * Typically the calculated mean SPAD count is a whole number
@@ -101,40 +108,40 @@ namespace VL53L0X {
      * of accuracy of less than
      * 0.5%.
      */
-    uint32_t xTalkStoredMeanRtnSpadsAsInt = (xTalkStoredMeanRtnSpads + 0x8000) >> 16;
+    uint32_t xTalkStoredMeanRtnSpadsAsInt = roundedScale(xTalkStoredMeanRtnSpads , 16);
 
     /* Round Cal Distance to Whole Number.
      * Note that the cal distance is in mm, therefore no resolution
      * is lost.*/
-    uint32_t xTalkCalDistanceAsInt = (XTalkCalDistance + 0x8000) >> 16;
+    uint32_t xTalkCalDistanceAsInt = roundedScale(XTalkCalDistance, 16);
     FixPoint1616_t XTalkCompensationRateMegaCps;
 
     if (xTalkStoredMeanRtnSpadsAsInt == 0 || xTalkCalDistanceAsInt == 0 || xTalkStoredMeanRange >= XTalkCalDistance) {
-      XTalkCompensationRateMegaCps = 0;
+      XTalkCompensationRateMegaCps = 0.0F;
     } else {
       /* Round Cal Distance to Whole Number.
        *  Note that the cal distance is in mm, therefore no
        *  resolution is lost.*/
-      xTalkCalDistanceAsInt = (XTalkCalDistance + 0x8000) >> 16;
+      xTalkCalDistanceAsInt = roundedScale(XTalkCalDistance , 16);
 
       /* Apply division by mean spad count early in the
        * calculation to keep the numbers small.
        * This ensures we can maintain a 32bit calculation.
        * Fixed1616 / int := Fixed1616 */
-      uint32_t signalXTalkTotalPerSpad = (xTalkStoredMeanSignalRate) / xTalkStoredMeanRtnSpadsAsInt;
+      uint32_t signalXTalkTotalPerSpad = (xTalkStoredMeanSignalRate) / xTalkStoredMeanRtnSpadsAsInt;//ick: round divide
 
       /* Complete the calculation for total Signal XTalk per
        * SPAD
        * Fixed1616 * (Fixed1616 - Fixed1616/int) :=
        * (2^16 * Fixed1616)
        */
-      signalXTalkTotalPerSpad *= ((1 << 16) - (xTalkStoredMeanRange / xTalkCalDistanceAsInt));
+      signalXTalkTotalPerSpad *= (Unity.raw - (xTalkStoredMeanRange / xTalkCalDistanceAsInt));//ick: round divide
 
       /* Round from 2^16 * Fixed1616, to Fixed1616. */
-      XTalkCompensationRateMegaCps = (signalXTalkTotalPerSpad + 0x8000) >> 16;
+      XTalkCompensationRateMegaCps = roundedScale(signalXTalkTotalPerSpad, 16);
     }
 
-    *pXTalkCompensationRateMegaCps = XTalkCompensationRateMegaCps;
+    pXTalkCompensationRateMegaCps = XTalkCompensationRateMegaCps;
     ERROR_OUT;
     /* Enable the XTalk compensation */
     Error = SetXTalkCompensationEnable(1);
@@ -148,10 +155,10 @@ namespace VL53L0X {
     if (CalDistanceMilliMeter.raw <= 0) {
       return ERROR_INVALID_PARAMS;
     }
-    Error Error = SetOffsetCalibrationDataMicroMeter( 0);
+    ErrorAccumulator Error = SetOffsetCalibrationDataMicroMeter( 0);
     ERROR_OUT;
     /* Get the value of the TCC */
-    bool SequenceStepEnabled= GetSequenceStepEnable( SEQUENCESTEP_TCC, &SequenceStepEnabled);
+    bool SequenceStepEnabled= GetSequenceStepEnable( SEQUENCESTEP_TCC);
     ERROR_OUT;
     /* Disable the TCC */
     Error = SetSequenceStepEnable( SEQUENCESTEP_TCC, 0);
@@ -161,7 +168,7 @@ namespace VL53L0X {
     ERROR_OUT;
     /* Perform 50 measurements and compute the averages */
     uint16_t sum_ranging = 0;
-    FixPoint1616_t total_count = 0;
+    uint32_t total_count = 0;
     for (int meas = 0; meas < 50; meas++) {
       RangingMeasurementData_t RangingMeasurementData;
       Error = PerformSingleRangingMeasurement( &RangingMeasurementData);
@@ -179,7 +186,7 @@ namespace VL53L0X {
       return ERROR_RANGE_ERROR;
     }
     /* FixPoint1616_t / uint16_t = FixPoint1616_t */
-    FixPoint1616_t StoredMeanRange = (FixPoint1616_t) ((uint32_t) (boost(sum_ranging, 16) / total_count.raw);
+    FixPoint1616_t StoredMeanRange  (sum_ranging,total_count);
     uint32_t StoredMeanRangeAsInt = StoredMeanRange.shrink(16);
 
     /* Round Cal Distance to Whole Number.
@@ -201,53 +208,45 @@ namespace VL53L0X {
   } // VL53L0X_perform_offset_calibration
 
   Error Api::set_offset_calibration_data_micro_meter( int32_t OffsetCalibrationDataMicroMeter) {
-    const int32_t cMaxOffsetMicroMeter = 511000;
-    const int32_t cMinOffsetMicroMeter = -512000;
-
-    LOG_FUNCTION_START
-    ("");
-    //coerce into bounds
-    if (OffsetCalibrationDataMicroMeter > cMaxOffsetMicroMeter) {
-      OffsetCalibrationDataMicroMeter = cMaxOffsetMicroMeter;
-    } else if (OffsetCalibrationDataMicroMeter < cMinOffsetMicroMeter) {
-      OffsetCalibrationDataMicroMeter = cMinOffsetMicroMeter;
-    }
-
+//BUG:    const int32_t cMaxOffsetMicroMeter = 511000;//effectively 2044 rather than 2047 for max positive value.
+    LOG_FUNCTION_START;
     /* The offset register is 10.2 format and units are mm
      * therefore conversion is applied by a division of
-     * 250.
+     * 250.  (1000/4)
      */
-    const int16_t cOffsetRange = 4096;
-    uint32_t encodedOffsetVal = (OffsetCalibrationDataMicroMeter / 250) + ((OffsetCalibrationDataMicroMeter >= 0) ? 0 : cOffsetRange);
-    Error Error = comm.WrWord( REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, encodedOffsetVal);
+    OffsetCalibrationDataMicroMeter/=250; //divide by 1000 and multiply by 4
+    if(OffsetCalibrationDataMicroMeter > cOffsetMax) {
+      OffsetCalibrationDataMicroMeter = cOffsetMax;
+    } else if (OffsetCalibrationDataMicroMeter < cOffsetMin) {
+      OffsetCalibrationDataMicroMeter = cOffsetMin;
+    }
 
-    return Error;
+    return  comm.WrWord( REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, OffsetCalibrationDataMicroMeter&cOffsetMask);
   } // VL53L0X_set_offset_calibration_data_micro_meter
 
-  Error Api::get_offset_calibration_data_micro_meter( int32_t *pOffsetCalibrationDataMicroMeter) {
-    const int16_t cMaxOffset = 2047;
-    const int16_t cOffsetRange = 4096;
-
-    /* Note that offset has 10.2 format */
-    uint16_t RangeOffsetRegister;
+  Erroneous<int32_t > Api::get_offset_calibration_data_micro_meter( ) {
     Error Error = ERROR_NONE;
-
-    Error = comm.RdWord( REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, &RangeOffsetRegister);
-    ERROR_OUT;
-    RangeOffsetRegister &= 0x0fff;
-    /* Apply 12 bit 2's compliment conversion */
-    *pOffsetCalibrationDataMicroMeter = 250 * (int16_t) (RangeOffsetRegister - RangeOffsetRegister > cMaxOffset ? cOffsetRange : 0);
-    return ERROR_NONE;
+    Erroneous<uint16_t> RangeOffsetRegister;
+    if(fetch(RangeOffsetRegister, REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM)){
+//      int32_t fluffer=;//signed in 12 lsbs, need to sign extend
+      /* Apply 12 bit 2's compliment conversion */
+      bool isNegative=getBit<11>(RangeOffsetRegister.wrapped);
+      if(isNegative){
+        RangeOffsetRegister|= -(1<<12);
+      }
+      return  RangeOffsetRegister*250;
+    } else {
+      return {RangeOffsetRegister.error};
+    }
   } // VL53L0X_get_offset_calibration_data_micro_meter
 
   Error Api::apply_offset_adjustment() {
     /* if we run on this function we can read all the NVM info used by the API */
-    Error Error = get_info_from_device( 7);
+    ErrorAccumulator Error = get_info_from_device( 7);
     ERROR_OUT;
     /* Read back current device offset */
     Erroneous<int32_t> CurrentOffsetMicroMeters = GetOffsetCalibrationDataMicroMeter();
-
-    ERROR_OUT;
+    ERROR_ON(CurrentOffsetMicroMeters);
     /* Apply Offset Adjustment derived from 400mm measurements */
     /* Store initial device offset */
     PALDevDataSet( Part2PartOffsetNVMMicroMeter, CurrentOffsetMicroMeters);
@@ -261,38 +260,13 @@ namespace VL53L0X {
     return ERROR_NONE;
   } // VL53L0X_apply_offset_adjustment
 
-  void Api::get_next_good_spad(uint8_t goodSpadArray[], uint32_t size, uint32_t curr, int32_t *next) {
-    /*
-     * Starting with the current good spad, loop through the array to find
-     * the next. i.e. the next bit set in the sequence.
-     *
-     * The coarse index is the byte index of the array and the fine index is
-     * the index of the bit within each byte.
-     */
-    unsigned startIndex = curr / cSpadsPerByte;
-    unsigned fineOffset = curr % cSpadsPerByte;
-
-    for (unsigned coarseIndex = startIndex; coarseIndex < size; coarseIndex++) {
-      unsigned fineIndex = 0;
-      uint8_t dataByte = goodSpadArray[coarseIndex];
-
-      if (coarseIndex == startIndex) {
-        /* locate the bit position of the provided current
-         * spad bit before iterating */
-        dataByte >>= fineOffset;
-        fineIndex = fineOffset;
-      }
-
-      while (fineIndex < cSpadsPerByte) {
-        if (dataByte & 0x1) {
-          *next = coarseIndex * cSpadsPerByte + fineIndex;
-          return;
-        }
-        dataByte >>= 1;
-        fineIndex++;
+  SpadArray::Index Api::get_next_good_spad(SpadArray goodSpadArray,  SpadArray::Index curr) {
+    for(;curr.isValid();++curr) {
+      if(goodSpadArray.get(curr)) {
+        return curr;
       }
     }
-    *next = -1;
+    return ~0;//canonical ! isValid()
   } // get_next_good_spad
 
   bool is_aperture(unsigned int spadIndex) {
@@ -317,13 +291,11 @@ namespace VL53L0X {
      * Checks are performed to ensure this.
      */
     Error Error = ERROR_NONE;
-    uint32_t currentSpad = offset;
+    unsigned  currentSpad = offset;
     for (uint32_t index = 0; index < spadCount; index++) {
-      int32_t nextGoodSpad;
-      get_next_good_spad(goodSpadArray,  currentSpad, &nextGoodSpad);
-
-      if (nextGoodSpad == -1) {
-        Error = ERROR_REF_SPAD_INIT;
+      unsigned nextGoodSpad= get_next_good_spad(goodSpadArray,  currentSpad);
+      if (nextGoodSpad == ~0) {
+        return ERROR_REF_SPAD_INIT;
         break;
       }
 
@@ -335,27 +307,25 @@ namespace VL53L0X {
         Error = ERROR_REF_SPAD_INIT;
         break;
       }
-      currentSpad = (uint32_t) nextGoodSpad;
+      currentSpad = nextGoodSpad;
       enable_spad_bit(spadArray, currentSpad);
-      currentSpad++;
+      ++currentSpad;
     }
+
     *lastSpad = currentSpad;
-    ERROR_OUT;
     Error = set_ref_spad_map( spadArray);
-    ERROR_OUT;
 
     SpadArray checkSpadArray;
     Error = get_ref_spad_map( checkSpadArray);
     /* Compare spad maps. If not equal report error. */
    if( spadArray != checkSpadArray) {
         return ERROR_REF_SPAD_INIT;
-
     }
 
     return ERROR_NONE;
   } // enable_ref_spads
 
-  Error Api::perform_ref_signal_measurement( uint16_t *refSignalRate) {
+  Erroneous<uint16_t> Api::perform_ref_signal_measurement( ) {
     /* store the value of the sequence config,
      * this will be reset before the end of the function
      */
@@ -363,25 +333,21 @@ namespace VL53L0X {
     /*
      * This function performs a reference signal rate measurement.
      */
-    ErrorAccumulator Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, 0xC0);
+    ErrorAccumulator Error = set_SequenceConfig(0xC0, true);//908f: now also sets PALDevData
     ERROR_OUT;
 
     RangingMeasurementData_t rangingMeasurementData;
     Error = PerformSingleRangingMeasurement( &rangingMeasurementData);
-    //BUG: object ignored above.
-    ERROR_OUT;
-    Error = comm.WrByte( 0xFF, 0x01);
-    ERROR_OUT;
-    Error = comm.RdWord( REG_RESULT_PEAK_SIGNAL_RATE_REF, refSignalRate);
-    ERROR_OUT;
-    Error = comm.WrByte( 0xFF, 0x00);
-    ERROR_OUT;
-    /* restore the previous Sequence Config */
-    Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
-    ERROR_OUT;
-    PALDevDataSet( SequenceConfig, SequenceConfig);
+    //ick: object ignored above, will fetch result from registers, that apparently isn't part of RMD_t
+    ERROR_OUT; //BUG: on any error other than the first the  REG_SYSTEM_SEQUENCE_CONFIG is not restored!
 
-    return Error;
+    auto refSignalRate =FFread<uint16_t>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
+    EXIT_ON(refSignalRate);
+    /* restore the previous Sequence Config */
+    Error= set_SequenceConfig(SequenceConfig, true);
+    ERROR_OUT;//loses refSignalRate which might be fine.
+
+    return refSignalRate;
   } // perform_ref_signal_measurement
 
 
@@ -418,13 +384,12 @@ namespace VL53L0X {
     //ick: lots of errors but we enable the ref spads anyway? If we shouldn't then we can apply ERROR_OUT above.
     //note: all of the above errors will never happen due to all errors being suppressed in the present i2c interface.
     //ick: we lose all the errors in the above if we proceed.
-    uint32_t lastSpadIndex;
-    Error = enable_ref_spads( isApertureSpads, Dev->Data.SpadData.RefGoodSpadMap, Dev->Data.SpadData.RefSpadEnables, spadArraySize, startSelect, currentSpadIndex, count, &lastSpadIndex);
-    ERROR_OUT;
-    VL53L0X_SETDEVICESPECIFICPARAMETER( RefSpadsInitialised, 1);
-    VL53L0X_SETDEVICESPECIFICPARAMETER( ReferenceSpadCount, (uint8_t) (count));
-    VL53L0X_SETDEVICESPECIFICPARAMETER( ReferenceSpadType, isApertureSpads);
 
+    Erroneous<unsigned > ignoredvalue= enable_ref_spads( isApertureSpads, Data.SpadData.RefGoodSpadMap,Data.SpadData.RefSpadEnables, currentSpadIndex, count, &lastSpadIndex);
+    ERROR_ON(ignoredvalue);
+    VL53L0X_SETDEVICESPECIFICPARAMETER( RefSpadsInitialised, true);
+    VL53L0X_SETDEVICESPECIFICPARAMETER( ReferenceSpadCount, count);
+    VL53L0X_SETDEVICESPECIFICPARAMETER( ReferenceSpadType, isApertureSpads);
     return ERROR_NONE;
   } // VL53L0X_set_reference_spads
 
@@ -476,7 +441,7 @@ namespace VL53L0X {
     return comm.WrByte( REG_SYSRANGE_START, 0x00);
   } // VL53L0X_perform_single_ref_calibration
 
-  Error Api::ref_calibration_io( uint8_t read_not_write, uint8_t VhvSettings, uint8_t PhaseCal, uint8_t *pVhvSettings, uint8_t *pPhaseCal, const uint8_t vhv_enable, const uint8_t phase_enable) {
+  Error Api::ref_calibration_io( bool read_else_write, uint8_t VhvSettings, uint8_t PhaseCal, uint8_t *pVhvSettings, uint8_t *pPhaseCal, const uint8_t vhv_enable, const uint8_t phase_enable) {
     ErrorAccumulator Error = ERROR_NONE;
 
 
@@ -533,10 +498,7 @@ namespace VL53L0X {
 
     if ( restore_config) {
       /* restore the previous Sequence Config */
-      Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
-      if (!Error) {
-        PALDevDataSet( SequenceConfig, SequenceConfig);
-      }
+      Error = set_SequenceConfig(SequenceConfig, true);
     }
 
     return Error;
@@ -548,7 +510,7 @@ namespace VL53L0X {
     uint8_t SequenceConfig = restore_config ? PALDevDataGet( SequenceConfig) : 0;
 
     /* Run PhaseCal */
-    Error Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, 0x02);
+    Error Error = set_SequenceConfig(0x02, true);//980f: now updates PALDevData
 
     if (Error == ERROR_NONE) {
       Error = perform_single_ref_calibration( 0x0);
@@ -564,10 +526,7 @@ namespace VL53L0X {
 
     if ((Error == ERROR_NONE) && restore_config) {
       /* restore the previous Sequence Config */
-      Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
-      if (Error == ERROR_NONE) {
-        PALDevDataSet( SequenceConfig, SequenceConfig);
-      }
+      Error = set_SequenceConfig(SequenceConfig, true);
     }
 
     return Error;

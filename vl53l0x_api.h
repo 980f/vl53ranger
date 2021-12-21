@@ -36,6 +36,8 @@
 #include "vl53l0x_api_core.h" //extends this
 #include "vl53l0x_platform_log.h"
 
+#define  VL53L0X_NYI   return LOG_ERROR(ERROR_NOT_IMPLEMENTED);
+
 namespace VL53L0X {
 
   /** division of Api and Core seems arbitrary. Might make Core a member to hide it if that was the intent of the orignal API developers. */
@@ -370,21 +372,18 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error SetTuningSettingBuffer(uint8_t *pTuningSettingBuffer, bool UseInternalTuningSettings);
+    Error SetTuningSettingBuffer(const uint8_t *pTuningSettingBuffer, bool UseInternalTuningSettings);
 
 /**
- * @brief Get the tuning settings pointer and the internal external switch
- * value.
+ * @brief Get the tuning settings pointer and the internal external switch value.
  *
- * This function is used to get the Tuning settings buffer pointer and the
- * value.
- * of the switch to select either external or internal tuning settings.
+ * This function is used to get the Tuning settings buffer pointer if not set to internal.
  *
  * @note This function DOES NOT Access to the device
  *
  * @return  pointer if not 'use internal' else nullptr
  */
-    uint8_t *GetTuningSettingBuffer();
+    const uint8_t *GetTuningSettingBuffer();//todo: bool to get the internal one regardless of enable
 
 /**
  * @brief Do basic device init (and eventually patch loading)
@@ -410,7 +409,9 @@ namespace VL53L0X {
  * @return  ERROR_NOT_IMPLEMENTED Not implemented
  *
  */
-    Error WaitDeviceBooted();
+    Error WaitDeviceBooted(){
+      VL53L0X_NYI;
+    }
 
 /**
  * @brief Do an hard reset or soft reset (depending on implementation) of the
@@ -462,7 +463,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error GetDeviceParameters(DeviceParameters_t &pDeviceParameters);
+    Erroneous<DeviceParameters_t> GetDeviceParameters( );
 
 /**
  * @brief  Set a new device mode
@@ -511,7 +512,7 @@ namespace VL53L0X {
  * @return  ERROR_MODE_NOT_SUPPORTED     This error occurs when
  * DeviceMode is not in the supported list
  */
-    Error GetDeviceMode(DeviceModes &pDeviceMode);
+    DeviceModes GetDeviceMode();
 
 /**
  * @brief  Sets the resolution of range measurements.
@@ -547,7 +548,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                   Success
  * @return  "Other error code"                  See ::Error
  */
-    Error GetFractionEnable(bool &pEnable);
+    Erroneous<bool> GetFractionEnable();
 
 /**
  * @brief  Set a new Histogram mode
@@ -570,7 +571,9 @@ namespace VL53L0X {
  * HistogramMode is not in the supported list
  * @return  "Other error code"    See ::Error
  */
-    Error SetHistogramMode(HistogramModes HistogramMode);
+    Error SetHistogramMode(HistogramModes HistogramMode){
+      VL53L0X_NYI
+    }
 
 /**
  * @brief  Get current new device mode
@@ -590,7 +593,9 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error GetHistogramMode(HistogramModes *pHistogramMode);
+    HistogramModes GetHistogramMode(){
+      return HISTOGRAMMODE_DISABLED;//NYI
+    }
 
 /**
  * @brief Set Ranging Timing Budget in microseconds
@@ -635,7 +640,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                      Success
  * @return  "Other error code"                     See ::Error
  */
-    Error GetMeasurementTimingBudgetMicroSeconds(uint32_t *pMeasurementTimingBudgetMicroSeconds);
+    Erroneous<uint32_t> GetMeasurementTimingBudgetMicroSeconds( );
 
 /**
  * @brief Gets the VCSEL pulse period.
@@ -653,7 +658,7 @@ namespace VL53L0X {
  *                                       supported.
  * @return  "Other error code"           See ::Error
  */
-    Error GetVcselPulsePeriod(VcselPeriod VcselPeriodType, uint8_t *pVCSELPulsePeriod);
+    Erroneous<uint8_t> GetVcselPulsePeriod(VcselPeriod VcselPeriodType);
 
 /**
  * @brief Sets the VCSEL pulse period.
@@ -723,7 +728,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE            Success
  * @return  "Other error code"           See ::Error
  */
-    Error GetSequenceStepEnables(SchedulerSequenceSteps_t *pSchedulerSequenceSteps);
+    Erroneous<SchedulerSequenceSteps_t> GetSequenceStepEnables();
 
 /**
  * @brief Sets the timeout of a requested sequence step.
@@ -759,7 +764,7 @@ namespace VL53L0X {
  *                                       supported.
  * @return  "Other error code"           See ::Error
  */
-    Error GetSequenceStepTimeout(SequenceStepId SequenceStepId, FixPoint1616_t *pTimeOutMilliSecs);
+    Erroneous<FixPoint1616_t> GetSequenceStepTimeout(SequenceStepId SequenceStepId);
 
 /**
  * @brief Gets number of sequence steps managed by the API.
@@ -776,7 +781,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE            Success
  * @return  "Other error code"           See ::Error
  */
-    static void GetNumberOfSequenceSteps(uint8_t *pNumberOfSequenceSteps);
+    static SequenceStepId GetNumberOfSequenceSteps();
 
 /**
  * @brief Gets the name of a given sequence step.
@@ -793,7 +798,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE            Success
  * @return  "Other error code"           See ::Error
  */
-    Error GetSequenceStepsInfo(SequenceStepId SequenceStepId, char *pSequenceStepsString);
+    const char * GetSequenceStepsInfo(SequenceStepId SequenceStepId);
 
 /**
  * Program continuous mode Inter-Measurement period in milliseconds
@@ -824,7 +829,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                    Success
  * @return  "Other error code"                   See ::Error
  */
-    Error GetInterMeasurementPeriodMilliSeconds(uint32_t pInterMeasurementPeriodMilliSeconds);
+    Erroneous<uint32_t> GetInterMeasurementPeriodMilliSeconds();
 
 /**
  * @brief Enable/Disable Cross talk compensation feature
@@ -838,7 +843,7 @@ namespace VL53L0X {
  *  to be set 0=disabled else = enabled
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Error SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable);
+    Error SetXTalkCompensationEnable(bool XTalkCompensationEnable);
 
 /**
  * @brief Get Cross talk compensation rate
@@ -852,7 +857,7 @@ namespace VL53L0X {
  *  state 0=disabled or 1 = enabled
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Error GetXTalkCompensationEnable(uint8_t *pXTalkCompensationEnable);
+    Erroneous<bool> GetXTalkCompensationEnable();
 
 /**
  * @brief Set Cross talk compensation rate
@@ -884,7 +889,12 @@ namespace VL53L0X {
  * @return  ERROR_NONE              Success
  * @return  "Other error code"             See ::Error
  */
-    Error GetXTalkCompensationRateMegaCps(FixPoint1616_t *pXTalkCompensationRateMegaCps);
+    Erroneous<FixPoint1616_t> GetXTalkCompensationRateMegaCps( );
+
+    struct CalibrationParameters{
+      uint8_t VhvSettings;
+      uint8_t PhaseCal;
+    };
 
 /**
  * @brief Set Reference Calibration Parameters
@@ -900,7 +910,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE              Success
  * @return  "Other error code"             See ::Error
  */
-    Error SetRefCalibration(uint8_t VhvSettings, uint8_t PhaseCal);
+    Error SetRefCalibration(CalibrationParameters refParams);
 
 /**
  * @brief Get Reference Calibration Parameters
@@ -916,7 +926,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE              Success
  * @return  "Other error code"             See ::Error
  */
-    Error GetRefCalibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal);
+    Erroneous<CalibrationParameters> GetRefCalibration();
 
 /**
  * @brief  Get the number of the check limit managed by a given Device
@@ -930,7 +940,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    Error GetNumberOfLimitCheck(uint16_t *pNumberOfLimitCheck);
+    CheckEnable GetNumberOfLimitCheck();
 
 /**
  * @brief  Return a description string for a given limit check number
@@ -951,7 +961,7 @@ namespace VL53L0X {
  *  returned when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Error GetLimitCheckInfo(uint16_t LimitCheckId, char *pLimitCheckString);
+    const char * GetLimitCheckInfo(CheckEnable LimitCheckId);
 
 /**
  * @brief  Return a the Error of the specified check limit
@@ -977,7 +987,7 @@ namespace VL53L0X {
  *  returned when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Error GetLimitCheckStatus(uint16_t LimitCheckId, uint8_t *pLimitCheckStatus);
+    Erroneous<bool> GetLimitCheckStatus(CheckEnable LimitCheckId);
 
 /**
  * @brief  Enable/Disable a specific limit check
@@ -1000,7 +1010,7 @@ namespace VL53L0X {
  *  when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Error SetLimitCheckEnable(uint16_t LimitCheckId, uint8_t LimitCheckEnable);
+    Error SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable);
 
 
 /**
@@ -1022,29 +1032,9 @@ namespace VL53L0X {
  *  LimitCheckId or LimitCheckValue value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Error SetLimitCheckValue(uint16_t LimitCheckId, FixPoint1616_t LimitCheckValue);
+    Error SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint1616_t LimitCheckValue);
 
-/**
- * @brief  Get a specific limit check value
- *
- * @par Function Description
- * This function get a specific limit check value from device then it updates
- * internal values and check enables.
- * The limit check is identified with the LimitCheckId.
- *
- * @note This function Access to the device
- *
- * @param   Dev                           Device Handle
- * @param   LimitCheckId                  Limit Check ID
- *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
- * @param   pLimitCheckValue              Pointer to Limit
- *  check Value for a given LimitCheckId.
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is returned
- *  when LimitCheckId value is out of range.
- * @return  "Other error code"            See ::Error
- */
-    Error GetLimitCheckValue(uint16_t LimitCheckId, FixPoint1616_t *pLimitCheckValue);
+
 
 /**
  * @brief  Get the current value of the signal used for the limit check
@@ -1080,7 +1070,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE      Success
  * @return  "Other error code"     See ::Error
  */
-    Error SetWrapAroundCheckEnable(uint8_t WrapAroundCheckEnable);
+    Error SetWrapAroundCheckEnable(bool WrapAroundCheckEnable);
 
 /**
  * @brief  Get setup of Wrap around Check
@@ -1096,7 +1086,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE       Success
  * @return  "Other error code"      See ::Error
  */
-    Error GetWrapAroundCheckEnable(uint8_t *pWrapAroundCheckEnable);
+    Erroneous<bool> GetWrapAroundCheckEnable();
 
 /**
  * @brief   Set Dmax Calibration Parameters for a given device
@@ -1175,7 +1165,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Error PerformRefCalibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal);
+    Error PerformRefCalibration(CalibrationParameters *c);
 
 /**
  * @brief Perform XTalk Measurement
@@ -1637,7 +1627,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE      Success
  * @return  "Other error code"     See ::Error
  */
-    Error GetInterruptMaskStatus(uint32_t *pInterruptMaskStatus);
+    Erroneous<uint8_t> GetInterruptMaskStatus();
 
 /**
  * @brief Configure ranging interrupt reported to system
@@ -1720,6 +1710,11 @@ namespace VL53L0X {
  */
     Error GetSpadAmbientDamperFactor(uint16_t *pSpadAmbientDamperFactor);
 
+    struct SpadInfo {
+      unsigned count;
+      bool isAperture;//are aperture?
+    };
+
 /**
  * @brief Performs Reference Spad Management
  *
@@ -1742,7 +1737,7 @@ namespace VL53L0X {
  * @return  ERROR_REF_SPAD_INIT   Error in the Ref Spad procedure.
  * @return  "Other error code"           See ::Error
  */
-    Error PerformRefSpadManagement(uint32_t *refSpadCount, uint8_t *isApertureSpads);
+    Erroneous<SpadInfo> PerformRefSpadManagement();
 
 /**
  * @brief Applies Reference SPAD configuration
@@ -1765,7 +1760,7 @@ namespace VL53L0X {
  *                                       spad configuration.
  * @return  "Other error code"           See ::Error
  */
-    Error SetReferenceSpads(uint32_t refSpadCount, uint8_t isApertureSpads);
+    Error SetReferenceSpads(SpadInfo spad);
 
 /**
  * @brief Retrieves SPAD configuration
@@ -1786,7 +1781,7 @@ namespace VL53L0X {
  *                                       spad configuration.
  * @return  "Other error code"           See ::Error
  */
-    Error GetReferenceSpads(uint32_t *refSpadCount, uint8_t *isApertureSpads);
+    Erroneous<SpadInfo> GetReferenceSpads();
 
 /** @} SPADfunctions_group */
 
@@ -1817,15 +1812,19 @@ namespace VL53L0X {
 
     Error perform_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable);
 
-    Error set_ref_calibration(uint8_t VhvSettings, uint8_t PhaseCal);
+    Error set_ref_calibration(CalibrationParameters p);
 
-    Error get_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal);
+    Erroneous<CalibrationParameters> get_ref_calibration();
 
     Erroneous <FixPoint1616_t> GetTotalSignalRate();
     Error waitOnResetIndicator( bool disappear);
-    DeviceModes GetDeviceMode();
+
     unsigned int GetMaxNumberOfROIZones();
     unsigned int GetNumberOfROIZones();
+
+    SpadArray::Index get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr);
+
+    Error initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
   };
 }//end namespace
 #endif /* __H_ */
