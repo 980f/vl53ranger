@@ -410,8 +410,10 @@ namespace VL53L0X {
     Tunings pTuningSettingsPointer;     /*!< Pointer for Tuning Settings table */
     uint8_t UseInternalTuningSettings;     /*!< Indicate if we use	 Tuning Settings table */
     uint16_t LinearityCorrectiveGain;     /*!< Linearity Corrective Gain value in x1000 */
-    uint16_t DmaxCalRangeMilliMeter;     /*!< Dmax Calibration Range millimeter */
-    FixPoint1616_t DmaxCalSignalRateRtnMegaCps;     /*!< Dmax Calibration Signal Rate Return MegaCps */
+    struct DmaxCal {
+      uint16_t RangeMilliMeter;     /*!< Dmax Calibration Range millimeter */
+      FixPoint1616_t SignalRateRtnMegaCps;     /*!< Dmax Calibration Signal Rate Return MegaCps */
+    }dmaxCal;
 
   };
 

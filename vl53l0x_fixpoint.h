@@ -60,12 +60,14 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     raw=stuff;
   }
 
-  /** two ints init item to ratio, with boost of numerator by @param boostit which defaults to 16*/
+  /** two ints init item to ratio, with boost of numerator by @param boostit which defaults to fract, which treats num  as an integer value */
   template <typename IntishUp,typename IntishDown>
-  constexpr FixPoint(IntishUp num,IntishDown denom,unsigned boostit=16){
+  constexpr FixPoint(IntishUp num,IntishDown denom,unsigned boostit=fract){
     raw=num;//expand to 32 bits asap.
     boost(boostit);
-    divideby(denom);
+    if(denom!=1){//do not round if denom is 1, which would only make a difference if boostit != fract
+      divideby(denom);
+    }
   }
 
   constexpr FixPoint(float eff) {

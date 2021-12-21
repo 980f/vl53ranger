@@ -795,8 +795,8 @@ namespace VL53L0X {
 
     LOG_FUNCTION_START;
 
-    uint32_t dmaxCalRange_mm = PALDevDataGet(DmaxCalRangeMilliMeter);
-    FixPoint1616_t dmaxCalSignalRateRtn_mcps = PALDevDataGet(DmaxCalSignalRateRtnMegaCps);
+    uint32_t dmaxCalRange_mm = PALDevDataGet(dmaxCal.RangeMilliMeter);//goes from 16 to 32 bits.
+    FixPoint1616_t dmaxCalSignalRateRtn_mcps = PALDevDataGet(dmaxCal.SignalRateRtnMegaCps);
 
     /* uint32 * FixPoint1616 = FixPoint1616 */
 
@@ -896,18 +896,18 @@ namespace VL53L0X {
      * handle the larger and smaller elements of this equation,
      * i.e. speed of light and pulse widths.
      */
-    minSignalNeeded = roundedDivide(minSignalNeeded, 1000);
+    minSignalNeeded = roundedDivide(minSignalNeeded, 1000U);
     minSignalNeeded.boost(4);
     minSignalNeeded = roundedDivide(minSignalNeeded, 1000);//BUG: perhaps 980F screwed this up? Rounding each division by 1000 to get to /1000,000 is wrong if rounded twice.
 
     /* FixPoint2408/FixPoint2408 = uint32 */
-    FixPoint1616_t dmaxAmbient = isqrt(roundedDivide(SignalAt0mm.raw, minSignalNeeded));
+    FixPoint1616_t dmaxAmbient = isqrt(roundedDivide(SignalAt0mm.raw, minSignalNeeded.raw));
 
     /* FixPoint1616 >> 8 = FixPoint2408 */
     FixPoint1616_t signalLimitTmp = cSignalLimit.scaled(8);
 
     /* FixPoint2408/FixPoint2408 = uint32 */
-    FixPoint1616_t dmaxDark = isqrt(roundedDivide(SignalAt0mm.raw, signalLimitTmp));//former check for zero moved into roundedDivide
+    FixPoint1616_t dmaxDark = isqrt(roundedDivide(SignalAt0mm.raw, signalLimitTmp.raw));//former check for zero moved into roundedDivide
 
     dmaxDark.lessen(dmaxAmbient);
     return dmaxDark.raw;

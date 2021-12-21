@@ -24,15 +24,26 @@ public:
     uint8_t coarse;
     uint8_t fine;
 
-    Index(unsigned bitnumber) : coarse(bitnumber / 8), fine(bitnumber % 8) {
+    Index(unsigned bitnumber=0) : coarse(bitnumber / 8), fine(bitnumber % 8) {
     }
 
+//  private:
+//    Index(uint8_t coarse,uint8_t fine):coarse(coarse),fine(fine){}
+//  public:
     Index &operator++() {
       if (++fine >= 8) {
         fine = 0;
         ++coarse;
       }
       return *this;
+    }
+
+    unsigned absolute()const {
+      return (coarse<<3)+fine;
+    }
+
+    Index operator +(const Index &other) const{
+      return absolute()+other.absolute();
     }
 
     bool isValid() const {
@@ -47,8 +58,8 @@ public:
   }
 
   void clear() {
-    for (unsigned i = 0; i < NumberOfBytes; ++i) {
-      raw[i] = 0;
+    for (unsigned char & i : raw) {
+      i = 0;
     }
   }
 
@@ -57,14 +68,10 @@ public:
   }
 
   void set(Index bitly, bool enableit) {
-    if (enableit) {
-      raw[bitly.coarse] |= 1 << bitly.fine;
-    } else {
-      raw[bitly.coarse] &= ~(1 << bitly.fine);
-    }
+    BitAlias (raw[bitly.coarse],bitly.fine)=enableit;
   }
 
-  void enable(unsigned spadIndex) {
+  void enable(Index spadIndex) {
     set(spadIndex, 1);
   }
 
@@ -77,6 +84,10 @@ public:
       }
     }
     return true;
+  }
+
+  bool operator!=(const SpadArray &rhs) const {
+    return !((*this)==(rhs));
   }
 
   class Pointer{

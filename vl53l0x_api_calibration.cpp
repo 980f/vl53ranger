@@ -38,13 +38,12 @@
 #define REF_ARRAY_SPAD_5 5
 #define REF_ARRAY_SPAD_10 10
 
-//there are 64 spads per quadrant. This array seems to be where the aperture is in the related quadrant
+//there are 64 spads per quadrant. quadrant 2 seems to be aperture, the rest not.
 const uint32_t refArrayQuadrants[4] = {REF_ARRAY_SPAD_10, REF_ARRAY_SPAD_5, REF_ARRAY_SPAD_0, REF_ARRAY_SPAD_5};
-
-static const unsigned startSelect = 180;// was 0xB4 but is not a bit pattern, rather it is a decimal number
-
-static const unsigned minimumSpadCount = 3;
-
+//are y used anywhere else?:
+#undef REF_ARRAY_SPAD_0
+#undef REF_ARRAY_SPAD_5
+#undef REF_ARRAY_SPAD_10
 
 namespace VL53L0X {
 
@@ -269,18 +268,18 @@ namespace VL53L0X {
     return ~0;//canonical ! isValid()
   } // get_next_good_spad
 
-  bool is_aperture(unsigned int spadIndex) {
+  bool is_aperture(SpadArray::Index spadIndex) {
     /*
      * This function reports if a given spad index is an aperture SPAD by
      * deriving the quadrant.
      */
-    return refArrayQuadrants[spadIndex >> 6] != REF_ARRAY_SPAD_0;
+    return refArrayQuadrants[spadIndex.absolute() >> 6] != /*REF_ARRAY_SPAD_*/0;
   }
 
 
 
 
-  Error Api::enable_ref_spads( bool apertureSpads, SpadArray goodSpadArray, SpadArray spadArray,  unsigned start, unsigned offset, unsigned spadCount, unsigned *lastSpad) {
+  Erroneous<SpadArray::Index> Api::enable_ref_spads( bool apertureSpads, SpadArray goodSpadArray, SpadArray spadArray,  SpadArray::Index start, SpadArray::Index offset, unsigned spadCount) {
     /*
      * This function takes in a spad array which may or may not have SPADS
      * already enabled and appends from a given offset a requested number
@@ -291,14 +290,13 @@ namespace VL53L0X {
      * Checks are performed to ensure this.
      */
     Error Error = ERROR_NONE;
-    unsigned  currentSpad = offset;
+    SpadArray::Index lastSpad(~0);//start invalid
+    SpadArray::Index  currentSpad = offset;
     for (uint32_t index = 0; index < spadCount; index++) {
-      unsigned nextGoodSpad= get_next_good_spad(goodSpadArray,  currentSpad);
-      if (nextGoodSpad == ~0) {
-        return ERROR_REF_SPAD_INIT;
-        break;
+      auto nextGoodSpad= get_next_good_spad(goodSpadArray,  currentSpad);
+      if (!nextGoodSpad.isValid()) {
+        return {ERROR_REF_SPAD_INIT};//seems excessive, we just went past the last
       }
-
       /* Confirm that the next good SPAD is non-aperture */
       if (is_aperture(start + nextGoodSpad) != apertureSpads) {
         /* if we can't get the required number of good aperture
@@ -307,12 +305,11 @@ namespace VL53L0X {
         Error = ERROR_REF_SPAD_INIT;
         break;
       }
-      currentSpad = nextGoodSpad;
-      enable_spad_bit(spadArray, currentSpad);
-      ++currentSpad;
+
+      spadArray.enable(nextGoodSpad);
+      currentSpad = ++nextGoodSpad;//without the incr we would spin forever
     }
 
-    *lastSpad = currentSpad;
     Error = set_ref_spad_map( spadArray);
 
     SpadArray checkSpadArray;
@@ -322,7 +319,7 @@ namespace VL53L0X {
         return ERROR_REF_SPAD_INIT;
     }
 
-    return ERROR_NONE;
+    return currentSpad;
   } // enable_ref_spads
 
   Erroneous<uint16_t> Api::perform_ref_signal_measurement( ) {
@@ -382,10 +379,9 @@ namespace VL53L0X {
       }
     }
     //ick: lots of errors but we enable the ref spads anyway? If we shouldn't then we can apply ERROR_OUT above.
-    //note: all of the above errors will never happen due to all errors being suppressed in the present i2c interface.
     //ick: we lose all the errors in the above if we proceed.
 
-    Erroneous<unsigned > ignoredvalue= enable_ref_spads( isApertureSpads, Data.SpadData.RefGoodSpadMap,Data.SpadData.RefSpadEnables, currentSpadIndex, count, &lastSpadIndex);
+    auto ignoredvalue= enable_ref_spads( isApertureSpads, Data.SpadData.RefGoodSpadMap,Data.SpadData.RefSpadEnables, currentSpadIndex, count);
     ERROR_ON(ignoredvalue);
     VL53L0X_SETDEVICESPECIFICPARAMETER( RefSpadsInitialised, true);
     VL53L0X_SETDEVICESPECIFICPARAMETER( ReferenceSpadCount, count);
@@ -441,119 +437,114 @@ namespace VL53L0X {
     return comm.WrByte( REG_SYSRANGE_START, 0x00);
   } // VL53L0X_perform_single_ref_calibration
 
-  Error Api::ref_calibration_io( bool read_else_write, uint8_t VhvSettings, uint8_t PhaseCal, uint8_t *pVhvSettings, uint8_t *pPhaseCal, const uint8_t vhv_enable, const uint8_t phase_enable) {
+  Erroneous<Api::CalibrationParameters> Api::get_ref_calibration(    const uint8_t vhv_enable, const uint8_t phase_enable) {
     ErrorAccumulator Error = ERROR_NONE;
-
-
     /* Read VHV from device */
-    Error |= comm.WrByte(0xFF, 0x01);
-    Error |= comm.WrByte(0x00, 0x00);
-    Error |= comm.WrByte(0xFF, 0x00);
+    Error |= FFwrap(RegSystem(0) ,uint8_t(0));
+
+      Erroneous<uint8_t> vhv(p.VhvSettings);
+      if (vhv_enable) {
+        if(fetch(vhv,RegSystem(0xCB))){
+          p.VhvSettings=vhv;
+        } else {
+          Error |=vhv.error;
+        }
+      }
+      Erroneous<uint8_t > phase(p.PhaseCal);
+      if (phase_enable) {
+        if(fetch(phase,RegSystem(0xEE))){
+          p.PhaseCal=phase;
+        } else {
+          Error |=phase.error;
+        }
+      }
+
+
+    Error |= FFwrap(RegSystem(0) ,uint8_t(1));
+
+    incoming.PhaseCal= PhaseCalint &~(1<<4);//kill bit 4
+
+    return {incoming, Error};
+  } //
+
+  Error Api::set_ref_calibration(  Api::CalibrationParameters &p,  const uint8_t vhv_enable, const uint8_t phase_enable) {
+    ErrorAccumulator Error = ERROR_NONE;
+    /* Read VHV from device */
+    Error |FFwrap(RegSystem(0) ,uint8_t(0));
     uint8_t PhaseCalint = 0;
-    if (read_not_write) {
       if (vhv_enable) {
-        Error |= comm.RdByte(0xCB, pVhvSettings);
+        Error |= comm.WrByte(0xCB, p.VhvSettings);
       }
       if (phase_enable) {
-        Error |= comm.RdByte(0xEE, &PhaseCalint);
+        Error |= comm.UpdateByte(0xEE, 1<<7, PhaseCal);//keep msb set ?
       }
-    } else {
-      if (vhv_enable) {
-        Error |= comm.WrByte(0xCB, VhvSettings);
-      }
-      if (phase_enable) {
-        Error |= comm.UpdateByte(0xEE, 0x80, PhaseCal);
-      }
-    }
 
-    Error |= comm.WrByte(0xFF, 0x01);
-    Error |= comm.WrByte(0x00, 0x01);
-    Error |= comm.WrByte(0xFF, 0x00);
+    Error |= FFwrap(RegSystem(0) ,uint8_t(1));
 
-    *pPhaseCal = (uint8_t) (PhaseCalint & 0xEF);
+    p.PhaseCal= PhaseCalint &~(1<<4);//kill bit 4
 
-    return Error;
-  } // VL53L0X_ref_calibration_io
+    return  Error;
+  }
 
-  Error Api::perform_vhv_calibration( uint8_t *pVhvSettings, const bool get_data_enable, const bool restore_config) {
+  Error Api::perform_vhv_calibration(  const bool get_data_enable, const bool restore_config) {
     /* store the value of the sequence config, this will be reset before the end of the function */
-    uint8_t SequenceConfig = restore_config ? PALDevDataGet(  SequenceConfig) : 0;
-    /* Run VHV */
-    ErrorAccumulator Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, 0x01);
+    SeqConfigStacker popper(*this,restore_config, 1<<0);
+    if(~popper){
+      return popper;
+    }
+      auto Error = perform_single_ref_calibration( 1<<6);
     ERROR_OUT;
-
-      Error = perform_single_ref_calibration( 1<<6);
-    ERROR_OUT;
-
 
     /* Read VHV from device */
     if (get_data_enable ) {
-      uint8_t PhaseCalInt = 0;//ick: read and ignored
-      uint8_t PhaseCal = 0;//ick: read and ignored
       Error = ref_calibration_io( 1, 0, PhaseCal /* Not used here */, pVhvSettings, &PhaseCalInt, 1, 0);
       ERROR_OUT;
-    } else {
-      *pVhvSettings = 0;
     }
-
-    if ( restore_config) {
-      /* restore the previous Sequence Config */
-      Error = set_SequenceConfig(SequenceConfig, true);
-    }
-
     return Error;
   } // VL53L0X_perform_vhv_calibration
 
-  Error Api::perform_phase_calibration( uint8_t *pPhaseCal, const uint8_t get_data_enable, const uint8_t restore_config) {
+  Erroneous<uint8_t> Api::perform_phase_calibration( const bool get_data_enable, const bool restore_config) {
 
-    /* store the value of the sequence config, this will be reset before the end of the function */
-    uint8_t SequenceConfig = restore_config ? PALDevDataGet( SequenceConfig) : 0;
-
-    /* Run PhaseCal */
-    Error Error = set_SequenceConfig(0x02, true);//980f: now updates PALDevData
-
-    if (Error == ERROR_NONE) {
-      Error = perform_single_ref_calibration( 0x0);
+    SeqConfigStacker popper(*this,restore_config, 1<<1);
+    if(~popper){
+      return popper;
     }
+    auto  Error = perform_single_ref_calibration( 0x0);
+
 
     /* Read PhaseCal from device */
-    if ((Error == ERROR_NONE) && (get_data_enable == 1)) {
+    if ((Error == ERROR_NONE) && get_data_enable) {
       uint8_t VhvSettingsint;//ick: ignored
       Error = ref_calibration_io( 1, 0, 0, &VhvSettingsint, pPhaseCal, 0, 1);
     } else {
       *pPhaseCal = 0;
     }
 
-    if ((Error == ERROR_NONE) && restore_config) {
-      /* restore the previous Sequence Config */
-      Error = set_SequenceConfig(SequenceConfig, true);
-    }
 
     return Error;
   } // VL53L0X_perform_phase_calibration
 
-  Error Api::perform_ref_calibration( uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable) {
+  Error Api::perform_ref_calibration( CalibrationParameters &p, bool get_data_enable) {
     /* store the value of the sequence config,
      * this will be reset before the end of the function
      */
     uint8_t SequenceConfig = PALDevDataGet( SequenceConfig);
-
+//980f: is a setting of SequncConfig lost or was some code moved to perforem_vhv and dregs left here?
     /* In the following function we don't save the config to optimize
      * writes on device. Config is saved and restored only once. */
-    Error Error = perform_vhv_calibration( pVhvSettings, get_data_enable, 0);
+    Erroneous<uint8_t> newvhv = perform_vhv_calibration(  get_data_enable, 0);
 
-    if (Error == ERROR_NONE) {
-      Error = Api::perform_phase_calibration( pPhaseCal, get_data_enable, 0);
-    }
+    if (newvhv.isOk()) {
+      auto Error = Api::perform_phase_calibration( pPhaseCal, get_data_enable, 0);
 
-    if (Error == ERROR_NONE) {
-      /* restore the previous Sequence Config */
-      Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
       if (Error == ERROR_NONE) {
-        PALDevDataSet(SequenceConfig, SequenceConfig);
+        /* restore the previous Sequence Config */
+        Error = comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
+        if (Error == ERROR_NONE) {
+          PALDevDataSet(SequenceConfig, SequenceConfig);
+        }
       }
     }
-
     return Error;
   } // VL53L0X_perform_ref_calibration
 
@@ -563,7 +554,7 @@ namespace VL53L0X {
     return ref_calibration_io( 0, VhvSettings, PhaseCal, &pVhvSettings, &pPhaseCal, 1, 1);
   }
 
-  Error Api::get_ref_calibration( uint8_t *pVhvSettings, uint8_t *pPhaseCal) {
+  Erroneous<Api::CalibrationParameters > Api::get_ref_calibration( ) {
     return ref_calibration_io( 1, 0, 0, pVhvSettings, pPhaseCal, 1, 1);
   }
 }

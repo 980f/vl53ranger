@@ -164,6 +164,33 @@ namespace VL53L0X {
       return MagicTrio(comm);
     }
 
+    /** creating one of these saves seuence config, sets it, and on destruction restoores what was saved*/
+    class SeqConfigStacker {
+      Core &core;
+      Erroneous<uint8_t > mycache;
+      bool restore_it;
+    public:
+      SeqConfigStacker(Core &core,bool restore_config,uint8_t settit):core(core){
+        mycache = restore_config ? core.PALDevDataGet(  SequenceConfig) : 0;
+        mycache.error |= core.comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, settit);
+        restore_it=restore_config&&!mycache.error; //don't restore if we failed to set.
+      }
+      ~SeqConfigStacker(){
+        if ( restore_it) {
+          /* restore the previous Sequence Config */
+          mycache.error |= core.set_SequenceConfig(mycache, true);
+        }
+      }
+
+      bool operator ~() const {
+        return ~mycache.error;
+      }
+
+      operator Error()const {
+        return mycache.error;
+      }
+
+    };
 
   protected:  //common code fragments or what were file static but didn't actually have the 'static' like they should have.
     Error setValidPhase(uint8_t high, uint8_t low);

@@ -848,7 +848,7 @@ namespace VL53L0X {
 /**
  * @brief Get Cross talk compensation rate
  *
- * @note This function is not Implemented.
+ * @note This function is not Implemented. (Says who!) //BUG: stale documentation
  * Enable/Disable Cross Talk by set to zero the Cross Talk value by
  * using @a SetXTalkCompensationRateMegaCps().
  *
@@ -857,7 +857,7 @@ namespace VL53L0X {
  *  state 0=disabled or 1 = enabled
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Erroneous<bool> GetXTalkCompensationEnable();
+    bool GetXTalkCompensationEnable();
 
 /**
  * @brief Set Cross talk compensation rate
@@ -1100,7 +1100,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE      Success
  * @return  "Other error code"     See ::Error
  */
-    Error SetDmaxCalParameters(uint16_t RangeMilliMeter, FixPoint1616_t SignalRateRtnMegaCps);
+    Error SetDmaxCalParameters(const DevData_t::DmaxCal &p);
 
 /**
  * @brief  Get Dmax Calibration Parameters for a given device
@@ -1114,7 +1114,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE       Success
  * @return  "Other error code"      See ::Error
  */
-    Error GetDmaxCalParameters(uint16_t *pRangeMilliMeter, FixPoint1616_t *pSignalRateRtnMegaCps);
+    DevData_t::DmaxCal GetDmaxCalParameters();
 
 /** @} parameters_group */
 
@@ -1810,7 +1810,7 @@ namespace VL53L0X {
 
     Error perform_phase_calibration(uint8_t *pPhaseCal, const bool get_data_enable, const bool restore_config);
 
-    Error perform_ref_calibration(uint8_t *pVhvSettings, uint8_t *pPhaseCal, uint8_t get_data_enable);
+    Error perform_ref_calibration(CalibrationParameters &p, bool get_data_enable);
 
     Error set_ref_calibration(CalibrationParameters p);
 
@@ -1822,9 +1822,16 @@ namespace VL53L0X {
     unsigned int GetMaxNumberOfROIZones();
     unsigned int GetNumberOfROIZones();
 
+    static const unsigned startSelect = 180;// was 0xB4 but is not a bit pattern, rather it is a decimal number
+
+    static const unsigned minimumSpadCount = 3;
+
     SpadArray::Index get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr);
 
     Error initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
+    Erroneous <SpadArray::Index> enable_ref_spads(bool apertureSpads, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index start, SpadArray::Index offset, unsigned int spadCount);
+
+    Error CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
   };
 }//end namespace
 #endif /* __H_ */
