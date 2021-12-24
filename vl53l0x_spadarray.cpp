@@ -4,28 +4,29 @@
 
 #include "vl53l0x_spadarray.h"
 
-unsigned SpadArray::count_enabled( bool *pIsAperture) {
-
-  bool spadTypeIdentified = (pIsAperture==nullptr);//we only write if and when we find the first enable spad, if no pointer then we don't even look.
-
-  /* The entire array will not be used for spads, therefore the last
-   * byte and last bit is determined from the max spads value.
-   * Which we can simply accommodate by having the unused bits always zero which we can presume in most places.
-   * The ST code screwed up the counting of the last byte, which was always pointless.
+SpadCount SpadArray::count_enabled( ) {
+  SpadCount sc;//inits to 0 and false.
+  /* This seems simple compared to legacy because the ST code screwed up the counting of the last byte, which was always pointless.
+   * We init the array to all zeroes and looking at 4 unused bits cost a few extra iterations, which costs less than starting up a second loop.
    */
-  unsigned enabled = 0;
-
   for (unsigned byteIndex = 0; byteIndex < SpadArray::NumberOfBytes; ++byteIndex) {
     uint8_t tempByte = raw[byteIndex];
     for (unsigned bitIndex = 0; bitIndex <= 8; ++bitIndex) {
       if (getBit(bitIndex,tempByte)) {
-        ++enabled;
-        if (!spadTypeIdentified ) {
-          *pIsAperture =  (byteIndex >= 2) || (bitIndex >= 4);
-          spadTypeIdentified = 1;
+        if (!sc.quantity++) {//if we found first one then its index tells us its type:
+          sc.isAperture =  (byteIndex >= 2) || (bitIndex >= 4);
         }
       }
     }
   }
-  return enabled;
+  return sc;
+}
+
+bool SpadArray::operator==(const SpadArray &rhs) const {
+  for (unsigned i = 0; i < NumberOfBytes; ++i) {
+    if (raw[i] != rhs.raw[i]) {
+      return false;
+    }
+  }
+  return true;
 }

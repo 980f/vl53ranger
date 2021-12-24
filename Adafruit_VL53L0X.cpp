@@ -126,9 +126,9 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
 
     if (debug) {
       Serial.print(F("refSpadCount = "));
-      Serial.print(info.count);
+      Serial.print(info.wrapped.count);
       Serial.print(F(", isApertureSpads = "));
-      Serial.println(info.isAperture);
+      Serial.println(info.wrapped.isAperture);
     }
   }
 
@@ -170,21 +170,21 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
  *   @brief  Change the I2C address of the sensor
  *   @param  newAddr the new address to set the sensor to
  *   @returns True if address was set successfully, False otherwise
- *   NOTE WELL: you have to
+ *   NOTE WELL: there is a delay of unknown purpose in this function, consider it to be blockin.
  */
 /**************************************************************************/
 boolean Adafruit_VL53L0X::setAddress(uint8_t newAddr) {
 //gratuitous since we are about to double it:  newAddr &= 0x7F;
-  Error = MyDevice.SetDeviceAddress(newAddr * 2); // 7->8 bit
+  bool didit= MyDevice.SetDeviceAddress(newAddr * 2); // 7->8 bit
 
   delay(10);//BUG: evil to do delays instead of returning a value for user to mix in with other delay logic. There should be a description of what needs to be delayed.
 
-  //908f: the following should be done in the API code!
-  if (Error == ERROR_NONE) {
-    MyDevice.comm.i2cDevAddr = newAddr; // 7 bit addr
-    return true;
-  }
-  return false;
+//  //980f: moved the following into the API code!
+//  if (Error == ERROR_NONE) {
+//    MyDevice.comm.wirer.devAddr = newAddr; // 7 bit addr
+//    return true;
+//  }
+  return didit;
 } // Adafruit_VL53L0X::setAddress
 
 /**************************************************************************/

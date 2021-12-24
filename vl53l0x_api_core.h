@@ -227,10 +227,10 @@ namespace VL53L0X {
 
     Error SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable);
 
-    Error set_ref_spad_map(SpadArray &refSpadArray);
-    Error get_ref_spad_map(SpadArray &refSpadArray);
+    Error set_ref_spad_map(SpadArray &refSpadArray);//writes to device
+    Error get_ref_spad_map(SpadArray &refSpadArray);//read from device
     Erroneous <uint8_t> get_SequenceConfig();
-    Erroneous <uint8_t> getSequenceConfig();
+
     Error set_SequenceConfig(uint8_t packed, bool andCache);
   };
 

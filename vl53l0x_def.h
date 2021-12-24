@@ -361,20 +361,22 @@ namespace VL53L0X {
     SigmaEstimates SigmaEst;
 
     uint8_t ReadDataFromDeviceDone; /* 3bits for subsets of device data having been read */
+
     uint8_t ModuleId;               /* Module ID */
     uint8_t Revision;               /* test Revision */
     char ProductId[VL53L0X_MAX_STRING_LENGTH];/* Product Identifier String  */
 
-    uint8_t ReferenceSpadCount;  /* used for ref spad management */
-    uint8_t ReferenceSpadType;   /* used for ref spad management */
+    SpadCount ReferenceSpad;
     bool RefSpadsInitialised; /* reports if ref spads are initialised. */
 
-    uint32_t PartUIDUpper;       /*!< Unique Part ID Upper */
-    uint32_t PartUIDLower;       /*!< Unique Part ID Lower */
+    struct PartUID_t {
+      uint32_t Upper=0;       /*!< Unique Part ID Upper */
+      uint32_t Lower=0;       /*!< Unique Part ID Lower */
+    } PartUID;
     FixPoint1616_t SignalRateMeasFixed400mm; /*!< Peek Signal rate at 400 mm*/
   };
 
-  using Tunings= const uint8_t *;
+  using Tunings = const uint8_t *;
   /**
  * @struct VL53L0X_DevData_t
  *
@@ -413,8 +415,7 @@ namespace VL53L0X {
     struct DmaxCal {
       uint16_t RangeMilliMeter;     /*!< Dmax Calibration Range millimeter */
       FixPoint1616_t SignalRateRtnMegaCps;     /*!< Dmax Calibration Signal Rate Return MegaCps */
-    }dmaxCal;
-
+    } dmaxCal;
   };
 
 /** @defgroup VL53L0X_define_InterruptPolarity_group Defines the Polarity
@@ -543,7 +544,7 @@ namespace VL53L0X {
 #define VL53L0X_FIXPOINT1616TOFIXPOINT412(Value) (uint16_t)((Value >> 4) & 0xFFFF)
 #define VL53L0X_FIXPOINT412TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 4)
 
-#define VL53L0X_FIXPOINT1616TOFIXPOINT313(Value) (uint16_t)((Value >> 3) & 0xFFFF)
+#define VL53L0X_FIXPOINT1616TOFIXPOINT313(Value) (FixPoint<3,13>(Value))
 //BUG: (UB) need to cast/convert before shrink, not after
 #define VL53L0X_FIXPOINT313TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 3)
 

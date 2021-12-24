@@ -5,23 +5,20 @@
 #pragma once
 
 /** use where fractional values are expected
- * Formerly the gyration in here were explicitly repeated in very many places, each having to be checked for rogue tile error.
+ * Formerly the gyrations in here were explicitly repeated in very many places, each having to be checked for rogue tile error.
  * Now we know that adding half the denominator before dividing in order to round always uses the same value for that halving, in one spot it did not!
  * Given a floating point value f it's .16 bit point is (int)(f*(1<<16))
- *
- * todo: automatically generate the RawType based in whole+fract
- *
  * */
 template<unsigned whole, unsigned fract> struct FixPoint {
 
   enum {
-    mask = (1 << fract) - 1
-    , size = (fract + whole)
-    , powerShifter = 1 << fract
-    , half = 1 << (fract - 1)
+    mask = (1 << fract) - 1   //to extract fraction bits
+    , powerShifter = 1 << fract //to boost an integer value into position
+    , half = 1 << (fract - 1)  // 0.5
+    , size = (fract + whole)  //total number of bits needed to represent the value, used to pick the underlying int type.
   };
 
-  using RawType =
+  using RawType =  //we use unsigned as very few of the numbers are signed and the math really does not depend upon signedness
   typename std::conditional<size <= 8, uint8_t,
     typename std::conditional<size <= 16, uint16_t,
       typename std::conditional<size <= 32, uint32_t, uint64_t>::type
@@ -188,42 +185,42 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   }
 //force explicit roundedDivided
 
-  RawType operator+(RawType rhs) {
-    return raw + rhs.raw;
+  RawType operator+(RawType raw_) {
+    return raw + raw_;
   }
 
-  RawType operator-(RawType rhs) {
-    return raw - rhs.raw;
+  RawType operator-(RawType raw_) {
+    return raw - raw_;
   }
 
-  RawType operator*(RawType rhs) {
-    return raw * rhs.raw;
+  RawType operator*(RawType raw_) {
+    return raw * raw_;
   }
   //force explicit roundedDivided
 
-  FixPoint &operator+=(RawType rhs) {
-    raw += rhs.raw;
+  FixPoint &operator+=(RawType raw_) {
+    raw += raw_;
     return *this;
   }
 
-  FixPoint &operator-=(RawType rhs) {
-    raw -= rhs.raw;
+  FixPoint &operator-=(RawType raw_) {
+    raw -= raw_;
     return *this;
   }
 
-  FixPoint &operator*=(RawType rhs) {
-    raw *= rhs.raw;
+  FixPoint &operator*=(RawType raw_) {
+    raw *= raw_;
     return *this;
   }
 //force explicit roundedDivided
 
   /**
-   * assinging with shifting and truncation or expansion as needed
+   * assigning with shifting and truncation or expansion as needed
    * */
-  template<unsigned other_whole, unsigned other_fract> FixPoint &operator=(FixPoint<other_whole, other_fract> other) {
+  template<unsigned other_whole, unsigned other_fract> FixPoint(FixPoint<other_whole, other_fract> other) {
 //e.g: <16,16>other  to <9,7> this (uint16_t)((Value >> 9) & 0xFFFF)
     const int bitdiff = fract - other_fract;
-    if constexpr (size >= other.size) {//we are expanding so inflate and shrink
+    if constexpr (unsigned (size) >= unsigned(other.size)) {//we are expanding so inflate and shrink
       raw = other.raw;//radix point is still at other_fract position
       if constexpr (bitdiff < 0) {//truncating some bits on the ls end
         raw >>= (-bitdiff);
@@ -238,8 +235,13 @@ template<unsigned whole, unsigned fract> struct FixPoint {
       }
       raw = other.raw;
     }
+  }
+
+  template<unsigned other_whole, unsigned other_fract> FixPoint &operator=(FixPoint<other_whole, other_fract> other) {
+    raw=   static_cast<FixPoint>(other);//use constructor to do conversion as the vast majority were inline. Defining the targets as the appropriate type will let us drop macros that use the constructor.
     return *this;
   }
+
 
   /** rounding /= */
   template<typename Intish> FixPoint &divideby(Intish denom) {

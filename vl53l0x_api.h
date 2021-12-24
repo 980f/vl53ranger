@@ -323,11 +323,11 @@ namespace VL53L0X {
  * @note This function Access to the device
  *
  * @param   Dev                   Device Handle
- * @param   DeviceAddress         The new Device address
+ * @param   _8bitAddress         The new Device address
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error SetDeviceAddress(uint8_t DeviceAddress);
+    bool SetDeviceAddress(uint8_t _8bitAddress);
 
 /**
  *
@@ -372,7 +372,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error SetTuningSettingBuffer(const uint8_t *pTuningSettingBuffer, bool UseInternalTuningSettings);
+    Error SetTuningSettingBuffer(Tunings pTuningSettingBuffer, bool UseInternalTuningSettings);
 
 /**
  * @brief Get the tuning settings pointer and the internal external switch value.
@@ -383,7 +383,7 @@ namespace VL53L0X {
  *
  * @return  pointer if not 'use internal' else nullptr
  */
-    const uint8_t *GetTuningSettingBuffer();//todo: bool to get the internal one regardless of enable
+    Tunings GetTuningSettingBuffer(bool theInternal=false);
 
 /**
  * @brief Do basic device init (and eventually patch loading)
@@ -1314,7 +1314,7 @@ namespace VL53L0X {
 
     /** formerly declared in core.h but implemented in api.cpp
      * @returns false on timeout */
-    Erroneous<bool> measurement_poll_for_completion();
+    Error measurement_poll_for_completion();
 
 
     /**
@@ -1792,7 +1792,7 @@ namespace VL53L0X {
     Error get_device_info(DeviceInfo_t &pDeviceInfo);
 
 
-    Error   perform_ref_spad_management(unsigned &refSpadCount, bool &isApertureSpads);
+    Error perform_ref_spad_management(SpadCount &ref);
 
   private: //calibration.h was high level actions hidden from direct use in api
     Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
@@ -1804,9 +1804,9 @@ namespace VL53L0X {
 
     Error apply_offset_adjustment();
 
-    Error set_reference_spads(uint32_t count, uint8_t isApertureSpads);
+    Error set_reference_spads(SpadCount &ref);
 
-    Error get_reference_spads(uint32_t *pSpadCount, uint8_t *pIsApertureSpads);
+    Erroneous<SpadCount> get_reference_spads();
 
     Error perform_phase_calibration(uint8_t *pPhaseCal, const bool get_data_enable, const bool restore_config);
 
@@ -1829,9 +1829,10 @@ namespace VL53L0X {
     SpadArray::Index get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr);
 
     Error initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
-    Erroneous <SpadArray::Index> enable_ref_spads(bool apertureSpads, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index start, SpadArray::Index offset, unsigned int spadCount);
+    Erroneous <SpadCount > enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index start, SpadArray::Index offset);
 
     Error CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
+    Error perform_single_ref_calibration(uint8_t vhv_init_byte);
   };
 }//end namespace
 #endif /* __H_ */

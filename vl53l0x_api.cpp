@@ -54,18 +54,18 @@ namespace VL53L0X {
 /* Group PAL General Functions */
 
 
-  Erroneous<bool> Api::measurement_poll_for_completion() {
+  Error Api::measurement_poll_for_completion() {
     LOG_FUNCTION_START;
 
     for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {
       Erroneous<bool> value;
       value = GetMeasurementDataReady();
       if (value.isOk() && value == 1) {//980f: reversed legacy order of testing, test valid before testing value.
-        return value;
+        return ERROR_NONE;
       }
       PollingDelay();//delay is on comm so that it can use platform specific technique
     }
-    return {false, ERROR_TIME_OUT};//was init to 'timeout'
+    return ERROR_TIME_OUT;//was init to 'timeout'
   } // VL53L0X_measurement_poll_for_completion
 
 
@@ -246,9 +246,15 @@ namespace VL53L0X {
 /* End Group PAL General Functions */
 
 /* Group PAL Init Functions */
-  Error Api::SetDeviceAddress(uint8_t DeviceAddress) {
+  bool Api::SetDeviceAddress(uint8_t _8bitAddress) {
     LOG_FUNCTION_START;
-    return comm.WrByte(REG_I2C_SLAVE_DEVICE_ADDRESS, DeviceAddress / 2);
+    Error |= comm.WrByte(REG_I2C_SLAVE_DEVICE_ADDRESS, _8bitAddress >> 1);
+    if (Error == ERROR_NONE) {
+      comm.wirer.devAddr = _8bitAddress; // 7 bit addr
+      return true;
+    } else {
+      return false;
+    }
   }
 
   Error Api::DataInit() {
@@ -353,7 +359,7 @@ namespace VL53L0X {
     return Error;
   } // VL53L0X_DataInit
 
-  Error Api::SetTuningSettingBuffer(const uint8_t *pTuningSettingBuffer, bool UseInternalTuningSettings) {
+  Error Api::SetTuningSettingBuffer(Tunings pTuningSettingBuffer, bool UseInternalTuningSettings) {
     LOG_FUNCTION_START;
     if (UseInternalTuningSettings) { /* Force use internal settings */
       PALDevDataSet(UseInternalTuningSettings, true);
@@ -368,11 +374,11 @@ namespace VL53L0X {
     return ERROR_NONE;
   } // VL53L0X_SetTuningSettingBuffer
 
-  Tunings Api::GetTuningSettingBuffer() {
-    if (PALDevDataGet(UseInternalTuningSettings)) {
+  Tunings Api::GetTuningSettingBuffer(bool theInternal) {
+    if (theInternal || PALDevDataGet(UseInternalTuningSettings)) {
+      return DefaultTuningSettings;
+    } else {
       return PALDevDataGet(pTuningSettingsPointer);
-    } else {//# don't use ternary, so that we may breakpoint here.
-      return nullptr;
     }
   } // GetTuningSettingBuffer
 
@@ -395,26 +401,20 @@ namespace VL53L0X {
     Error |= get_info_from_device(1);
 
     /* set the ref spad from NVM */
-    auto count = VL53L0X_GETDEVICESPECIFICPARAMETER(ReferenceSpadCount);
-    uint8_t ApertureSpads = VL53L0X_GETDEVICESPECIFICPARAMETER(ReferenceSpadType);
+    SpadCount ref = VL53L0X_GETDEVICESPECIFICPARAMETER(ReferenceSpad);
 
-    //todo: make a struct or use sign bit for 'isAperture'
-    bool isApertureSpads = 0;
-    unsigned refSpadCount = 0;
 
     /* NVM value invalid
      * two known types, 1 and 0, '1' has a max 32 spads, '0' has a max of 12
      * */
-    if ((ApertureSpads > 1) || ((ApertureSpads == 1) && (count > 32)) || ((ApertureSpads == 0) && (count > 12))) {
-      Error |= perform_ref_spad_management(refSpadCount, isApertureSpads);
+    if (  ref.quantity> ref.isAperture? 32: 12) {//if true then invalid settings so compute correct ones
+      Error |= perform_ref_spad_management(ref);
     } else {
-      Error |= set_reference_spads(count, ApertureSpads);
+      Error |= set_reference_spads({0,0});
     }
-
     ERROR_OUT;
-    Tunings pTuningSettingBuffer = PALDevDataGet(UseInternalTuningSettings) ? DefaultTuningSettings : PALDevDataGet(pTuningSettingsPointer);
 
-    ERROR_OUT;
+    Tunings pTuningSettingBuffer = GetTuningSettingBuffer();
     Error |= load_tuning_settings(pTuningSettingBuffer);
 
 
@@ -1060,7 +1060,7 @@ namespace VL53L0X {
       ERROR_OUT;
       FixPoint1616_t BigEough(255.0F);//was 255 * 65536 which is the same as 255.0
       if ((ThresholdLow > BigEough) || (ThresholdHigh > BigEough)) {
-        if (StartNotStopFlag ) {
+        if (StartNotStopFlag) {
           Error = load_tuning_settings(InterruptThresholdSettings);
         } else {
           Error |= comm.WrByte(0xFF, 0x04);
@@ -1627,7 +1627,7 @@ namespace VL53L0X {
     return FFwrap(RegSystem(0x42), uint8_t(SpadAmbientDamperFactor));
   } // VL53L0X_SetSpadAmbientDamperFactor
 
-  Erronrous <uint8_t> Api::GetSpadAmbientDamperFactor() {
+  Erroneous <uint8_t> Api::GetSpadAmbientDamperFactor() {
     LOG_FUNCTION_START;
     return FFread<uint8_t>(RegSystem(0x42));
   } // GetSpadAmbientDamperFactor
@@ -1638,7 +1638,7 @@ namespace VL53L0X {
 * Internal functions
 *****************************************************************************/
 
-  Error Api::perform_ref_spad_management(unsigned &refSpadCount, bool &isApertureSpads) {
+  Error Api::perform_ref_spad_management(DeviceSpecificParameters_t::SpadCount ref) {
 
     /*
      * The reference SPAD initialization procedure determines the minimum
@@ -1697,15 +1697,13 @@ namespace VL53L0X {
     auto lastSpadIndex = enable_ref_spads(needAptSpads, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
     ERROR_ON(lastSpadIndex);
     currentSpadIndex = lastSpadIndex;
-    uint16_t peakSignalRateRef;
-    Error = perform_ref_signal_measurement(&peakSignalRateRef);
+    Erroneous<uint16_t> peakSignalRateRef = perform_ref_signal_measurement();
     ERROR_OUT;
 
-    bool isApertureSpads_int = 0;
+    bool isApertureSpads_int = false;
     unsigned refSpadCount_int = 0;
 
     if (peakSignalRateRef > targetRefRate) { /* Signal rate measurement too high, switch to APERTURE SPADs */
-
       Data.SpadData.RefSpadEnables.clear();
 
       /* Increment to the first APERTURE spad */
@@ -1717,7 +1715,7 @@ namespace VL53L0X {
 
       if (Error == ERROR_NONE) {
         currentSpadIndex = lastSpadIndex;
-        Error = perform_ref_signal_measurement(&peakSignalRateRef);
+        peakSignalRateRef = perform_ref_signal_measurement();
 
         if ((Error == ERROR_NONE) &&
             (peakSignalRateRef > targetRefRate)) {
@@ -1762,16 +1760,15 @@ namespace VL53L0X {
         }
 
         currentSpadIndex = nextGoodSpad;
-        Error = enable_spad_bit(Data.SpadData.RefSpadEnables, currentSpadIndex);
-        ERROR_OUT;
-        currentSpadIndex++;
+        Data.SpadData.RefSpadEnables.enable(currentSpadIndex);
+        ++currentSpadIndex;//post ++ not coded
 /* Proceed to apply the additional spad and
  * perform measurement. */
         Error = set_ref_spad_map(Data.SpadData.RefSpadEnables);
 
         ERROR_OUT;
-        Error = perform_ref_signal_measurement(&peakSignalRateRef);
-        ERROR_OUT;
+        peakSignalRateRef = perform_ref_signal_measurement(&peakSignalRateRef);
+        ERROR_ON(peakSignalRateRef);
         uint32_t signalRateDiff = abs(peakSignalRateRef - targetRefRate);
 
         if (peakSignalRateRef > targetRefRate) { /* Select the spad map that provides the measurement closest to the target rate, either above or below it. */
@@ -1793,7 +1790,7 @@ namespace VL53L0X {
     *isApertureSpads = isApertureSpads_int;
 
     VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, 1);
-    VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpadCount, (uint8_t) (*refSpadCount));
+    VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad.quantity, (uint8_t) (*refSpadCount));
     VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpadType, *isApertureSpads);
 
     return ERROR_NONE;

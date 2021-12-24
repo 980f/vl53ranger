@@ -108,10 +108,14 @@ template<typename IntishOver, typename IntishUnder> IntishOver roundedDivide(Int
   return (denom != 0) ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
 }
 
+
+
 /** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
 template<typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned powerof2) {
   return (num + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
 }
+
+
 
 /** @returns @param num divided by 1000, rounded.
  * this is somewhat the reverse of FixPoint millis which multiplies the nominal value by 1000 and rounds to integer */
@@ -139,6 +143,18 @@ template<typename Intish> Intish squared(Intish num) {
 }
 
 #include "vl53l0x_fixpoint.h"
+
+/** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
+template<unsigned whole, unsigned fract> auto roundedScale(FixPoint<whole,fract> num, unsigned powerof2) -> typename decltype(num)::RawType{
+  return (num.raw + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
+}
+
+/** @returns @param num divided by @param denom, rounded */
+template<unsigned whole, unsigned fract,typename IntishUnder>
+auto roundedDivide(FixPoint<whole,fract> num, IntishUnder denom) -> typename decltype(num)::RawType {
+  return (denom != 0) ? (num.raw + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
+}
+
 
 using FixPoint1616_t = FixPoint<16, 16>;
 

@@ -171,23 +171,23 @@ namespace VL53L0X {
 
   Error Core::get_info_from_device(uint8_t option) {
     //read into temps so that we only apply if all are read successfully:
-    //we could make a substruct in DeviceSpeciingParameters_t instead of redeclaring most of othem here.
+    //we could make a substruct in DeviceSpeciingParameters_t instead of redeclaring most of them here.
+    //bit 1 group:
     Erroneous<uint8_t> ModuleId;//BUG: was used when might not have been read, wrapped with status
     Erroneous<uint8_t> Revision;//BUG: see ModuleId.
-    uint8_t ReferenceSpadCount(0);
-    uint8_t ReferenceSpadType(0);
-    Erroneous<uint32_t> PartUIDUpper;
-    Erroneous<uint32_t> PartUIDLower;
+    decltype(DeviceSpecificParameters_t::ProductId) ProductId;/* buffer for Product Identifier String  */
 
-    uint32_t OffsetFixed1104_mm(0);
-    int16_t OffsetMicroMeters(0);
+    //bit 0 group:
+    SpadCount ReferenceSpad;
+    SpadArray NvmRefGoodSpadMap;
+
+    Erroneous<DeviceSpecificParameters_t::PartUID_t> PartUID;
+
     const uint32_t DistMeasTgtFixed1104_mm(400 << 4);
     Erroneous<uint32_t> DistMeasFixed1104_400_mm;
     Erroneous<uint32_t> SignalRateMeasFixed1104_400_mm;
     FixPoint1616_t SignalRateMeasFixed400mmFix {0};
-    decltype(DeviceSpecificParameters_t::ProductId) ProductId;/* buffer for Product Identifier String  */
 
-    SpadArray NvmRefGoodSpadMap;
 
     LOG_FUNCTION_START;
     uint8_t ReadDataFromDeviceDone = VL53L0X_GETDEVICESPECIFICPARAMETER(ReadDataFromDeviceDone);
@@ -213,8 +213,8 @@ namespace VL53L0X {
       if (getBit<0>(needs)) {
         auto packed = packed90<uint32_t>(0x6b);
         if (packed.isOk()) {//ick: some error checking has been added by 980f, but it is still not sane.
-          ReferenceSpadCount = getBits<14, 8>(packed.wrapped);
-          ReferenceSpadType = getBit<15>(packed.wrapped);
+          ReferenceSpad.quantity = getBits<14, 8>(packed.wrapped);
+          ReferenceSpad.isAperture = getBit<15>(packed.wrapped);
         }
         packed = packed90<uint32_t>(0x24);
         if (packed.isOk()) {
@@ -237,6 +237,7 @@ namespace VL53L0X {
         //now to unpack 7 bit fields from a series of 32 bit words:
         {//indent what might become a function someday
           Erroneous<uint32_t> packed {0};//zero init here matters!
+          const uint8_t mask7=((1<<7)-1);
           uint8_t pager = 0x77;//first page
           char *prodid = ProductId;//will increment as data is acquired sequentially
           int msb = 0;//misnamed, should be 'number of bits'
@@ -244,11 +245,11 @@ namespace VL53L0X {
           while (prodid < end) {
             if (msb >= 7) {//enough to pull an ascii char from the bitstream
               msb -= 7;
-              *prodid++ |= 0x7F & (packed >> msb);
+              *prodid++ |= mask7 & (packed >> msb);
               *prodid = 0;//erases old content (garbage) as we go along, and makes sure string is terminated
             } else {
               //partial character from lsbs of 32 bits into msbs of 7:
-              *prodid = 0x7F & (packed << (7 - msb));//feed residual forward
+              *prodid = mask7 & (packed << (7 - msb));//feed residual forward
               packed = packed90<uint32_t>(pager++);
               if (~packed) {
                 break;
@@ -256,12 +257,13 @@ namespace VL53L0X {
               msb += 32;
             }
           }
+          //ick: here is where we would note that we got all of the prodid, presently errors getting it are ignored resulting in a truncated id.
         }
       }//end option 1
 
       if (getBit<2>(needs)) {
-        PartUIDUpper = packed90<uint32_t>(0x7B);
-        PartUIDLower = packed90<uint32_t>(0x7C);
+        PartUID.wrapped.Upper = packed90<uint32_t>(0x7B);
+        PartUID.wrapped.Lower = packed90<uint32_t>(0x7C);
         //next items are 32 bits out of 64, kinda like a 24.8 out of a 32.32
         SignalRateMeasFixed1104_400_mm = middleof64(0x73);
         DistMeasFixed1104_400_mm = middleof64(0x75);
@@ -284,8 +286,8 @@ namespace VL53L0X {
     if (ReadDataFromDeviceDone != 7) {
       /* Assign to variable if status is ok */
       if (getBit<0>(needs)) {
-        VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpadCount, ReferenceSpadCount);
-        VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpadType, ReferenceSpadType);
+        VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad.quantity, ReferenceSpad.quantity);
+        VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad.isAperture, ReferenceSpad.isAperture);
 
         Data.SpadData.RefGoodSpadMap = NvmRefGoodSpadMap;
       }
@@ -297,17 +299,15 @@ namespace VL53L0X {
       }
 
       if (getBit<2>(needs)) {
-        VL53L0X_SETDEVICESPECIFICPARAMETER(PartUIDUpper, PartUIDUpper);
-        VL53L0X_SETDEVICESPECIFICPARAMETER(PartUIDLower, PartUIDLower);
+        VL53L0X_SETDEVICESPECIFICPARAMETER(PartUID, PartUID);
 //BUG: originally, types reversed!
 //        SignalRateMeasFixed400mmFix = VL53L0X_FIXPOINT97TOFIXPOINT1616(SignalRateMeasFixed1104_400_mm);
         //ick: the ST code suggests that the 32 bits we extracted from the middle of 64 is really 16 bits in 9.7 format.
         SignalRateMeasFixed400mmFix = SignalRateMeasFixed1104_400_mm << 9;//macro didn't play well with an Erroneous<u32>
         VL53L0X_SETDEVICESPECIFICPARAMETER(SignalRateMeasFixed400mm, SignalRateMeasFixed400mmFix);
-
-        OffsetMicroMeters = 0;
+        int32_t OffsetMicroMeters(0);//BUG: was int16, truncating too soon
         if (DistMeasFixed1104_400_mm != 0) {
-          OffsetFixed1104_mm = DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm;
+        int32_t OffsetFixed1104_mm = DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm;//was uint32_t despite being an intrinsically signed value
           OffsetMicroMeters = -((OffsetFixed1104_mm * 1000) >> 4);//ick: truncates
         }
         PALDevDataSet(Part2PartOffsetAdjustmentNVMMicroMeter, OffsetMicroMeters);
@@ -346,19 +346,14 @@ namespace VL53L0X {
   } // VL53L0X_encode_timeout
 
   bool sequence_step_enabled(SequenceStepId stepId, uint8_t SequenceConfig) {
-    LOG_FUNCTION_START;
-    unsigned bitnumber = bitFor(stepId);
-    if (bitnumber > 7) {
-      return false;//
-    }
-    return (SequenceConfig >> bitnumber) & 1;
+    return getBit(bitFor(stepId),SequenceConfig );
   } // sequence_step_enabled
 
   uint32_t decode_timeout(uint16_t encoded_timeout) {
     /*!
      * Decode 16-bit timeout register value - format (LSByte * 2^MSByte) + 1
      */
-    return 1 + (uint32_t(encoded_timeout & 0x00FF) << (encoded_timeout >> 8));//ick: former cast of shrink to  u32 was silly
+    return 1 + (uint32_t(encoded_timeout & 0x00FF) << (encoded_timeout >> 8));//ick: former cast of shrink to u32 was silly
   } // VL53L0X_decode_timeout
 
 /* To convert ms into register value */
@@ -385,15 +380,8 @@ namespace VL53L0X {
 
   Error Core::SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable) {
     LOG_FUNCTION_START;
-
     uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
-
-    FixPoint1616_t TempFix1616;
-    if ((XTalkCompensationEnable == 0) || (LinearityCorrectiveGain != 1000)) {
-      TempFix1616.raw = 0;
-    } else {
-      TempFix1616 = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps.raw);
-    }
+    FixPoint1616_t TempFix1616( ((XTalkCompensationEnable) && (LinearityCorrectiveGain == 1000)) ? VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps.raw):0);
 
     /* the following register has a format 3.13 */
     Error |= comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, VL53L0X_FIXPOINT1616TOFIXPOINT313(TempFix1616.raw));
@@ -887,7 +875,7 @@ namespace VL53L0X {
 
     /* FixPoint1814 / FixPoint1814 = uint32
      * then FixPoint3200 * FixPoint2804 := FixPoint2804*/
-    minSignalNeeded = minSignalNeeded_p1.raw * roundedDivide(minSignalNeeded, minSignalNeeded_p4.raw).raw;
+    minSignalNeeded = minSignalNeeded_p1.raw * roundedDivide(minSignalNeeded, minSignalNeeded_p4.raw);
 
     /* Apply correction by dividing by 1000000.
      * This assumes 10E16 on the numerator of the equation
@@ -1132,7 +1120,7 @@ namespace VL53L0X {
        * seconds (2997) Therefore to get mm/ns we have to divide by
        * 10000
        */
-      FixPoint1616_t sigmaEstRtn = ((roundedDivide(sqrtResult_centi_ns, 100).raw / sigmaEstimateP3.raw));//ick: why not rounded?
+      FixPoint1616_t sigmaEstRtn = ((roundedDivide(sqrtResult_centi_ns, 100) / sigmaEstimateP3.raw));//ick: formerly not rounded
       sigmaEstRtn.raw *= SPEED_OF_LIGHT_IN_AIR;
       sigmaEstRtn.divideby(10000);
       /* Clip to prevent overflow. Will ensure safe max result. */

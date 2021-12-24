@@ -8,7 +8,7 @@
   <body>
     <p>VL53 API</p>
     <p>as reworked by 980F, but pretty close to the original C code<br>
-      starting with Adafruit gentle rewrite.</p>
+      starting with Adafruit's gentle rewrite of compiling the code as C++.</p>
     <p><br>
     </p>
     <table border="0">
@@ -83,18 +83,27 @@
     <p>Note: making all functions return Error codes even when errors are not possible and a value is being returned via a pointer is a bad architectural decision. In C++ it is even more a bad idea since it is easy to return a paired value and status.</p>
     <p><br>
       The shared error type across even deep layers is an unnecessary tangling of scope. I think I may have sorted out the worst of that, with the lowest layers returning booleans for success/failure, intermediate layers convert that to the Error code known by that layer.</p>
-    <p>After a few more thousand lines of code I think that all of the fancy footwork needed to make sense out of the ubiquitous-even-when-senseless Error values is to have a member on the object. It does not seem possible to have multiple threads successfully calling these functions. If an ISR hits a runtime issue (versus a will-always-fail bad parameter issue) then it has likely messed up any foreground actions in progress. One has to have some sort of lock when doing multiple operations, and that would lead to deadlocks if anything significant were done in an isr.<br>
+    <p>After a few more thousand lines of code I think that all of the fancy footwork needed to make sense out of the ubiquitous-even-when-senseless Error values is to have a member on the object. <br>
+      It does not seem possible to have multiple threads successfully calling these functions. If an ISR hits a runtime issue (versus a will-always-fail bad parameter issue) then it has likely messed up any foreground actions in progress. One has to have some sort of lock when doing multiple operations, and that would lead to deadlocks if anything significant were done in an isr.<br>
       <br>
-      That is all certainly the case in microcontrollers such as the cortex-M3 where the by far safest thing to do is to have a loop which sleeps until interrupt then checks flags set by ISR's to invoke any significant behavior. Any blocking of higher level operations can be implemented by leaving the "need service" bit set when some other statemachine has locked access for itself.<br>
-      Using some form of yield() when doing blocking operations is begging to have recursive calls that create their own type of complication.<br>
+      That is all certainly the case in microcontrollers such as the cortex-M3 where the by far safest thing to do is to have a loop which sleeps until interrupt then checks flags set by ISR's to invoke any significant behavior. Any blocking of higher level operations can be implemented by leaving the "need service" bit set when some other statemachine has locked access for itself.</p>
+    <p>Using some form of yield() when doing blocking operations is begging to have unexpectedly recursive calls that create their own type of complication.<br>
       <br>
-      Any operation that can take enough time to interfere with other operations unrelated to it needs to be programmed via a state machine, not via using the program counter (instruction pointer for you x86 types) as a state variable. The process of building such a state machine often leads to greater understanding of the process itself so is pedagogical on top of kicking out things that are likely to freeze the whole system.</p>
+      Any operation that can take enough time to interfere with other operations unrelated to it needs to be programmed via a state machine, not via using the program counter (instruction pointer for you x86 types) as a state variable. The process of building such a state machine often leads to greater understanding of the process itself so is pedagogical on top of kicking out things that are likely to freeze the whole system.<br>
+      <br>
+      If starting from scratch I would create an effective program language of reads and writes of registers with callbacks at certain stages. What are now blocking functions would insert a list of such operations into the pending operations list. Upon a comm error processing the list would be abandoned, except for perhaps some onError callback (shades of javascript!). If ++ lambda syntax were not so painful (and carrying hidden expense) this would definitely be the way to go.</p>
     <hr>The nominal layering implied by file names of core, api, and calibration were horribly tangled. All 3 implementation files called methods in the other files.<br>
     <br>
     It appears that the intent was to create what is done in C++ with protected/private members of a class. The api listed the functions that are public, the other two those that are private.<br>
     I started moving methods around the 3 classes in a hierarchy before discovering the futility of that. There is still a split of implementation files, to keep them smaller. <br>
-    There are two classes Core and Api which derives from Core, and Core might go away. I expect that having sibling chips at hand might elucidate what Core should be, focussed on data present where Api would have procedures.<br>
-    <p><br>
+    There are two classes Core and Api which derives from Core, and Core might go away. I expect that having sibling chips at hand might elucidate what Core should be, focused on data present where Api would have procedures.<br>
+    <br>
+    <hr>Performance analysis:<br>
+    400kHz and 9 bits per byte at 3 bytes for most interactions, and rarely a 4th:<br>
+    70 to 90 uS per command. <br>
+    For the Arduino we would have to use micros() not millis() as the logging clock.<br>
+    <hr><br>
+    <p>setjmp and longjmp are OK to use as no function in the API does any memory allocation. <br>
     </p>
     <p><br>
     </p>
