@@ -216,6 +216,25 @@ namespace VL53L0X {
 /** @} VL53L0X_define_DeviceModes_group */
   };
 
+  bool isValid(DeviceModes modes) {//todo: review old code, may need some context here.
+    switch(modes){
+
+      case DEVICEMODE_SINGLE_RANGING:
+        return true;
+      case DEVICEMODE_CONTINUOUS_RANGING:
+        return true;
+      case DEVICEMODE_SINGLE_HISTOGRAM:
+        return false;//NYI
+      case DEVICEMODE_CONTINUOUS_TIMED_RANGING:
+        return true;
+      case DEVICEMODE_SINGLE_ALS:
+        return false;
+      case DEVICEMODE_GPIO_DRIVE:
+        return true;
+      case DEVICEMODE_GPIO_OSC:
+        return true;
+    }
+  }
 
 /** @defgroup VL53L0X_define_HistogramModes_group Defines Histogram modes
  *	Defines all possible Histogram modes for the device

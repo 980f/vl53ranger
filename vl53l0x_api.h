@@ -303,7 +303,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error GetTotalSignalRate(FixPoint1616_t *pTotalSignalRate);
+    Erroneous<FixPoint1616_t> GetTotalSignalRate( );
 
 /** @} general_group */
 
@@ -1787,7 +1787,7 @@ namespace VL53L0X {
     Error get_device_info(DeviceInfo_t &pDeviceInfo);
 
 
-    Error perform_ref_spad_management(SpadCount &ref);
+    Error perform_ref_spad_management(SpadCount &ref);//#staying with reference parameter for error handling ease in one place
 
   private: //calibration.h was high level actions hidden from direct use in api
     Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
@@ -1807,29 +1807,29 @@ namespace VL53L0X {
 
     Error perform_ref_calibration(CalibrationParameters &p, bool get_data_enable);
 
-    Error set_ref_calibration(CalibrationParameters p);
+    Error set_ref_calibration(CalibrationParameters p, bool setv, bool setp) ;
 
-    Erroneous<CalibrationParameters> get_ref_calibration(CalibrationParameters incoming,const bool vhv_enable, const bool phase_enable);
+    Erroneous<CalibrationParameters> get_ref_calibration( bool vhv_enable, bool phase_enable);
 
-    Erroneous <FixPoint1616_t> GetTotalSignalRate();
     Error waitOnResetIndicator( bool disappear);
 
     unsigned int GetMaxNumberOfROIZones();
     unsigned int GetNumberOfROIZones();
 
-    static const unsigned startSelect = 180;// was 0xB4 but is not a bit pattern, rather it is a decimal number
+    static const SpadArray::Index startSelect;// was 0xB4 but is not a bit pattern, rather it is a decimal number
 
     static const unsigned minimumSpadCount = 3;
 
     SpadArray::Index get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr);
 
     Error initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
-    Erroneous <SpadCount > enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset);
+    Erroneous <SpadArray::Index > enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset);
 
     Error CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
     Error perform_single_ref_calibration(uint8_t vhv_init_byte);
 
     bool valid(GpioFunctionality functionality);
+    bool isValid(DeviceModes modes);
   };
 }//end namespace
 #endif /* __H_ */

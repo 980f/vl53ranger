@@ -32,18 +32,33 @@ public:
     uint8_t coarse;
     uint8_t fine;
 
-    Index(unsigned bitnumber=0) : coarse(bitnumber / 8), fine(bitnumber % 8) {
+    constexpr Index(unsigned bitnumber=0) : coarse(bitnumber / 8), fine(bitnumber % 8) {
     }
 
 //  private:
 //    Index(uint8_t coarse,uint8_t fine):coarse(coarse),fine(fine){}
 //  public:
+
+    bool operator==(const Index &rhs) const {
+      return coarse == rhs.coarse &&
+             fine == rhs.fine;
+    }
+
+    bool operator!=(const Index &rhs) const {
+      return !(rhs == *this);
+    }
+
     Index &operator++() {
       if (++fine >= 8) {
         fine = 0;
         ++coarse;
       }
       return *this;
+    }
+
+    Index &operator =(Index other){
+      coarse=other.coarse;
+      fine=other.fine;
     }
 
     unsigned absolute()const {
@@ -57,6 +72,14 @@ public:
     bool isValid() const {
       return coarse < NumberOfBytes && (coarse < (NumberOfBytes - 1) || fine < MaxCount % 8);
     }
+
+/** @returns whether  a given spad index is an aperture SPAD by checking the quadrant.        */
+    bool is_aperture() const {
+//there are 64 spads per quadrant. quadrant 2 seems to be aperture, the rest not.
+      static const uint32_t refArrayQuadrants[4] = {10, 5, 0, 5};
+      return coarse<32 && refArrayQuadrants[(coarse>>3)] != 0;
+    }
+
   };
 
 public:

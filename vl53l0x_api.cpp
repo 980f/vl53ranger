@@ -739,20 +739,17 @@ namespace VL53L0X {
   } // VL53L0X_SetXTalkCompensationRateMegaCps
 
   Erroneous<FixPoint1616_t> Api::GetXTalkCompensationRateMegaCps() {
-
     LOG_FUNCTION_START;
-    Erroneous<uint16_t> Value;
+    Erroneous<FixPoint<3,13>> Value;
     if (fetch(Value, REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS)) {
       if (Value == 0) {
         /* the Xtalk is disabled return value from memory */
         VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, false);
-        return VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
       } else {
         VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, true);
-        FixPoint1616_t TempFix1616 = VL53L0X_FIXPOINT313TOFIXPOINT1616(Value);
-        VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, TempFix1616);
-        return TempFix1616;
+        VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, Value.wrapped);
       }
+      return VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
     } else {
       return {Value.error};
     }
@@ -760,12 +757,12 @@ namespace VL53L0X {
 
   Error Api::SetRefCalibration(CalibrationParameters p) {
     LOG_FUNCTION_START;
-    return set_ref_calibration(p);
+    return set_ref_calibration(p,true,true);
   }
 
   Erroneous<Api::CalibrationParameters> Api::GetRefCalibration() {
     LOG_FUNCTION_START;
-    return get_ref_calibration();
+    return get_ref_calibration(true,true);
   }
 
 /*
@@ -1075,11 +1072,13 @@ namespace VL53L0X {
     DeviceModes DeviceMode = GetDeviceMode();
 
     Error |= comm.WrByte(0x80, 0x01);  //todo: is ths another instance of magicTrio?
+
     Error |= comm.WrByte(0xFF, 0x01);
     Error |= comm.WrByte(0x00, 0x00);
     Error |= comm.WrByte(0x91, PALDevDataGet(StopVariable));
     Error |= comm.WrByte(0x00, 0x01);
     Error |= comm.WrByte(0xFF, 0x00);
+
     Error |= comm.WrByte(0x80, 0x00);
 
     ERROR_OUT;
@@ -1578,7 +1577,7 @@ namespace VL53L0X {
 * Internal functions
 *****************************************************************************/
 
-  Error Api::perform_ref_spad_management(SpadCount ref) {
+  Error Api::perform_ref_spad_management(SpadCount &ref) {
 
     /*
      * The reference SPAD initialization procedure determines the minimum
@@ -1613,45 +1612,48 @@ namespace VL53L0X {
      */
     Data.SpadData.RefSpadEnables.clear();
 
-    ErrorAccumulator Error = comm.WrByte(0xFF, 0x01);
-    ERROR_OUT;
-    Error = comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
-    ERROR_OUT;
-    Error = comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
-    ERROR_OUT;
-    Error = comm.WrByte(0xFF, 0x00);
-    ERROR_OUT;
-    Error = comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect);
+    {
+      SysPopper Error= push(0xFF, 0x01, 0x00);
+      Error |= comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
+      ERROR_OUT;
+      Error |= comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
+      ERROR_OUT;
+    }
+
+    ErrorAccumulator Error = comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
     ERROR_OUT;
     Error = comm.WrByte(REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
     ERROR_OUT;
     /* Perform ref calibration */
-    uint8_t PhaseCal = 0;
-    uint8_t VhvSettings = 0;
-    Error = perform_ref_calibration(&VhvSettings, &PhaseCal, 0);//ick: PhaseCal value then ignored. ditto for VhvSettings
+    CalibrationParameters p;
+    Error = perform_ref_calibration(p, 0);//ick: PhaseCal value then ignored. ditto for VhvSettings
     ERROR_OUT;
     /* Enable Minimum NON-APERTURE Spads */
     SpadArray::Index currentSpadIndex = 0;
 
-    uint32_t needAptSpads = 0;
-    auto lastSpadIndex = enable_ref_spads(needAptSpads, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
+    SpadCount sc;
+    sc.isAperture= false;
+    sc.quantity=minimumSpadCount;
+
+    auto lastSpadIndex = enable_ref_spads(sc, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
     ERROR_ON(lastSpadIndex);
-    currentSpadIndex = lastSpadIndex;
+    currentSpadIndex = lastSpadIndex.wrapped;
     Erroneous<uint16_t> peakSignalRateRef = perform_ref_signal_measurement();
     ERROR_OUT;
 
-    bool isApertureSpads_int = false;
-    unsigned refSpadCount_int = 0;
 
     if (peakSignalRateRef > targetRefRate) { /* Signal rate measurement too high, switch to APERTURE SPADs */
       Data.SpadData.RefSpadEnables.clear();
 
       /* Increment to the first APERTURE spad */
-      while (!is_aperture(startSelect + currentSpadIndex) && (currentSpadIndex.isValid())) {
+      while (currentSpadIndex.isValid() && !(startSelect + currentSpadIndex).is_aperture() ) {
         ++currentSpadIndex;
       }
-      needAptSpads = 1;
-      Error = enable_ref_spads(needAptSpads, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex, &lastSpadIndex);
+
+      sc.isAperture = true;
+      sc.quantity=minimumSpadCount;
+
+      lastSpadIndex = enable_ref_spads(sc, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
 
       if (Error == ERROR_NONE) {
         currentSpadIndex = lastSpadIndex;
@@ -1665,37 +1667,37 @@ namespace VL53L0X {
            * therefore set the min number of
            * aperture spads as the result.
            */
-          isApertureSpads_int = 1;
-          refSpadCount_int = minimumSpadCount;
+          sc.isAperture = true;
+          sc.quantity = minimumSpadCount;
         }
       }
     } else {
-      needAptSpads = 0;
+      ref.isAperture = false;//but we ERROR_OUT so why this lingering assign? changed to ref object instead of internal one
+      ERROR_OUT;
     }
-    ERROR_OUT;
     if (peakSignalRateRef < targetRefRate) {
 /* At this point, the minimum number of either aperture
  * or non-aperture spads have been set. Proceed to add
  * spads and perform measurements until the target
  * reference is reached.
  */
-      isApertureSpads_int = needAptSpads;
-      refSpadCount_int = minimumSpadCount;
+//      sc.isAperture = needAptSpads;
+      sc.quantity = minimumSpadCount;//perhaps superfluous
 
       SpadArray lastSpadArray = Data.SpadData.RefSpadEnables;
 
-      uint32_t lastSignalRateDiff = abs(peakSignalRateRef - targetRefRate);
+      uint32_t lastSignalRateDiff = abs(peakSignalRateRef.wrapped - targetRefRate);
       uint8_t complete = 0;
       while (!complete) {
         SpadArray::Index nextGoodSpad = get_next_good_spad(Data.SpadData.RefGoodSpadMap, currentSpadIndex);
         if (!nextGoodSpad.isValid()) {
           return ERROR_REF_SPAD_INIT;
         }
-        ++refSpadCount_int;
+        ++sc.quantity;
 /* Cannot combine Aperture and Non-Aperture spads, so
  * ensure the current spad is of the correct type.
  */
-        if (is_aperture(startSelect + nextGoodSpad) != needAptSpads) {
+        if ((startSelect + nextGoodSpad).is_aperture() != sc.isAperture) {
           return ERROR_REF_SPAD_INIT;
         }
 
@@ -1707,15 +1709,15 @@ namespace VL53L0X {
         Error = set_ref_spad_map(Data.SpadData.RefSpadEnables);
 
         ERROR_OUT;
-        peakSignalRateRef = perform_ref_signal_measurement(&peakSignalRateRef);
+        peakSignalRateRef = perform_ref_signal_measurement();
         ERROR_ON(peakSignalRateRef);
-        uint32_t signalRateDiff = abs(peakSignalRateRef - targetRefRate);
+        uint32_t signalRateDiff = abs(peakSignalRateRef.wrapped - targetRefRate);
 
         if (peakSignalRateRef > targetRefRate) { /* Select the spad map that provides the measurement closest to the target rate, either above or below it. */
           if (signalRateDiff > lastSignalRateDiff) { /* Previous spad map produced a closer measurement, so choose this. */
             Error = set_ref_spad_map(lastSpadArray);
             Data.SpadData.RefSpadEnables = lastSpadArray;
-            --refSpadCount_int;
+            --sc.quantity;
           }
           complete = 1;
         } else { /* Continue to add spads */
@@ -1726,13 +1728,11 @@ namespace VL53L0X {
     }
 
     ERROR_OUT;
-    *refSpadCount = refSpadCount_int;
-    *isApertureSpads = isApertureSpads_int;
 
     VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, 1);
-    VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad.quantity, (uint8_t) (*refSpadCount));
-    VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpadType, *isApertureSpads);
+    VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, sc);
 
+    ref=sc;
     return ERROR_NONE;
   }
 
@@ -1741,10 +1741,10 @@ namespace VL53L0X {
     Erroneous<DeviceParameters_t> wad;
 
     auto DeviceMode = GetDeviceMode();
-    if (DeviceMode.isOk()) {
+    if (isValid(DeviceMode)) {
     }
 
-    Error |= GetInterMeasurementPeriodMilliSeconds(pDeviceParameters.InterMeasurementPeriodMilliSeconds);
+    Error |= GetInterMeasurementPeriodMilliSeconds(wad.InterMeasurementPeriodMilliSeconds);
     ERROR_OUT;
     pDeviceParameters.XTalkCompensationEnable = 0;
     ERROR_OUT;
@@ -1778,6 +1778,7 @@ namespace VL53L0X {
 
     return Error;
   }
+
 
 
 // GetDeviceParameters

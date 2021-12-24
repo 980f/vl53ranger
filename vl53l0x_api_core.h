@@ -150,6 +150,52 @@ namespace VL53L0X {
  */
     Erroneous<FixPoint1616_t> GetLimitCheckValue(CheckEnable LimitCheckId);
 
+
+    /** deriving from ErrorAccumulator to use some early out macros */
+    class SysPopper: public ErrorAccumulator {
+    protected:
+      Physical &comm;
+      uint8_t index;
+      uint8_t pop;
+    public:
+      SysPopper(Physical &comm,uint8_t  index, uint8_t push, uint8_t pop):comm(comm),index(index),pop(pop) {
+        (*this)|=comm.WrByte(index,push);
+      }
+
+      ~SysPopper(){
+        //todo: not try if push fails?
+        (*this)|=comm.WrByte(index, pop);
+      }
+    };
+
+    /** call this to ensure a restore operation occurs when the object goes out of scope. */
+    SysPopper push(uint8_t  index, uint8_t push, uint8_t pop){
+      return SysPopper(comm,index,push,pop);
+    }
+
+    class FFPopper: public ErrorAccumulator{
+      Physical &comm;
+      uint8_t index;
+      uint8_t pop;
+    public:
+      FFPopper(Physical &comm,uint8_t  index, uint8_t push, uint8_t pop):comm(comm),index(index),pop(pop) {
+        auto popper= SysPopper(comm, 0xFF,0x01,0x00);
+        (*this)|=comm.WrByte(index,push);
+      }
+
+      ~FFPopper(){
+        //todo: not try if push fails?
+        auto popper= SysPopper(comm, 0xFF,0x01,0x00);
+        (*this)|=comm.WrByte(index, pop);
+      }
+
+    };
+
+    /** call this to ensure a restore operation occurs when the object goes out of scope. */
+    FFPopper FFpush(uint8_t  index, uint8_t push, uint8_t pop){
+      return FFPopper(comm,index,push,pop);
+    }
+
     class MagicTrio {
       ErrorAccumulator Error;
       Physical &comm; //not a base as eventually we will pass in a reference to a baser class

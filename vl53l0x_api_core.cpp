@@ -274,10 +274,8 @@ namespace VL53L0X {
 
       Error |= comm.UpdateBit(0x83, 2, false);
 
-      Error |= comm.WrByte(0xFF, 0x01);
-      Error |= comm.WrByte(0x00, 0x01);
+      FFwrap(RegSystem(0x00), 0x01);
 
-      Error |= comm.WrByte(0xFF, 0x00);
       Error |= comm.WrByte(0x80, 0x00);
 
       ERROR_OUT;

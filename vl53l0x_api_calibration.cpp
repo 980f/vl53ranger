@@ -33,19 +33,11 @@
 #include "log_api.h"
 #include "vl53l0x_spadarray.h"
 
-//ick: use enums to constrain the range of an integer, not typeless symbols
-#define REF_ARRAY_SPAD_0 0
-#define REF_ARRAY_SPAD_5 5
-#define REF_ARRAY_SPAD_10 10
-
-//there are 64 spads per quadrant. quadrant 2 seems to be aperture, the rest not.
-const uint32_t refArrayQuadrants[4] = {REF_ARRAY_SPAD_10, REF_ARRAY_SPAD_5, REF_ARRAY_SPAD_0, REF_ARRAY_SPAD_5};
-//are y used anywhere else?:
-#undef REF_ARRAY_SPAD_0
-#undef REF_ARRAY_SPAD_5
-#undef REF_ARRAY_SPAD_10
 
 namespace VL53L0X {
+
+  const SpadArray::Index Api::startSelect (180);// was 0xB4 but is not a bit pattern, rather it is a decimal number
+
 
   //offset field is 12 bits and signed.
   const int16_t cOffsetMask = (1 << 12) - 1; //bit field 11=>0
@@ -82,7 +74,7 @@ namespace VL53L0X {
       if (RangingMeasurementData.rangeError == 0) {
         sum_ranging += RangingMeasurementData.RangeMilliMeter;
         sum_signalRate += RangingMeasurementData.SignalRateRtnMegaCps;
-        sum_spads += RangingMeasurementData.EffectiveSpadRtnCount .rounded();//980f: formerly truncated
+        sum_spads += RangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
         ++total_count;
       }
     }
@@ -268,15 +260,9 @@ namespace VL53L0X {
     return ~0;//canonical ! isValid()
   } // get_next_good_spad
 
-  bool is_aperture(SpadArray::Index spadIndex) {
-    /*
-     * This function reports if a given spad index is an aperture SPAD by
-     * deriving the quadrant.
-     */
-    return refArrayQuadrants[spadIndex.absolute() >> 6] != /*REF_ARRAY_SPAD_*/0;
-  }
 
-  Erroneous<SpadArray::Index> Api::enable_ref_spads(bool apertureSpads, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index start, SpadArray::Index offset, unsigned spadCount) {
+
+  Erroneous<SpadArray::Index> Api::enable_ref_spads(SpadCount &req, SpadArray goodSpadArray, SpadArray spadArray,  SpadArray::Index offset) {
     /*
      * This function takes in a spad array which may or may not have SPADS
      * already enabled and appends from a given offset a requested number
@@ -286,31 +272,30 @@ namespace VL53L0X {
      * This function applies to only aperture or only non-aperture spads.
      * Checks are performed to ensure this.
      */
-    Error Error = ERROR_NONE;
+
     SpadArray::Index lastSpad(~0);//start invalid
     SpadArray::Index currentSpad = offset;
-    for (uint32_t index = 0; index < spadCount; index++) {
+    while (currentSpad.isValid()) {
       auto nextGoodSpad = get_next_good_spad(goodSpadArray, currentSpad);
       if (!nextGoodSpad.isValid()) {
         return {ERROR_REF_SPAD_INIT};//seems excessive, we just went past the last
       }
       /* Confirm that the next good SPAD is non-aperture */
-      if (is_aperture(start + nextGoodSpad) != apertureSpads) {
+      if (nextGoodSpad.is_aperture() != req.isAperture) {
         /* if we can't get the required number of good aperture
          * spads from the current quadrant then this is an error
          */
-        Error = ERROR_REF_SPAD_INIT;
-        break;
+        return ERROR_REF_SPAD_INIT;
       }
-
       spadArray.enable(nextGoodSpad);
       currentSpad = ++nextGoodSpad;//without the incr we would spin forever
     }
 
-    Error = set_ref_spad_map(spadArray);
-
+    Error Error = set_ref_spad_map(spadArray);
+//ick: error ignored
     SpadArray checkSpadArray;
     Error = get_ref_spad_map(checkSpadArray);
+    //ick:error ignored
     /* Compare spad maps. If not equal report error. */
     if (spadArray != checkSpadArray) {
       return ERROR_REF_SPAD_INIT;
@@ -323,6 +308,7 @@ namespace VL53L0X {
     /* store the value of the sequence config,
      * this will be reset before the end of the function
      */
+    SequencePopper
     uint8_t SequenceConfig = PALDevDataGet(SequenceConfig);
     /*
      * This function performs a reference signal rate measurement.
@@ -349,10 +335,10 @@ namespace VL53L0X {
     //this clearing moved here as it executed regardless of error in the I2C writes
     Data.SpadData.RefSpadEnables.clear();
 
-    unsigned currentSpadIndex = 0;
+    SpadArray::Index currentSpadIndex = 0;
     if (ref.isAperture) {
       /* Increment to the first APERTURE spad */
-      while (!is_aperture(startSelect + currentSpadIndex)  && (currentSpadIndex < SpadArray::MaxCount)) {
+      while (currentSpadIndex.isValid() && !(startSelect + currentSpadIndex).is_aperture()) {//BUG: formerly would check one past end
         ++currentSpadIndex;
       }
     }
@@ -361,7 +347,6 @@ namespace VL53L0X {
      * This function applies a requested number of reference spads, either aperture or non-aperture, as requested.
      * The good spad map will be applied.
      */
-
     Error Error = comm.WrByte(0xFF, 0x01);
     if (!Error) {
       Error = comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
@@ -370,7 +355,7 @@ namespace VL53L0X {
         if (!Error) {
           Error = comm.WrByte(0xFF, 0x00);//todo: use RAII and FFWrap logic
           if (!Error) {
-            Error = comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect);
+            Error = comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
           }
         }
       }
@@ -411,7 +396,7 @@ namespace VL53L0X {
   } // VL53L0X_perform_single_ref_calibration
 
 
-  Erroneous<Api::CalibrationParameters> Api::get_ref_calibration(Api::CalibrationParameters incoming,const bool vhv_enable, const bool phase_enable) {
+  Erroneous<Api::CalibrationParameters> Api::get_ref_calibration(Api::CalibrationParameters incoming, const bool vhv_enable, const bool phase_enable) {
     ErrorAccumulator Error = ERROR_NONE;
     /* Read VHV from device */
     Error |= FFwrap(RegSystem(0), uint8_t(0));
@@ -440,25 +425,7 @@ namespace VL53L0X {
     return {incoming, Error};
   } //
 
-  Error Api::set_ref_calibration(Api::CalibrationParameters &p, const bool vhv_enable, const bool phase_enable) {
-    ErrorAccumulator Error = ERROR_NONE;
-    /* Read VHV from device */
-    Error | FFwrap(RegSystem(0), uint8_t(0));
-    uint8_t PhaseCalint = 0;
-    if (vhv_enable) {
-      Error |= comm.WrByte(0xCB, p.VhvSettings);
-    }
-    if (phase_enable) {
-      //bits 6..0
-      Error |= comm.UpdateByte(0xEE, 1 << 7, PhaseCal);//keep msb set ?
-    }
 
-    Error |= FFwrap(RegSystem(0), uint8_t(1));
-
-    p.PhaseCal = PhaseCalint & ~(1 << 4);//kill bit 4
-
-    return Error;
-  }
 
   Error Api::perform_vhv_calibration(const bool get_data_enable, const bool restore_config) {
     /* store the value of the sequence config, this will be reset before the end of the function */
@@ -497,7 +464,6 @@ namespace VL53L0X {
     /* store the value of the sequence config,
      * this will be reset before the end of the function
      */
-    uint8_t SequenceConfig = PALDevDataGet(SequenceConfig);
 //980f: is a setting of SequncConfig lost or was some code moved to perforem_vhv and dregs left here?
     /* In the following function we don't save the config to optimize
      * writes on device. Config is saved and restored only once. */
@@ -517,13 +483,30 @@ namespace VL53L0X {
     return Error;
   } // VL53L0X_perform_ref_calibration
 
-  Error Api::set_ref_calibration(uint8_t VhvSettings, uint8_t PhaseCal) {
-    uint8_t pVhvSettings;//ick: ignored
-    uint8_t pPhaseCal;//ick: ignored
-    return ref_calibration_io(0, VhvSettings, PhaseCal, &pVhvSettings, &pPhaseCal, 1, 1);
+  const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::places;
+
+
+  Error Api::set_ref_calibration(CalibrationParameters p, bool setv, bool setp) {
+    auto Error = FFpush(0, 0, 1);
+    if (setv) {
+      Error |= comm.WrByte(0xCB, p.VhvSettings);
+    }
+    if (setp) {
+      Error |= comm.UpdateByte(0xEE, ~phaseMask, p.PhaseCal & phaseMask);
+    }
+    return Error.sum;
   }
 
-  Erroneous<Api::CalibrationParameters> Api::get_ref_calibration() {
-    return ref_calibration_io(1, 0, 0, pVhvSettings, pPhaseCal, 1, 1);
+  Erroneous<Api::CalibrationParameters> Api::get_ref_calibration(bool getv, bool getp) {
+    CalibrationParameters p;
+    auto Error = FFpush(0, 0, 1);
+    if (getv) {
+      Error |= comm.RdByte(0xCB, &p.VhvSettings);
+    }
+    if (getp) {
+      Error |= comm.RdByte(0xEE, &p.PhaseCal);
+    }
+    p.PhaseCal &= Mask<6, 0>::places;
+    return {p, Error.sum};
   }
 }
