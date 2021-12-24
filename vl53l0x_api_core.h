@@ -74,7 +74,13 @@ namespace VL53L0X {
      * */
     Error set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
 
-    Error get_info_from_device(uint8_t option);
+    enum InfoGroup {
+      SpadStuff=1<<0
+      ,IDStuff=1<<1
+      ,PartUidEtc=1<<2
+    };
+
+    Error get_info_from_device(uint8_t infoGroupBits);
 
     Erroneous<uint32_t> get_sequence_step_timeout(SequenceStepId SequenceStepId);
 
@@ -193,6 +199,19 @@ namespace VL53L0X {
     };
 
   protected:  //common code fragments or what were file static but didn't actually have the 'static' like they should have.
+
+    /** gets value from device, @returns whether it worked OK.*/
+    template<unsigned whole, unsigned fract> bool fetch(Erroneous<FixPoint<whole, fract>> &item, RegSystem reg) {
+      item.error = comm.Read<typename FixPoint<whole, fract>::RawType>(reg, item.wrapped);
+      return item.isOk();
+    }
+
+/** gets value from device, @returns whether it worked OK.*/
+    template<typename Scalar> bool fetch(Erroneous<Scalar> &item, RegSystem reg) {
+      item.error = comm.Read<Scalar>(reg, item.wrapped);
+      return item.isOk();
+    }
+
     Error setValidPhase(uint8_t high, uint8_t low);
 
     Error setPhasecalLimit(uint8_t value);
@@ -219,9 +238,7 @@ namespace VL53L0X {
     template<typename Int> Erroneous<Int> packed90(uint8_t which);
     Erroneous<uint32_t> middleof64(unsigned int which);
 
-/** gets value from device, @returns whether it worked OK.*/
-    template<unsigned whole, unsigned fract> bool fetch(Erroneous<FixPoint<whole,fract>> &item, RegSystem reg) ;
-      template<typename Scalar> bool fetch(Erroneous<Scalar> &item, RegSystem reg);
+
     Erroneous <SchedulerSequenceSteps_t> get_sequence_step_enables();
     uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
 

@@ -325,8 +325,8 @@ Error Adafruit_VL53L0X::GetSingleRangingMeasurement(RangingMeasurementData_t &Ra
  */
 /**************************************************************************/
 void Adafruit_VL53L0X::printRangeStatus(RangingMeasurementData_t &pRangingMeasurementData) {
-  /* New Range Error: data is valid when pRangingMeasurementData->RangeStatus =  0   */
-  auto RangeStatus = pRangingMeasurementData.RangeStatus;
+  /* New Range Error: data is valid when pRangingMeasurementData->rangeError =  0   */
+  auto RangeStatus = pRangingMeasurementData.rangeError;
   Serial.print(F("Range Error: "));
   Serial.print(RangeStatus);
   Serial.print(F(" : "));
@@ -345,7 +345,7 @@ uint16_t Adafruit_VL53L0X::readRange() {
   VL53L0X::RangingMeasurementData_t measure; // keep our own private copy
 
   Error = getSingleRangingMeasurement(measure, false);
-  _rangeStatus = measure.RangeStatus;
+  _rangeStatus = measure.rangeError;
 
   if (Error == VL53L0X::ERROR_NONE) {
     return measure.RangeMilliMeter;
@@ -422,7 +422,7 @@ uint16_t Adafruit_VL53L0X::readRangeResult() {
   RangingMeasurementData_t measure; // keep our own private copy
 
   Error = MyDevice.GetRangingMeasurementData(&measure);
-  _rangeStatus = measure.RangeStatus;
+  _rangeStatus = measure.rangeError;
   if (Error == ERROR_NONE) {
     Error = MyDevice.ClearInterruptMask(0);
   }
@@ -461,6 +461,7 @@ boolean Adafruit_VL53L0X::startRangeContinuous(uint16_t period_ms) {
 /**************************************************************************/
 /*!
  *   @brief  Stop a continuous ranging operation
+ *   @note BLOCKING
  */
 /**************************************************************************/
 bool Adafruit_VL53L0X::stopRangeContinuous() {
@@ -468,11 +469,11 @@ bool Adafruit_VL53L0X::stopRangeContinuous() {
   // Wait until it finished
   // use timeout to avoid deadlock
   if (Error == ERROR_NONE) {
-    for (unsigned LoopNb = MyDevice.DEFAULT_MAX_LOOP; LoopNb-- > 0;) {
+    for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {
       // lets wait until that completes.
-      uint32_t StopCompleted = 0;
-      Error = MyDevice.GetStopCompletedStatus(&StopCompleted);
-      if ((StopCompleted == 0x00) || Error != ERROR_NONE) {
+      auto StopCompleted= MyDevice.GetStopCompletedStatus();
+      if (~StopCompleted || (StopCompleted == 0x00)) {//bug: must have copied ST, check whether a value was fetched before checking the value
+        //above: failed or finished
         Error = MyDevice.ClearInterruptMask(GPIOFUNCTIONALITY_NEW_MEASURE_READY);
         return Error == ERROR_NONE;
       }

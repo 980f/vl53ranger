@@ -207,6 +207,7 @@ namespace VL53L0X {
     , DEVICEMODE_CONTINUOUS_RANGING
     , DEVICEMODE_SINGLE_HISTOGRAM
     , DEVICEMODE_CONTINUOUS_TIMED_RANGING
+
     , DEVICEMODE_SINGLE_ALS = 10
     , DEVICEMODE_GPIO_DRIVE = 20
     , DEVICEMODE_GPIO_OSC
@@ -214,6 +215,7 @@ namespace VL53L0X {
 /* ... Modes to be added depending on device */
 /** @} VL53L0X_define_DeviceModes_group */
   };
+
 
 /** @defgroup VL53L0X_define_HistogramModes_group Defines Histogram modes
  *	Defines all possible Histogram modes for the device
@@ -233,7 +235,7 @@ namespace VL53L0X {
  *	@{
  */
 
-  enum PowerModes : uint8_t {
+  enum PowerModes : uint8_t {//two bits: IdleElseStandby and an unused level
     POWERMODE_STANDBY_LEVEL1 = 0 /*!< Standby level 1 */
     , POWERMODE_STANDBY_LEVEL2 /*!< Standby level 2 */
     , POWERMODE_IDLE_LEVEL1  /*!< Idle level 1 */
@@ -302,11 +304,11 @@ namespace VL53L0X {
     FixPoint1616_t SignalRateRtnMegaCps; /*!< Return signal rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of target reflectance.*/
     FixPoint1616_t AmbientRateRtnMegaCps;  /*!< Return ambient rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of the ambient light.*/
 
-    uint16_t EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256 */
+    FixPoint<8,8> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256 */
 
     uint8_t ZoneId;  /*!< Denotes which zone and range scheduler stage the range data relates to. */
     uint8_t RangeFractionalPart; /*!< Fractional part of range distance. Final value is a FixPoint168 value. */
-    uint8_t RangeStatus;  /*!< Range Error for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
+    uint8_t rangeError;  /*!< Range Error for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
   };
 
 #define VL53L0X_HISTOGRAM_BUFFER_SIZE 24
@@ -339,17 +341,17 @@ namespace VL53L0X {
   };
 
   struct SigmaEstimates {
-    uint16_t RefArray; /*!< Reference array sigma value in 1/100th of [mm] e.g. 100 = 1mm */
-    uint16_t EffPulseWidth;  /*!< Effective Pulse width for sigma estimate in 1/100th of ns e.g. 900 = 9.0ns */
-    uint16_t EffAmbWidth;     /*!< Effective Ambient width for sigma estimate in 1/100th of ns e.g. 500 = 5.0ns */
+    uint16_t RefArray=0; /*!< Reference array sigma value in 1/100th of [mm] e.g. 100 = 1mm */
+    uint16_t EffPulseWidth=0;  /*!< Effective Pulse width for sigma estimate in 1/100th of ns e.g. 900 = 9.0ns */
+    uint16_t EffAmbWidth=0;     /*!< Effective Ambient width for sigma estimate in 1/100th of ns e.g. 500 = 5.0ns */
   };
 
   struct DeviceSpecificParameters_t {
     FixPoint1616_t OscFrequencyMHz; /* Frequency used */
 
-    uint16_t LastEncodedTimeout;/* last encoded Time out used for timing budget*/
+    uint16_t LastEncodedTimeout=0;/* last encoded Time out used for timing budget*/
 
-    GpioFunctionality Pin0GpioFunctionality;/* store the functionality of the GPIO: pin0 */
+    GpioFunctionality Pin0GpioFunctionality=GPIOFUNCTIONALITY_OFF;/* store the functionality of the GPIO: pin0 */
 
     struct RangeSetting {
       uint32_t TimeoutMicroSecs;/*!< Execution time of the final range*/
@@ -401,8 +403,7 @@ namespace VL53L0X {
 
     SigmaEstimates SigmaEst;
 
-    /*!< Effective Ambient width for sigma estimate in 1/100th of ns
-     * e.g. 500 = 5.0ns */
+
 
     uint8_t StopVariable;     /*!< StopVariable used during the stop sequence */
     FixPoint<9, 7> targetRefRate;     /*!< Target Ambient Rate for Ref spad management */
@@ -410,7 +411,7 @@ namespace VL53L0X {
     FixPoint1616_t SignalEstimate;     /*!< Signal Estimate - based on ambient & VCSEL rates and cross talk */
     FixPoint1616_t LastSignalRefMcps;     /*!< Latest Signal ref in Mcps */
     Tunings pTuningSettingsPointer;     /*!< Pointer for Tuning Settings table */
-    uint8_t UseInternalTuningSettings;     /*!< Indicate if we use	 Tuning Settings table */
+    bool UseInternalTuningSettings;     /*!< Indicate if we use	 Tuning Settings table */
     uint16_t LinearityCorrectiveGain;     /*!< Linearity Corrective Gain value in x1000 */
     struct DmaxCal {
       uint16_t RangeMilliMeter;     /*!< Dmax Calibration Range millimeter */

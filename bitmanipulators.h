@@ -16,7 +16,8 @@ template<unsigned bitnum, typename Intish> constexpr bool getBit(const Intish da
   static_assert(bitnum / 8 < sizeof(Intish));
   return (data & (1 << bitnum)) != 0;
 }
-template<typename Intish> constexpr void setBit(const unsigned bitnum, Intish &data,bool setit) {
+
+template<typename Intish> constexpr void setBit(const unsigned bitnum, Intish &data, bool setit) {
   if (bitnum / 8 <= sizeof(Intish)) {
     if (setit) {
       data |= 1 << bitnum;
@@ -26,7 +27,7 @@ template<typename Intish> constexpr void setBit(const unsigned bitnum, Intish &d
   }
 }
 
-template<unsigned bitnum, typename Intish> constexpr void setBit(Intish &data,bool setit) {
+template<unsigned bitnum, typename Intish> constexpr void setBit(Intish &data, bool setit) {
   static_assert(bitnum / 8 < sizeof(Intish));
   if (bitnum / 8 <= sizeof(Intish)) {
     if (setit) {
@@ -37,16 +38,28 @@ template<unsigned bitnum, typename Intish> constexpr void setBit(Intish &data,bo
   }
 }
 
+/**
+ * e.g. for bits 6..3 0xE8   Mask<6,3>::places
+ *
+ * */
+template<unsigned msbit, unsigned lsbit> struct Mask {
+  static_assert(msbit >= lsbit, "operand order is msbit,lsbit ");//require ordered to simplify the code
+  //by checking msbit> lsbit we don't need to test lsbit.
+  //by using unsigned we don't need to check for negatives
+  enum {
+    width = msbit - lsbit + 1    //check: needs to be 1 when msbit==lsbit
+    , places = (1 << (msbit + 1)) - (1 << lsbit)
+    , shifted = (1 << width) - 1  //should be 1 == 1<<0 when msbit==lsbit
+  };
+};
+
 /** @returns a substring of bits from @param data, returning the same sized value even if it could be a smaller type
  * this version only works for unsigned data. If you want to extract a signed field use a struct with bit fields instead of this.
  * */
 template<unsigned msbit, unsigned lsbit, typename Intish> constexpr Intish getBits(const Intish data) {
-  static_assert(msbit >= lsbit);//require ordered to simplify the code
   static_assert(msbit / 8 < sizeof(Intish));//does the data type even have that many bits?
-  //by checking msbit> lsbit we don't need to test lsbit here.
-  //by using unsigned we don't need to check for negatives
-  constexpr unsigned width = (msbit - lsbit + 1);//check: needs to be 1 when msbit==lsbit
-  return (data >> lsbit) & ((1 << width) - 1);
+
+  return (data >> lsbit) & Mask<msbit,lsbit>::shifted;
 }
 
 template<typename Intish> constexpr uint8_t getByte(const unsigned bytenum, const Intish data) {
@@ -61,7 +74,6 @@ template<unsigned bytenum, typename Intish> constexpr uint8_t getByte(const Inti
   return data >> (8 * bytenum);
 }
 
-
 /** read and writes like a bit */
 class BitAlias {
   const unsigned offset;
@@ -69,17 +81,16 @@ class BitAlias {
 public:
 
   BitAlias &operator=(bool setme) {
-    setBit(offset,wrapped,setme);
+    setBit(offset, wrapped, setme);
     return *this;
   }
 
   operator bool() const {
-    return getBit(offset,wrapped);
+    return getBit(offset, wrapped);
   }
 
-  BitAlias(unsigned char &datum, unsigned bitnum):offset(bitnum),wrapped(datum) {
+  BitAlias(unsigned char &datum, unsigned bitnum) : offset(bitnum), wrapped(datum) {
   }
 };
-
 
 #endif //VL53_BITMANIPULATORS_H

@@ -78,11 +78,11 @@ namespace VL53L0X {
         return total_count == 0 ? ERROR_RANGE_ERROR : Error.sum;//ick: could use some refinement why error is overridden if first measurement fails for any reason.
       }
 
-      /* The range is valid when RangeStatus = 0 */
-      if (RangingMeasurementData.RangeStatus == 0) {
+      /* The range is valid when rangeError = 0 */
+      if (RangingMeasurementData.rangeError == 0) {
         sum_ranging += RangingMeasurementData.RangeMilliMeter;
         sum_signalRate += RangingMeasurementData.SignalRateRtnMegaCps;
-        sum_spads += RangingMeasurementData.EffectiveSpadRtnCount / 256;
+        sum_spads += RangingMeasurementData.EffectiveSpadRtnCount .rounded();//980f: formerly truncated
         ++total_count;
       }
     }
@@ -150,14 +150,14 @@ namespace VL53L0X {
     return SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
   } // VL53L0X_perform_xtalk_calibration
 
-  Error Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter) {
+  Erroneous<int32_t> Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter) {
     if (CalDistanceMilliMeter.raw <= 0) {
       return ERROR_INVALID_PARAMS;
     }
     ErrorAccumulator Error = SetOffsetCalibrationDataMicroMeter(0);
     ERROR_OUT;
     /* Get the value of the TCC */
-    bool SequenceStepEnabled = GetSequenceStepEnable(SEQUENCESTEP_TCC);
+    bool SequenceStepWasEnabled = GetSequenceStepEnable(SEQUENCESTEP_TCC);
     ERROR_OUT;
     /* Disable the TCC */
     Error = SetSequenceStepEnable(SEQUENCESTEP_TCC, 0);
@@ -174,8 +174,8 @@ namespace VL53L0X {
       if (Error != ERROR_NONE) {
         break;
       }
-      /* The range is valid when RangeStatus = 0 */
-      if (RangingMeasurementData.RangeStatus == 0) {
+      /* The range is valid when rangeError = 0 */
+      if (RangingMeasurementData.rangeError == 0) {
         sum_ranging += RangingMeasurementData.RangeMilliMeter;
         ++total_count;
       }
@@ -192,15 +192,15 @@ namespace VL53L0X {
      * Note that the cal distance is in mm, therefore no resolution
      * is lost.*/
     uint32_t CalDistanceAsInt_mm = CalDistanceMilliMeter.shrink(16);
-    *pOffsetMicroMeter = (CalDistanceAsInt_mm - StoredMeanRangeAsInt) * 1000;
+    int32_t OffsetMicroMeter = (CalDistanceAsInt_mm - StoredMeanRangeAsInt) * 1000;
 
     /* Apply the calculated offset */
-    VL53L0X_SETPARAMETERFIELD(RangeOffsetMicroMeters, *pOffsetMicroMeter);
-    Error = SetOffsetCalibrationDataMicroMeter(*pOffsetMicroMeter);
+    VL53L0X_SETPARAMETERFIELD(RangeOffsetMicroMeters, OffsetMicroMeter);
+    Error = SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);
     ERROR_OUT;
 
     /* Restore the TCC */
-    if (SequenceStepEnabled != 0) {
+    if (SequenceStepWasEnabled) {
       return SetSequenceStepEnable(SEQUENCESTEP_TCC, 1);
     }
     return ERROR_NONE;
@@ -327,7 +327,7 @@ namespace VL53L0X {
     /*
      * This function performs a reference signal rate measurement.
      */
-    ErrorAccumulator Error = set_SequenceConfig(0xC0, true);//908f: now also sets PALDevData
+    ErrorAccumulator Error = set_SequenceConfig(0xC0, true);//980f: now also sets PALDevData
     ERROR_OUT;
 
     RangingMeasurementData_t rangingMeasurementData;
@@ -346,13 +346,13 @@ namespace VL53L0X {
 
 
   Error Api::set_reference_spads(SpadCount ref) {
-    //code moved here as it executed regardless of error in the I2C writes
+    //this clearing moved here as it executed regardless of error in the I2C writes
     Data.SpadData.RefSpadEnables.clear();
 
     unsigned currentSpadIndex = 0;
     if (ref.isAperture) {
       /* Increment to the first APERTURE spad */
-      while ((is_aperture(startSelect + currentSpadIndex) == 0) && (currentSpadIndex < SpadArray::MaxCount)) {
+      while (!is_aperture(startSelect + currentSpadIndex)  && (currentSpadIndex < SpadArray::MaxCount)) {
         ++currentSpadIndex;
       }
     }
@@ -366,9 +366,9 @@ namespace VL53L0X {
     if (!Error) {
       Error = comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
       if (!Error) {
-        Error = comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
+        Error = comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);//ick: seems to be SpadArray::MaxCount
         if (!Error) {
-          Error = comm.WrByte(0xFF, 0x00);
+          Error = comm.WrByte(0xFF, 0x00);//todo: use RAII and FFWrap logic
           if (!Error) {
             Error = comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect);
           }
@@ -378,7 +378,7 @@ namespace VL53L0X {
     //ick: lots of errors but we enable the ref spads anyway? If we shouldn't then we can apply ERROR_OUT above.
     //ick: we lose all the errors in the above if we proceed.
 
-    auto ignoredvalue = enable_ref_spads(SpadCount & ref, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
+    auto ignoredvalue = enable_ref_spads(ref, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
     ERROR_ON(ignoredvalue);
     VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, true);
     VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, ref);
@@ -410,23 +410,24 @@ namespace VL53L0X {
     return comm.WrByte(REG_SYSRANGE_START, 0x00);
   } // VL53L0X_perform_single_ref_calibration
 
-  Erroneous<Api::CalibrationParameters> Api::get_ref_calibration(Api::CalibrationParameters p) {
+
+  Erroneous<Api::CalibrationParameters> Api::get_ref_calibration(Api::CalibrationParameters incoming,const bool vhv_enable, const bool phase_enable) {
     ErrorAccumulator Error = ERROR_NONE;
     /* Read VHV from device */
     Error |= FFwrap(RegSystem(0), uint8_t(0));
 
-    Erroneous<uint8_t> vhv(p.VhvSettings);
+    Erroneous<uint8_t> vhv(incoming.VhvSettings);
     if (vhv_enable) {
       if (fetch(vhv, RegSystem(0xCB))) {
-        p.VhvSettings = vhv;
+        incoming.VhvSettings = vhv;
       } else {
         Error |= vhv.error;
       }
     }
-    Erroneous<uint8_t> phase(p.PhaseCal);
+    Erroneous<uint8_t> phase(incoming.PhaseCal);
     if (phase_enable) {
       if (fetch(phase, RegSystem(0xEE))) {
-        p.PhaseCal = phase;
+        incoming.PhaseCal = phase;
       } else {
         Error |= phase.error;
       }
@@ -434,7 +435,7 @@ namespace VL53L0X {
 
     Error |= FFwrap(RegSystem(0), uint8_t(1));
 
-    incoming.PhaseCal = PhaseCalint & ~(1 << 4);//kill bit 4
+    incoming.PhaseCal &= ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
 
     return {incoming, Error};
   } //

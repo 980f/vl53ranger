@@ -169,7 +169,7 @@ namespace VL53L0X {
     return fetched;
   }
 
-  Error Core::get_info_from_device(uint8_t option) {
+  Error Core::get_info_from_device(uint8_t infoGroups) {
     //read into temps so that we only apply if all are read successfully:
     //we could make a substruct in DeviceSpeciingParameters_t instead of redeclaring most of them here.
     //bit 1 group:
@@ -191,7 +191,7 @@ namespace VL53L0X {
 
     LOG_FUNCTION_START;
     uint8_t ReadDataFromDeviceDone = VL53L0X_GETDEVICESPECIFICPARAMETER(ReadDataFromDeviceDone);
-    uint8_t needs = option & ~ReadDataFromDeviceDone;
+    uint8_t needs = infoGroups & ~ReadDataFromDeviceDone;
 
     /* Each subgroup of this access is done only once after that a GetDeviceInfo or datainit is done */
     if (ReadDataFromDeviceDone != 7) { //if not all done
@@ -312,7 +312,8 @@ namespace VL53L0X {
         }
         PALDevDataSet(Part2PartOffsetAdjustmentNVMMicroMeter, OffsetMicroMeters);
       }
-      VL53L0X_SETDEVICESPECIFICPARAMETER(ReadDataFromDeviceDone, (ReadDataFromDeviceDone | option));
+      //BUG: we ignore errors in the fetch parts and by setting the flags here we will never recover: (todo: clear bits in infoGroups upon errors!)
+      VL53L0X_SETDEVICESPECIFICPARAMETER(ReadDataFromDeviceDone, (ReadDataFromDeviceDone | infoGroups));
     }
 
     return ERROR_NONE;
@@ -368,15 +369,6 @@ namespace VL53L0X {
     return ((timeout_period_mclks * macro_period_ns) + (macro_period_ns / 2)) / 1000;//BUG: rogue tile? the ns/2 and 1000 do not make sense together here
   } // VL53L0X_calc_timeout_us
 
-  template<unsigned whole, unsigned fract> bool Core::fetch(Erroneous<FixPoint<whole, fract>> &item, RegSystem reg) {
-    item.error = comm.Read<typename FixPoint<whole, fract>::RawType>(reg, item.wrapped);
-    return item.isOk();
-  }
-
-  template<typename Scalar> bool Core::fetch(Erroneous<Scalar> &item, RegSystem reg) {
-    item.error = comm.Read<Scalar>(reg, item.wrapped);
-    return item.isOk();
-  }
 
   Error Core::SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable) {
     LOG_FUNCTION_START;

@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _VL53L0X_DEVICE_H_
 
 #include "vl53l0x_types.h"
-
+#include "bitmanipulators.h" //some enums are bit fields.
 
 #define VL53L0X_I2C_ADDR 0x52 //< Default sensor I2C address in 8 Bit format
 
@@ -103,6 +103,10 @@ namespace VL53L0X {
     , GPIOFUNCTIONALITY_NEW_MEASURE_READY /*!< New Sample Ready  */
 
   };
+
+  bool valid(GpioFunctionality functionality) {
+    return functionality<=GPIOFUNCTIONALITY_NEW_MEASURE_READY;
+  }
 #if 0  //the following were redundant definitions for the GpioFunctionality
 #define REG_SYSTEM_INTERRUPT_GPIO_DISABLED 0x00
 #define REG_SYSTEM_INTERRUPT_GPIO_LEVEL_LOW 0x01
@@ -115,22 +119,22 @@ namespace VL53L0X {
 /* Device register map */
 
   enum SysRange {
-    REG_SYSRANGE_START = 0
-     /** mask existing bit in #REG_SYSRANGE_START*/
-    ,REG_SYSRANGE_MODE_MASK = 0x0F
-     /** bit 0 in #REG_SYSRANGE_START write 1 toggle state in continuous mode and arm next shot in single shot mode */
-    ,REG_SYSRANGE_MODE_START_STOP = (1 << 0)
-     /** bit 1 write 0 in #REG_SYSRANGE_START set single shot mode */
-    ,REG_SYSRANGE_MODE_SINGLESHOT = (0 << 1)
-     /** bit 1 write 1 in #REG_SYSRANGE_START set back-to-back operation mode */
-    ,REG_SYSRANGE_MODE_BACKTOBACK = (1 << 1)
-     /** bit 2 write 1 in #REG_SYSRANGE_START set timed operation mode */
-    ,REG_SYSRANGE_MODE_TIMED = (1 << 2)
-     /** bit 3 write 1 in #REG_SYSRANGE_START set histogram operation mode */
-    ,REG_SYSRANGE_MODE_HISTOGRAM = (1 << 3)
+   /** bit 0 in #REG_SYSRANGE_START write 1 toggles state in continuous mode and arms next shot in single shot mode */
+    REG_SYSRANGE_MODE_START_STOP = (1 << 0)
+     ,/** bit 1 write 0 in #REG_SYSRANGE_START set single shot mode */
+    REG_SYSRANGE_MODE_SINGLESHOT = (0 << 1)
+    , /** bit 1 write 1 in #REG_SYSRANGE_START set back-to-back operation mode */
+    REG_SYSRANGE_MODE_BACKTOBACK = (1 << 1)
+    , /** bit 2 write 1 in #REG_SYSRANGE_START set timed operation mode */
+    REG_SYSRANGE_MODE_TIMED = (1 << 2)
+    , /** bit 3 write 1 in #REG_SYSRANGE_START set histogram operation mode */
+    REG_SYSRANGE_MODE_HISTOGRAM = (1 << 3)
+    , /** mask existing bit in #REG_SYSRANGE_START*/
+    REG_SYSRANGE_MODE_MASK = Mask<3,0>::places
 
-    //no defines for the next 8 bit2?
+    //todo: document the other 4 bits in the register. Since the mask is unused one presumes the bits are as well.
   };
+
 /** @defgroup VL53L0X_DefineRegisters_group Define Registers
  *  @brief List of all the defined registers
  *  @{
@@ -140,9 +144,10 @@ namespace VL53L0X {
  *  = 0x4E  / * 0x14E * /
  */
   enum RegSystem : uint8_t {//the original defines had 16 bit constants, but hardware only has 8.
-    REG_SYSTEM_THRESH_HIGH = 0x0C
-    , REG_SYSTEM_THRESH_LOW = 0x0E
+    REG_SYSRANGE_START = 0
     , REG_SYSTEM_SEQUENCE_CONFIG = 0x01
+    ,  REG_SYSTEM_THRESH_HIGH = 0x0C
+    , REG_SYSTEM_THRESH_LOW = 0x0E
     , REG_SYSTEM_RANGE_CONFIG = 0x09
     , REG_SYSTEM_INTERMEASUREMENT_PERIOD = 0x04
     , REG_SYSTEM_INTERRUPT_CONFIG_GPIO = 0x0A

@@ -111,11 +111,11 @@ namespace VL53L0X {
     Erroneous<DeviceError> GetDeviceErrorStatus();
 
 /**
- * @brief Human readable Range Error string for a given RangeStatus
+ * @brief Human readable Range Error string for a given rangeError
  *
  * @note This function doesn't access to the device
  *
- * @param   RangeStatus         The RangeStatus code as stored on a RangingMeasurementData_t
+ * @param   RangeStatus         The rangeError code as stored on a RangingMeasurementData_t
  * @return  pointer to const text.
  */
 
@@ -1222,7 +1222,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Error PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t *pXTalkCompensationRateMegaCps);
+    Error PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
 
 /**
  * @brief Perform Offset Calibration
@@ -1249,7 +1249,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Error PerformOffsetCalibration(FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter);
+    Error PerformOffsetCalibration(FixPoint1616_t CalDistanceMilliMeter, int32_t &pOffsetMicroMeter);
 
 /**
  * @brief Start device measurement
@@ -1677,7 +1677,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    Error GetSpadAmbientDamperThreshold(uint16_t *pSpadAmbientDamperThreshold);
+    Erroneous<uint16_t> GetSpadAmbientDamperThreshold( );
 
 /**
  * @brief  Set the SPAD Ambient Damper Factor value
@@ -1708,12 +1708,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    Error GetSpadAmbientDamperFactor(uint16_t *pSpadAmbientDamperFactor);
-
-    struct SpadInfo {
-      unsigned count;
-      bool isAperture;//are aperture?
-    };
+    Erroneous<uint8_t> GetSpadAmbientDamperFactor(); //former code expanded to 16 bits locally. It is just 8 in the device, let us not hide that.
 
 /**
  * @brief Performs Reference Spad Management
@@ -1737,7 +1732,7 @@ namespace VL53L0X {
  * @return  ERROR_REF_SPAD_INIT   Error in the Ref Spad procedure.
  * @return  "Other error code"           See ::Error
  */
-    Erroneous<SpadInfo> PerformRefSpadManagement();
+    Erroneous<SpadCount> PerformRefSpadManagement();
 
 /**
  * @brief Applies Reference SPAD configuration
@@ -1760,7 +1755,7 @@ namespace VL53L0X {
  *                                       spad configuration.
  * @return  "Other error code"           See ::Error
  */
-    Error SetReferenceSpads(SpadInfo spad);
+    Error SetReferenceSpads(SpadCount spad);
 
 /**
  * @brief Retrieves SPAD configuration
@@ -1781,7 +1776,7 @@ namespace VL53L0X {
  *                                       spad configuration.
  * @return  "Other error code"           See ::Error
  */
-    Erroneous<SpadInfo> GetReferenceSpads();
+    Erroneous<SpadCount> GetReferenceSpads();
 
 /** @} SPADfunctions_group */
 
@@ -1797,14 +1792,14 @@ namespace VL53L0X {
   private: //calibration.h was high level actions hidden from direct use in api
     Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
 
-    Error perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter, int32_t *pOffsetMicroMeter);
+    Erroneous <int32_t> perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter);
 
     Error set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
     Erroneous<int32_t> get_offset_calibration_data_micro_meter();
 
     Error apply_offset_adjustment();
 
-    Error set_reference_spads(SpadCount &ref);
+    Error set_reference_spads(SpadCount ref);
 
     Erroneous<SpadCount> get_reference_spads();
 
@@ -1814,7 +1809,7 @@ namespace VL53L0X {
 
     Error set_ref_calibration(CalibrationParameters p);
 
-    Erroneous<CalibrationParameters> get_ref_calibration();
+    Erroneous<CalibrationParameters> get_ref_calibration(CalibrationParameters incoming,const bool vhv_enable, const bool phase_enable);
 
     Erroneous <FixPoint1616_t> GetTotalSignalRate();
     Error waitOnResetIndicator( bool disappear);
@@ -1829,10 +1824,12 @@ namespace VL53L0X {
     SpadArray::Index get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr);
 
     Error initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
-    Erroneous <SpadCount > enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index start, SpadArray::Index offset);
+    Erroneous <SpadCount > enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset);
 
     Error CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
     Error perform_single_ref_calibration(uint8_t vhv_init_byte);
+
+    bool valid(GpioFunctionality functionality);
   };
 }//end namespace
 #endif /* __H_ */
