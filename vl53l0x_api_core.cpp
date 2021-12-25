@@ -237,7 +237,7 @@ namespace VL53L0X {
         //now to unpack 7 bit fields from a series of 32 bit words:
         {//indent what might become a function someday
           Erroneous<uint32_t> packed {0};//zero init here matters!
-          const uint8_t mask7=((1<<7)-1);
+          const uint8_t mask7=  Mask<6,0>::shifted;
           uint8_t pager = 0x77;//first page
           char *prodid = ProductId;//will increment as data is acquired sequentially
           int msb = 0;//misnamed, should be 'number of bits'
@@ -752,7 +752,7 @@ namespace VL53L0X {
     FixPoint1616_t xtalkPerSpadMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
 
     /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
-    FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData.EffectiveSpadRtnCount * xtalkPerSpadMegaCps.raw;
+    FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData.EffectiveSpadRtnCount.raw * xtalkPerSpadMegaCps.raw;
 
     /* FixPoint0824 >> 8 = FixPoint1616 */
     return totalXtalkMegaCps.shrink(8);

@@ -33,10 +33,9 @@
 #include "log_api.h"
 #include "vl53l0x_spadarray.h"
 
-
 namespace VL53L0X {
 
-  const SpadArray::Index Api::startSelect (180);// was 0xB4 but is not a bit pattern, rather it is a decimal number
+  const SpadArray::Index Api::startSelect(180);// was 0xB4 but is not a bit pattern, rather it is a decimal number
 
 
   //offset field is 12 bits and signed.
@@ -45,7 +44,7 @@ namespace VL53L0X {
   const int16_t cOffsetMin = -(cOffsetMask + 1);//most negative value
 
 
-  Error Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps) {
+  Erroneous<FixPoint1616_t> Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance ) {
     if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
       return ERROR_INVALID_PARAMS;
     }
@@ -64,7 +63,7 @@ namespace VL53L0X {
     uint32_t total_count = 0;//unsigned is probably adequate
     for (uint8_t xtalk_meas = 0; xtalk_meas < 50; xtalk_meas++) {//ick: buried constant
       RangingMeasurementData_t RangingMeasurementData;
-      Error = PerformSingleRangingMeasurement(&RangingMeasurementData);
+      Error = PerformSingleRangingMeasurement(RangingMeasurementData);
 
       if (Error != ERROR_NONE) {
         return total_count == 0 ? ERROR_RANGE_ERROR : Error.sum;//ick: could use some refinement why error is overridden if first measurement fails for any reason.
@@ -132,7 +131,7 @@ namespace VL53L0X {
       XTalkCompensationRateMegaCps = roundedScale(signalXTalkTotalPerSpad, 16);
     }
 
-    pXTalkCompensationRateMegaCps = XTalkCompensationRateMegaCps;
+//    pXTalkCompensationRateMegaCps = XTalkCompensationRateMegaCps;
     ERROR_OUT;
     /* Enable the XTalk compensation */
     Error = SetXTalkCompensationEnable(1);
@@ -162,7 +161,7 @@ namespace VL53L0X {
     uint32_t total_count = 0;
     for (int meas = 0; meas < 50; meas++) {
       RangingMeasurementData_t RangingMeasurementData;
-      Error = PerformSingleRangingMeasurement(&RangingMeasurementData);
+      Error = PerformSingleRangingMeasurement(RangingMeasurementData);
       if (Error != ERROR_NONE) {
         break;
       }
@@ -262,7 +261,7 @@ namespace VL53L0X {
 
 
 
-  Erroneous<SpadArray::Index> Api::enable_ref_spads(SpadCount &req, SpadArray goodSpadArray, SpadArray spadArray,  SpadArray::Index offset) {
+  Erroneous<SpadArray::Index> Api::enable_ref_spads(SpadCount &req, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset) {
     /*
      * This function takes in a spad array which may or may not have SPADS
      * already enabled and appends from a given offset a requested number
@@ -305,29 +304,17 @@ namespace VL53L0X {
   } // enable_ref_spads
 
   Erroneous<uint16_t> Api::perform_ref_signal_measurement() {
-    /* store the value of the sequence config,
-     * this will be reset before the end of the function
-     */
-    SequencePopper
-    uint8_t SequenceConfig = PALDevDataGet(SequenceConfig);
-    /*
-     * This function performs a reference signal rate measurement.
-     */
-    ErrorAccumulator Error = set_SequenceConfig(0xC0, true);//980f: now also sets PALDevData
+/*This function performs a reference signal rate measurement.    */
+
+    SeqConfigStacker Error (*this,true,0xC0);
     ERROR_OUT;
 
     RangingMeasurementData_t rangingMeasurementData;
-    Error = PerformSingleRangingMeasurement(&rangingMeasurementData);
+    Error |= PerformSingleRangingMeasurement(rangingMeasurementData);
     //ick: object ignored above, will fetch result from registers, that apparently isn't part of RMD_t
-    ERROR_OUT; //BUG: on any error other than the first the  REG_SYSTEM_SEQUENCE_CONFIG is not restored!
+    ERROR_OUT; //BUG: (fixed) on any error other than the first the  REG_SYSTEM_SEQUENCE_CONFIG is not restored!
 
-    auto refSignalRate = FFread<uint16_t>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
-    EXIT_ON(refSignalRate);
-    /* restore the previous Sequence Config */
-    Error = set_SequenceConfig(SequenceConfig, true);
-    ERROR_OUT;//loses refSignalRate which might be fine.
-
-    return refSignalRate;
+    return FFread<uint16_t>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
   } // perform_ref_signal_measurement
 
 
@@ -347,19 +334,17 @@ namespace VL53L0X {
      * This function applies a requested number of reference spads, either aperture or non-aperture, as requested.
      * The good spad map will be applied.
      */
-    Error Error = comm.WrByte(0xFF, 0x01);
-    if (!Error) {
-      Error = comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
-      if (!Error) {
-        Error = comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);//ick: seems to be SpadArray::MaxCount
-        if (!Error) {
-          Error = comm.WrByte(0xFF, 0x00);//todo: use RAII and FFWrap logic
-          if (!Error) {
-            Error = comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
-          }
-        }
-      }
+    {
+      SysPopper Error = push(0xFF, 0x01, 0);//bug: prior error handling could leave FF set to 1
+      ERROR_OUT;
+      Error |= comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
+      ERROR_OUT;
+      Error |= comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);//ick: seems to be SpadArray::MaxCount
+      ERROR_OUT;
     }
+    auto Error = comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
+    ERROR_OUT;
+    //followng icks have been fixed.
     //ick: lots of errors but we enable the ref spads anyway? If we shouldn't then we can apply ERROR_OUT above.
     //ick: we lose all the errors in the above if we proceed.
 
@@ -380,7 +365,7 @@ namespace VL53L0X {
       }
       /* count enabled spads within spad map array and determine if Aperture or Non-Aperture.  */
       VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, refSpads.count_enabled());
-      VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, 1);
+      VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, true);
     }
     return VL53L0X_GETDEVICESPECIFICPARAMETER(ReferenceSpad);
   } // VL53L0X_get_reference_spads
@@ -395,96 +380,7 @@ namespace VL53L0X {
     return comm.WrByte(REG_SYSRANGE_START, 0x00);
   } // VL53L0X_perform_single_ref_calibration
 
-
-  Erroneous<Api::CalibrationParameters> Api::get_ref_calibration(Api::CalibrationParameters incoming, const bool vhv_enable, const bool phase_enable) {
-    ErrorAccumulator Error = ERROR_NONE;
-    /* Read VHV from device */
-    Error |= FFwrap(RegSystem(0), uint8_t(0));
-
-    Erroneous<uint8_t> vhv(incoming.VhvSettings);
-    if (vhv_enable) {
-      if (fetch(vhv, RegSystem(0xCB))) {
-        incoming.VhvSettings = vhv;
-      } else {
-        Error |= vhv.error;
-      }
-    }
-    Erroneous<uint8_t> phase(incoming.PhaseCal);
-    if (phase_enable) {
-      if (fetch(phase, RegSystem(0xEE))) {
-        incoming.PhaseCal = phase;
-      } else {
-        Error |= phase.error;
-      }
-    }
-
-    Error |= FFwrap(RegSystem(0), uint8_t(1));
-
-    incoming.PhaseCal &= ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
-
-    return {incoming, Error};
-  } //
-
-
-
-  Error Api::perform_vhv_calibration(const bool get_data_enable, const bool restore_config) {
-    /* store the value of the sequence config, this will be reset before the end of the function */
-    SeqConfigStacker popper(*this, restore_config, 1 << 0);
-    if (~popper) {
-      return popper;
-    }
-    auto Error = perform_single_ref_calibration(1 << 6);
-    ERROR_OUT;
-
-    /* Read VHV from device */
-    if (get_data_enable) {
-      Error = ref_calibration_io(1, 0, PhaseCal /* Not used here */, pVhvSettings, &PhaseCalInt, 1, 0);
-      ERROR_OUT;
-    }
-    return Error;
-  } // VL53L0X_perform_vhv_calibration
-
-  Erroneous<uint8_t> Api::perform_phase_calibration(const bool get_data_enable, const bool restore_config) {
-
-    SeqConfigStacker popper(*this, restore_config, 1 << 1);
-    if (~popper) {
-      return {popper};
-    }
-    auto Error = perform_single_ref_calibration(0x0);
-
-    /* Read PhaseCal from device */
-    if (~Error && get_data_enable) {
-      return ref_calibration_io(0, 0, 0, 1);//todo: read original code
-    } else {
-      return {0, Error};
-    }
-  } // VL53L0X_perform_phase_calibration
-
-  Error Api::perform_ref_calibration(CalibrationParameters &p, bool get_data_enable) {
-    /* store the value of the sequence config,
-     * this will be reset before the end of the function
-     */
-//980f: is a setting of SequncConfig lost or was some code moved to perforem_vhv and dregs left here?
-    /* In the following function we don't save the config to optimize
-     * writes on device. Config is saved and restored only once. */
-    Erroneous<uint8_t> newvhv = perform_vhv_calibration(get_data_enable, 0);
-
-    if (newvhv.isOk()) {
-      auto Error = Api::perform_phase_calibration(pPhaseCal, get_data_enable, 0);
-
-      if (Error == ERROR_NONE) {
-        /* restore the previous Sequence Config */
-        Error = comm.WrByte(REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfig);
-        if (Error == ERROR_NONE) {
-          PALDevDataSet(SequenceConfig, SequenceConfig);
-        }
-      }
-    }
-    return Error;
-  } // VL53L0X_perform_ref_calibration
-
   const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::places;
-
 
   Error Api::set_ref_calibration(CalibrationParameters p, bool setv, bool setp) {
     auto Error = FFpush(0, 0, 1);
@@ -506,7 +402,50 @@ namespace VL53L0X {
     if (getp) {
       Error |= comm.RdByte(0xEE, &p.PhaseCal);
     }
-    p.PhaseCal &= Mask<6, 0>::places;
+    p.PhaseCal &= phaseMask; // was 0xEF, ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
     return {p, Error.sum};
   }
+
+  Erroneous<Api::CalibrationParameters> Api::perform_item_calibration(bool vElseP,  const bool get_data_enable, const bool restore_config) {
+    /* store the value of the sequence config, this will be reset after the end of the function */
+    SeqConfigStacker popper(*this, restore_config, Bitter(vElseP?0:1));
+    if (~popper) {
+      return {popper};
+    }
+    auto Error = perform_single_ref_calibration(vElseP?Bitter(6):0);
+    ERROR_OUT;
+    /* Read one item from device, other value will be 0 */
+    if (get_data_enable) {
+      return get_ref_calibration(vElseP, !vElseP);
+    }
+    return Error;
+  } // VL53L0X_perform_vhv_calibration
+
+
+  Erroneous<uint8_t > Api::perform_vhv_calibration( bool get_data_enable,  bool restore_config) {
+    auto cp= perform_item_calibration( true,get_data_enable,restore_config);
+      return {cp.wrapped.VhvSettings,cp.error};
+  } // VL53L0X_perform_vhv_calibration
+
+  Erroneous<uint8_t> Api::perform_phase_calibration( bool get_data_enable,  bool restore_config) {
+    auto cp= perform_item_calibration( false,get_data_enable,restore_config);
+    return {cp.wrapped.PhaseCal,cp.error};
+  } // VL53L0X_perform_phase_calibration
+
+  Error Api::perform_ref_calibration(CalibrationParameters &p, bool get_data_enable) {
+    Erroneous<uint8_t> newvhv = perform_vhv_calibration(get_data_enable, false);
+    if (newvhv.isOk()) {
+      Erroneous<uint8_t> newphaser = perform_phase_calibration(get_data_enable, false);
+      if (newphaser.isOk()) {
+        p.PhaseCal = newphaser;
+        p.VhvSettings = newvhv;
+        return ERROR_NONE;
+      } else {
+        return {newphaser.error};
+      }
+    } else {
+      return newvhv.error;
+    }
+  } // VL53L0X_perform_ref_calibration
+
 }

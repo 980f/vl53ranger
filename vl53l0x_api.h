@@ -892,8 +892,8 @@ namespace VL53L0X {
     Erroneous<FixPoint1616_t> GetXTalkCompensationRateMegaCps( );
 
     struct CalibrationParameters{
-      uint8_t VhvSettings;
-      uint8_t PhaseCal;
+      uint8_t VhvSettings=0; //zero init for when we are only using one field
+      uint8_t PhaseCal=0;
     };
 
 /**
@@ -940,7 +940,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    CheckEnable GetNumberOfLimitCheck();
+    static CheckEnable GetNumberOfLimitCheck();
 
 /**
  * @brief  Return a description string for a given limit check number
@@ -961,7 +961,7 @@ namespace VL53L0X {
  *  returned when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    const char * GetLimitCheckInfo(CheckEnable LimitCheckId);
+    static const char * GetLimitCheckInfo(CheckEnable LimitCheckId);
 
 /**
  * @brief  Return a the Error of the specified check limit
@@ -1194,7 +1194,9 @@ namespace VL53L0X {
  * for this operation. Must not be less than 10PCLKS.
  * @return  "Other error code"   See ::Error
  */
-    Error PerformXTalkMeasurement(uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad, uint8_t *pAmbientTooHigh);
+    Error PerformXTalkMeasurement(uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad, uint8_t *pAmbientTooHigh){
+      VL53L0X_NYI
+    }
 
 /**
  * @brief Perform XTalk Calibration
@@ -1243,13 +1245,12 @@ namespace VL53L0X {
  * @param   Dev                  Device Handle
  * @param   CalDistanceMilliMeter     Calibration distance value used for the
  * offset compensation.
- * @param   pOffsetMicroMeter  Pointer to new Offset value computed by the
- * function.
+ * @param   pOffsetMicroMeter  Pointer to
  *
- * @return  ERROR_NONE    Success
+ * @return  ERROR_NONE with new Offset value computed by the function.  on Success
  * @return  "Other error code"   See ::Error
  */
-    Error PerformOffsetCalibration(FixPoint1616_t CalDistanceMilliMeter, int32_t &pOffsetMicroMeter);
+    Erroneous <int32_t> PerformOffsetCalibration(FixPoint1616_t CalDistanceMilliMeter);
 
 /**
  * @brief Start device measurement
@@ -1363,7 +1364,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE        Success
  * @return  "Other error code"       See ::Error
  */
-    Error GetRangingMeasurementData(RangingMeasurementData_t *pRangingMeasurementData);
+    Error GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData);
 
 /**
  * @brief Retrieve the measurements from device for a given setup
@@ -1381,7 +1382,9 @@ namespace VL53L0X {
  * @param   pHistogramMeasurementData   Pointer to the histogram data structure.
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Error GetHistogramMeasurementData(HistogramMeasurementData_t *pHistogramMeasurementData);
+    Error GetHistogramMeasurementData(HistogramMeasurementData_t &pHistogramMeasurementData){
+      VL53L0X_NYI
+    }
 
 /**
  * @brief Performs a single ranging measurement and retrieve the ranging
@@ -1405,7 +1408,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE         Success
  * @return  "Other error code"        See ::Error
  */
-    Error PerformSingleRangingMeasurement(RangingMeasurementData_t *pRangingMeasurementData);
+    Error PerformSingleRangingMeasurement(RangingMeasurementData_t &pRangingMeasurementData);
 
 /**
  * @brief Performs a single histogram measurement and retrieve the histogram
@@ -1423,7 +1426,9 @@ namespace VL53L0X {
  * @param   pHistogramMeasurementData  Pointer to the data structure to fill up.
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Error PerformSingleHistogramMeasurement(HistogramMeasurementData_t *pHistogramMeasurementData);
+    Error PerformSingleHistogramMeasurement(HistogramMeasurementData_t &pHistogramMeasurementData){
+      VL53L0X_NYI
+    }
 
 /**
  * @brief Set the number of ROI Zones to be used for a specific Device
@@ -1496,19 +1501,18 @@ namespace VL53L0X {
  * @param   Polarity              Set interrupt polarity. Active high
  *   or active low see ::InterruptPolarity
  * @return  ERROR_NONE                            Success
- * @return  ERROR_GPIO_NOT_EXISTING               Only Pin=0 is
- *  accepted.
+ * @return  ERROR_GPIO_NOT_EXISTING               Only Pin=0 is accepted.
  * @return  ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED    This error occurs
  * when Functionality programmed is not in the supported list:
  *                             Supported value are:
  *                             GPIOFUNCTIONALITY_OFF,
  *                             GPIOFUNCTIONALITY_THRESHOLD_CROSSED_LOW,
  *                             GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH,
- *  GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT,
- *                               GPIOFUNCTIONALITY_NEW_MEASURE_READY
+ *                             GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT,
+ *                             GPIOFUNCTIONALITY_NEW_MEASURE_READY
  * @return  "Other error code"    See ::Error
  */
-    Error SetGpioConfig(uint8_t Pin, DeviceModes DeviceMode, GpioFunctionality Functionality, InterruptPolarity Polarity);
+    Error SetGpioConfig(uint8_t Pin, GpioConfiguration gpioConfig);
 
 /**
  * @brief Get current configuration for GPIO pin for a given device
@@ -1535,7 +1539,12 @@ namespace VL53L0X {
  *                      GPIOFUNCTIONALITY_NEW_MEASURE_READY
  * @return  "Other error code"    See ::Error
  */
-    Error GetGpioConfig(uint8_t Pin, DeviceModes *pDeviceMode, GpioFunctionality *pFunctionality, InterruptPolarity *pPolarity);
+    Erroneous<GpioConfiguration> GetGpioConfig(uint8_t Pin=0);
+
+    struct RangeWindow {
+      FixPoint1616_t Low;
+      FixPoint1616_t High;
+    };
 
 /**
  * @brief Set low and high Interrupt thresholds for a given mode
@@ -1556,7 +1565,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Error SetInterruptThresholds(DeviceModes DeviceMode, FixPoint1616_t ThresholdLow, FixPoint1616_t ThresholdHigh);
+    Error SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold);
 
 /**
  * @brief  Get high and low Interrupt thresholds for a given mode
@@ -1577,7 +1586,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE   Success
  * @return  "Other error code"  See ::Error
  */
-    Error GetInterruptThresholds(DeviceModes DeviceMode, FixPoint1616_t *pThresholdLow, FixPoint1616_t *pThresholdHigh);
+    Error GetInterruptThresholds(DeviceModes DeviceMode, RangeWindow &pThreshold);
 
 /**
  * @brief Return device stop completion status
@@ -1803,8 +1812,7 @@ namespace VL53L0X {
 
     Erroneous<SpadCount> get_reference_spads();
 
-    Error perform_phase_calibration(uint8_t *pPhaseCal, const bool get_data_enable, const bool restore_config);
-
+    Erroneous <uint8_t> perform_phase_calibration( bool get_data_enable,  bool restore_config);
     Error perform_ref_calibration(CalibrationParameters &p, bool get_data_enable);
 
     Error set_ref_calibration(CalibrationParameters p, bool setv, bool setp) ;
@@ -1828,8 +1836,17 @@ namespace VL53L0X {
     Error CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
     Error perform_single_ref_calibration(uint8_t vhv_init_byte);
 
-    bool valid(GpioFunctionality functionality);
-    bool isValid(DeviceModes modes);
+
+    Erroneous <uint8_t> perform_vhv_calibration(const bool get_data_enable, const bool restore_config);
+    /** @returns Cal parameters after running a calibration of one type or the other. Only one param will be meaningful */
+    Erroneous <CalibrationParameters> perform_item_calibration(bool vElseP, const bool get_data_enable, const bool restore_config);
+
+    Erroneous <uint16_t> perform_ref_signal_measurement();
+    Erroneous <FixPoint1616_t> perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance);
+    FixPoint1616_t GetMeasurementRefSignal();
+
+    Error set_threshold(RegSystem index, FixPoint1616_t ThresholdLow);
+    Erroneous <FixPoint1616_t> get_threshold(RegSystem index);
   };
 }//end namespace
 #endif /* __H_ */

@@ -107,6 +107,20 @@ namespace VL53L0X {
   bool valid(GpioFunctionality functionality) {
     return functionality<=GPIOFUNCTIONALITY_NEW_MEASURE_READY;
   }
+
+
+  /** @defgroup VL53L0X_define_InterruptPolarity_group Defines the Polarity
+ * of the Interrupt
+ *	Defines the Polarity of the Interrupt
+ *	@{
+ *
+ *	a trivial enum
+ */
+  enum InterruptPolarity : uint8_t {
+    INTERRUPTPOLARITY_LOW = 0 /*!< Set active low polarity best setup for falling edge. */
+    , INTERRUPTPOLARITY_HIGH /*!< Set active high polarity best setup for rising edge. */
+  };
+
 #if 0  //the following were redundant definitions for the GpioFunctionality
 #define REG_SYSTEM_INTERRUPT_GPIO_DISABLED 0x00
 #define REG_SYSTEM_INTERRUPT_GPIO_LEVEL_LOW 0x01

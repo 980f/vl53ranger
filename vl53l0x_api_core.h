@@ -75,9 +75,9 @@ namespace VL53L0X {
     Error set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
 
     enum InfoGroup {
-      SpadStuff=1<<0
-      ,IDStuff=1<<1
-      ,PartUidEtc=1<<2
+      SpadStuff=Bitter(0)
+      ,IDStuff=Bitter(1)
+      ,PartUidEtc=Bitter(2)
     };
 
     Error get_info_from_device(uint8_t infoGroupBits);
@@ -216,30 +216,23 @@ namespace VL53L0X {
       return MagicTrio(comm);
     }
 
-    /** creating one of these saves seuence config, sets it, and on destruction restoores what was saved*/
-    class SeqConfigStacker {
+    /** creating one of these saves sequence config, sets it, and on destruction restores what was saved.
+     * Inheriting rather than containing ErrorAccumulator so that we can share some macros. */
+    class SeqConfigStacker: public ErrorAccumulator {
       Core &core;
-      Erroneous<uint8_t > mycache;
+      uint8_t mycache;
       bool restore_it;
     public:
       SeqConfigStacker(Core &core,bool restore_config,uint8_t settit):core(core){
         mycache = restore_config ? core.PALDevDataGet(  SequenceConfig) : 0;
-        mycache.error |= core.comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, settit);
-        restore_it=restore_config&&!mycache.error; //don't restore if we failed to set.
+        (*this)|= core.comm.WrByte( REG_SYSTEM_SEQUENCE_CONFIG, settit);
+        restore_it=restore_config; //maydo: don't restore if we failed to set.
       }
       ~SeqConfigStacker(){
         if ( restore_it) {
           /* restore the previous Sequence Config */
-          mycache.error |= core.set_SequenceConfig(mycache, true);
+          (*this) |= core.set_SequenceConfig(mycache, true);
         }
-      }
-
-      bool operator ~() const {
-        return ~mycache.error;
-      }
-
-      operator Error()const {
-        return mycache.error;
       }
 
     };
@@ -262,19 +255,18 @@ namespace VL53L0X {
 
     Error setPhasecalLimit(uint8_t value);
 
+    /** writes an object after first writing 1 to 0xFF , writing a 0 to FF when done, returnin accumulated error */
     template<typename Intish> Error FFwrap(RegSystem index,Intish value ){
-      ErrorAccumulator Error = comm.WrByte( 0xFF, 0x01);
+      auto Error = push( 0xFF, 0x01,0x00);
       Error |= comm.WriteMulti( index,reinterpret_cast<uint8_t*>(&value),sizeof(Intish));
-      Error |= comm.WrByte( 0xFF, 0x00);
       return Error;
     }
 
     template<typename Intish> Erroneous<Intish> FFread(RegSystem index){
-      Erroneous<Intish> value;
-      value.error = comm.WrByte( 0xFF, 0x01);
-      value.error |= comm.ReadMulti(index, reinterpret_cast<uint8_t *>(&value.wrapped),sizeof(Intish) );
-      value.error |= comm.WrByte( 0xFF, 0x00);
-      return value;
+      Intish value;
+      auto Error = push( 0xFF, 0x01,0x00);
+      Error |= comm.ReadMulti(index, reinterpret_cast<uint8_t *>(&value),sizeof(Intish) );
+      return {value,Error};
     }
 
   protected: //some of this functionality was in api.cpp but used by core.cpp
@@ -282,18 +274,23 @@ namespace VL53L0X {
     /** read up to 4 bytes from 0x90 after selecting which at 0x94
      * source for templates can be in the CPP if not used outside that module :) */
     template<typename Int> Erroneous<Int> packed90(uint8_t which);
+
+    /** pulls a 24:8 from a 32:32 */
     Erroneous<uint32_t> middleof64(unsigned int which);
 
-
+    /** reads the sequence steps and breaks them out into a struct of bools. */
     Erroneous <SchedulerSequenceSteps_t> get_sequence_step_enables();
+
+    /** @returns an interesting computation that someone should document */
     uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
 
     Error SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable);
 
     Error set_ref_spad_map(SpadArray &refSpadArray);//writes to device
     Error get_ref_spad_map(SpadArray &refSpadArray);//read from device
+    /** @returns the sequence config byte reading it from the device */
     Erroneous <uint8_t> get_SequenceConfig();
-
+    /** sets the sequence config byte, and if @param andCache is true copies the value to the DeviceParameters place where we often trust has the value */
     Error set_SequenceConfig(uint8_t packed, bool andCache);
   };
 

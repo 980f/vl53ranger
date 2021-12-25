@@ -216,9 +216,15 @@ namespace VL53L0X {
 /** @} VL53L0X_define_DeviceModes_group */
   };
 
-  bool isValid(DeviceModes modes) {//todo: review old code, may need some context here.
-    switch(modes){
+  /** these are paired in many places, having a struct lets us set a universal default  */
+  struct GpioConfiguration {
+    DeviceModes devMode = DEVICEMODE_GPIO_DRIVE;//looks like two enums are in one space.
+    GpioFunctionality function = GPIOFUNCTIONALITY_OFF;
+    InterruptPolarity polarity = INTERRUPTPOLARITY_LOW;
+  };
 
+  bool isValid(DeviceModes modes) {//todo: review old code, may need some context here.
+    switch (modes) {
       case DEVICEMODE_SINGLE_RANGING:
         return true;
       case DEVICEMODE_CONTINUOUS_RANGING:
@@ -233,6 +239,8 @@ namespace VL53L0X {
         return true;
       case DEVICEMODE_GPIO_OSC:
         return true;
+      default:
+        return false;
     }
   }
 
@@ -323,7 +331,7 @@ namespace VL53L0X {
     FixPoint1616_t SignalRateRtnMegaCps; /*!< Return signal rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of target reflectance.*/
     FixPoint1616_t AmbientRateRtnMegaCps;  /*!< Return ambient rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of the ambient light.*/
 
-    FixPoint<8,8> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256 */
+    FixPoint<8, 8> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256 */
 
     uint8_t ZoneId;  /*!< Denotes which zone and range scheduler stage the range data relates to. */
     uint8_t RangeFractionalPart; /*!< Fractional part of range distance. Final value is a FixPoint168 value. */
@@ -360,17 +368,17 @@ namespace VL53L0X {
   };
 
   struct SigmaEstimates {
-    uint16_t RefArray=0; /*!< Reference array sigma value in 1/100th of [mm] e.g. 100 = 1mm */
-    uint16_t EffPulseWidth=0;  /*!< Effective Pulse width for sigma estimate in 1/100th of ns e.g. 900 = 9.0ns */
-    uint16_t EffAmbWidth=0;     /*!< Effective Ambient width for sigma estimate in 1/100th of ns e.g. 500 = 5.0ns */
+    uint16_t RefArray = 0; /*!< Reference array sigma value in 1/100th of [mm] e.g. 100 = 1mm */
+    uint16_t EffPulseWidth = 0;  /*!< Effective Pulse width for sigma estimate in 1/100th of ns e.g. 900 = 9.0ns */
+    uint16_t EffAmbWidth = 0;     /*!< Effective Ambient width for sigma estimate in 1/100th of ns e.g. 500 = 5.0ns */
   };
 
   struct DeviceSpecificParameters_t {
     FixPoint1616_t OscFrequencyMHz; /* Frequency used */
 
-    uint16_t LastEncodedTimeout=0;/* last encoded Time out used for timing budget*/
+    uint16_t LastEncodedTimeout = 0;/* last encoded Time out used for timing budget*/
 
-    GpioFunctionality Pin0GpioFunctionality=GPIOFUNCTIONALITY_OFF;/* store the functionality of the GPIO: pin0 */
+    GpioFunctionality Pin0GpioFunctionality = GPIOFUNCTIONALITY_OFF;/* store the functionality of the GPIO: pin0 */
 
     struct RangeSetting {
       uint32_t TimeoutMicroSecs;/*!< Execution time of the final range*/
@@ -391,8 +399,8 @@ namespace VL53L0X {
     bool RefSpadsInitialised; /* reports if ref spads are initialised. */
 
     struct PartUID_t {
-      uint32_t Upper=0;       /*!< Unique Part ID Upper */
-      uint32_t Lower=0;       /*!< Unique Part ID Lower */
+      uint32_t Upper = 0;       /*!< Unique Part ID Upper */
+      uint32_t Lower = 0;       /*!< Unique Part ID Lower */
     } PartUID;
     FixPoint1616_t SignalRateMeasFixed400mm; /*!< Peek Signal rate at 400 mm*/
   };
@@ -422,8 +430,6 @@ namespace VL53L0X {
 
     SigmaEstimates SigmaEst;
 
-
-
     uint8_t StopVariable;     /*!< StopVariable used during the stop sequence */
     FixPoint<9, 7> targetRefRate;     /*!< Target Ambient Rate for Ref spad management */
     FixPoint1616_t SigmaEstimate;     /*!< Sigma Estimate - based on ambient & VCSEL rates and signal_total_events */
@@ -438,17 +444,7 @@ namespace VL53L0X {
     } dmaxCal;
   };
 
-/** @defgroup VL53L0X_define_InterruptPolarity_group Defines the Polarity
- * of the Interrupt
- *	Defines the Polarity of the Interrupt
- *	@{
- *
- *	a trivial enum
- */
-  enum InterruptPolarity : uint8_t {
-    INTERRUPTPOLARITY_LOW = 0 /*!< Set active low polarity best setup for falling edge. */
-    , INTERRUPTPOLARITY_HIGH /*!< Set active high polarity best setup for rising edge. */
-  };
+
 
 /** @} VL53L0X_define_InterruptPolarity_group */
 

@@ -55,8 +55,6 @@ using namespace VL53L0X; //usually bad form but this class is a wrapper for this
  */
 /**************************************************************************/
 boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
-  uint8_t VhvSettings;
-  uint8_t PhaseCal;
 
   MyDevice.comm.init();//parameters formerly managed here are now constructor args.
 
@@ -126,7 +124,7 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
 
     if (debug) {
       Serial.print(F("refSpadCount = "));
-      Serial.print(info.wrapped.count);
+      Serial.print(info.wrapped.quantity);
       Serial.print(F(", isApertureSpads = "));
       Serial.println(info.wrapped.isAperture);
     }
@@ -136,8 +134,8 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
     if (debug) {
       Serial.println(F("VL53L0X: PerformRefCalibration"));
     }
-
-    Error = MyDevice.PerformRefCalibration(&VhvSettings, &PhaseCal); // Device Initialization
+    Api::CalibrationParameters calp;
+    Error = MyDevice.PerformRefCalibration(&calp); // Device Initialization
   }
 
   if (Error == ERROR_NONE) {
@@ -311,7 +309,7 @@ Error Adafruit_VL53L0X::GetSingleRangingMeasurement(RangingMeasurementData_t &Ra
     Serial.println((float) LimitCheckCurrent / 65536.0);
 
     Serial.print(F("Measured distance: "));
-    Serial.println(RangingMeasurementData->RangeMilliMeter);
+    Serial.println(RangingMeasurementData.RangeMilliMeter);
   }
 
   return Error;
@@ -379,11 +377,11 @@ boolean Adafruit_VL53L0X::startRange() {
   // first lets set the device in SINGLE_Ranging mode
   Error = MyDevice.SetDeviceMode(DEVICEMODE_SINGLE_RANGING);
 
-  if (Error == MyDevice.ERROR_NONE) {
+  if (Error == ERROR_NONE) {
     // Lets start up the measurement
     Error = MyDevice.StartMeasurement();
   }
-  return Error == MyDevice.ERROR_NONE;
+  return Error == ERROR_NONE;
 } // Adafruit_VL53L0X::startRange
 
 /**************************************************************************/
@@ -421,7 +419,7 @@ boolean Adafruit_VL53L0X::waitRangeComplete() {
 uint16_t Adafruit_VL53L0X::readRangeResult() {
   RangingMeasurementData_t measure; // keep our own private copy
 
-  Error = MyDevice.GetRangingMeasurementData(&measure);
+  Error = MyDevice.GetRangingMeasurementData(measure);
   _rangeStatus = measure.rangeError;
   if (Error == ERROR_NONE) {
     Error = MyDevice.ClearInterruptMask(0);
@@ -505,8 +503,8 @@ boolean Adafruit_VL53L0X::setMeasurementTimingBudgetMicroSeconds(uint32_t budget
  */
 /**************************************************************************/
 uint32_t Adafruit_VL53L0X::getMeasurementTimingBudgetMicroSeconds() {
-  uint32_t budget_us;
-  Error = MyDevice.GetMeasurementTimingBudgetMicroSeconds(&budget_us);
+  auto budget_us= MyDevice.GetMeasurementTimingBudgetMicroSeconds();
+  Error=budget_us.error;
   return budget_us;
 }
 
@@ -533,8 +531,8 @@ boolean Adafruit_VL53L0X::setVcselPulsePeriod(VcselPeriod VcselPeriodType, uint8
  */
 /**************************************************************************/
 uint8_t Adafruit_VL53L0X::getVcselPulsePeriod(VcselPeriod VcselPeriodType) {
-  uint8_t cur_period;
-  Error = MyDevice.GetVcselPulsePeriod(VcselPeriodType, &cur_period);
+  auto cur_period = MyDevice.GetVcselPulsePeriod(VcselPeriodType);
+  Error = cur_period.error;
   return cur_period;
 }
 
@@ -595,7 +593,11 @@ boolean Adafruit_VL53L0X::setLimitCheckValue(CheckEnable LimitCheckId, FixPoint1
  */
 /**************************************************************************/
 FixPoint1616_t Adafruit_VL53L0X::getLimitCheckValue(CheckEnable LimitCheckId) {
-  FixPoint1616_t LimitCheckValue;
-  Error = MyDevice.GetLimitCheckValue(LimitCheckId, &LimitCheckValue);
+  auto LimitCheckValue = MyDevice.GetLimitCheckValue(LimitCheckId);
+  Error=LimitCheckValue.error;
   return LimitCheckValue;
+}
+
+Adafruit_VL53L0X::Adafruit_VL53L0X(uint8_t i2c_addr, TwoWire &i2c) : MyDevice( i2c,i2c_addr,400){
+  //but do not begin or start etc so that we can static init if we wish.
 }

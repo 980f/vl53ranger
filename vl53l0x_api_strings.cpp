@@ -138,7 +138,7 @@ namespace VL53L0X {
 
   static Error copyit(const char *text, char *pDeviceErrorString) {
     if (text) {
-      COPYSTRING(pDeviceErrorString, text);
+      strcpy(pDeviceErrorString, text);
       return ERROR_NONE;
     } else {
       return ERROR_INVALID_PARAMS;

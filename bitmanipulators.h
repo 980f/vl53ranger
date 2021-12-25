@@ -5,6 +5,15 @@
 #ifndef VL53_BITMANIPULATORS_H
 #define VL53_BITMANIPULATORS_H
 
+
+/**
+ * strange name as too many bit() functions are flying around at the moment, should rename once we get rid of such
+ * */
+constexpr uint8_t Bitter(unsigned bitnum) {
+  return 1<<bitnum;
+}
+
+
 template<typename Intish> constexpr bool getBit(const unsigned bitnum, const Intish data) {
   if (bitnum / 8 > sizeof(Intish)) {
     return false;
@@ -14,15 +23,15 @@ template<typename Intish> constexpr bool getBit(const unsigned bitnum, const Int
 
 template<unsigned bitnum, typename Intish> constexpr bool getBit(const Intish data) {
   static_assert(bitnum / 8 < sizeof(Intish));
-  return (data & (1 << bitnum)) != 0;
+  return (data & Bitter(bitnum)) != 0;
 }
 
 template<typename Intish> constexpr void setBit(const unsigned bitnum, Intish &data, bool setit) {
   if (bitnum / 8 <= sizeof(Intish)) {
     if (setit) {
-      data |= 1 << bitnum;
+      data |= Bitter(bitnum);
     } else {
-      data &= ~(1 << bitnum);
+      data &= ~Bitter(bitnum);
     }
   }
 }
@@ -31,9 +40,9 @@ template<unsigned bitnum, typename Intish> constexpr void setBit(Intish &data, b
   static_assert(bitnum / 8 < sizeof(Intish));
   if (bitnum / 8 <= sizeof(Intish)) {
     if (setit) {
-      data |= 1 << bitnum;
+      data |= Bitter(bitnum);
     } else {
-      data &= ~(1 << bitnum);
+      data &= ~Bitter(bitnum);
     }
   }
 }
@@ -48,8 +57,8 @@ template<unsigned msbit, unsigned lsbit> struct Mask {
   //by using unsigned we don't need to check for negatives
   enum {
     width = msbit - lsbit + 1    //check: needs to be 1 when msbit==lsbit
-    , places = (1 << (msbit + 1)) - (1 << lsbit)
-    , shifted = (1 << width) - 1  //should be 1 == 1<<0 when msbit==lsbit
+    , places = Bitter(msbit + 1) - Bitter(lsbit)
+    , shifted = (1 << width) - 1  //checkL should be 1 == 1<<0 when msbit==lsbit, width =1 1<<1 = 2, -1 = 1
   };
 };
 

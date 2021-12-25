@@ -59,6 +59,7 @@ public:
     Index &operator =(Index other){
       coarse=other.coarse;
       fine=other.fine;
+      return *this;
     }
 
     unsigned absolute()const {

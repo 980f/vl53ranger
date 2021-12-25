@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "bitmanipulators.h"
 
 /** use where fractional values are expected
  * Formerly the gyrations in here were explicitly repeated in very many places, each having to be checked for rogue tile error.
@@ -12,9 +13,9 @@
 template<unsigned whole, unsigned fract> struct FixPoint {
 
   enum {
-    mask = (1 << fract) - 1   //to extract fraction bits
-    , powerShifter = 1 << fract //to boost an integer value into position
-    , half = 1 << (fract - 1)  // 0.5
+    mask = Mask<fract,0>::shifted   //to extract fraction bits from lsbs
+    , powerShifter = Bitter(fract) //to boost an integer value into position
+    , half = Bitter(fract - 1)  // 0.5
     , size = (fract + whole)  //total number of bits needed to represent the value, used to pick the underlying int type.
   };
 
@@ -35,11 +36,12 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     return raw;
   }
 
+  /** convert to a float */
   operator float() const {
     return float(raw >> fract) + float(raw & mask) / float(powerShifter);
   }
 
-  //todo: this is logically dangerous but matches legacy use. Logically one would expect to assign to the whole part, ie shrink by fract.
+  //todo: this is logically dangerous but matches legacy use. Logically one would expect to assign to the whole part, ie shift up by fract.
   FixPoint &operator=(RawType pattern) {
     raw = pattern;
     return *this;

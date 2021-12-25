@@ -48,9 +48,7 @@ public:
     , SENSE_HIGH_ACCURACY
   } ;
 
-  Adafruit_VL53L0X(uint8_t i2c_addr = VL53L0X_I2C_ADDR>>1, TwoWire &i2c = Wire) : MyDevice({i2c,i2c_addr,400}){
-    //but do not begin or start etc so that we can static init if we wish.
-  }
+  Adafruit_VL53L0X(uint8_t i2c_addr = VL53L0X_I2C_ADDR>>1, TwoWire &i2c = Wire);
 
   boolean begin( boolean debug = false,  Sense_config_t vl_config = SENSE_DEFAULT);
 
@@ -70,10 +68,10 @@ public:
    */
   /**************************************************************************/
   VL53L0X::Error rangingTest(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false){
-    return getSingleRangingMeasurement(pRangingMeasurementData, debug);
+    return GetSingleRangingMeasurement(pRangingMeasurementData, debug);
   }
 
-  VL53L0X::Error getSingleRangingMeasurement(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false);
+  VL53L0X::Error GetSingleRangingMeasurement(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false);
 
   void printRangeStatus(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData);
 
