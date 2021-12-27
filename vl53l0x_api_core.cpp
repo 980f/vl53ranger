@@ -368,7 +368,7 @@ namespace VL53L0X {
   } // VL53L0X_calc_timeout_us
 
 
-  Error Core::SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable) {
+  Error Core::SetXTalkCompensationEnable(bool XTalkCompensationEnable) {
     LOG_FUNCTION_START;
     uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
     FixPoint1616_t TempFix1616( ((XTalkCompensationEnable) && (LinearityCorrectiveGain == 1000)) ? VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps.raw):0);
@@ -377,7 +377,7 @@ namespace VL53L0X {
     Error |= comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, VL53L0X_FIXPOINT1616TOFIXPOINT313(TempFix1616.raw));
 
     if (~Error) {
-      VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, bool(XTalkCompensationEnable));
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, XTalkCompensationEnable);
     }
     return Error;
   } // VL53L0X_SetXTalkCompensationEnable
@@ -746,7 +746,7 @@ namespace VL53L0X {
 
   FixPoint1616_t Core::get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
 
-    uint8_t xtalkCompEnable = VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
+    bool xtalkCompEnable = VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
 //todo: lost test value of xtalkCompeEnable
 
     FixPoint1616_t xtalkPerSpadMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
@@ -1159,48 +1159,42 @@ namespace VL53L0X {
     return Data.CurrentParameters.LimitChecksEnable[LimitCheckId];
   } // GetLimitCheckEnable
 
-  Erroneous<FixPoint1616_t> Core::GetLimitCheckValue(CheckEnable LimitCheckId) {
+  Erroneous<FixPoint<9,7>> Core::GetLimitCheckValue(CheckEnable LimitCheckId) {
     LOG_FUNCTION_START;
     bool EnableZeroValue = false;
 
-    Erroneous<FixPoint1616_t> TempFix1616;
-    Erroneous<FixPoint<9, 7>> rate;
+    Erroneous<FixPoint<9,7>> limitChecksValue;
     switch (LimitCheckId) {
       case CHECKENABLE_SIGMA_FINAL_RANGE:
         /* internal computation: */
-        TempFix1616 = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, CHECKENABLE_SIGMA_FINAL_RANGE);
+        limitChecksValue = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, CHECKENABLE_SIGMA_FINAL_RANGE);
         EnableZeroValue = false;
         break;
 
       case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
-        if (fetch(rate, REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT)) {
-          TempFix1616.wrapped = rate.wrapped;//Erroneous wrapper class would not yield up its innards here without assistance.
-        } else {
-          return {rate.error};//ick: did former code ignore this error?
+        if (!fetch(limitChecksValue, REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT)) {
+          return {limitChecksValue.error};//ick: did former code ignore this error?
         }
         EnableZeroValue = true;
         break;
 
       case CHECKENABLE_SIGNAL_REF_CLIP:
         /* internal computation: */
-        TempFix1616 = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, CHECKENABLE_SIGNAL_REF_CLIP);
+        limitChecksValue = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, CHECKENABLE_SIGNAL_REF_CLIP);
         EnableZeroValue = false;
         break;
 
       case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
         /* internal computation: */
-        TempFix1616 = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, CHECKENABLE_RANGE_IGNORE_THRESHOLD);
+        limitChecksValue = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, CHECKENABLE_RANGE_IGNORE_THRESHOLD);
         EnableZeroValue = false;
         break;
 
       case CHECKENABLE_SIGNAL_RATE_MSRC:
       case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-        if (fetch(rate, REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT)) {
-          TempFix1616.wrapped = rate.wrapped;
-        } else {
-          return {rate.error};
+        if (!fetch(limitChecksValue, REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT)) {
+          return {limitChecksValue.error};
         }
-
         EnableZeroValue = false;
         break;
 
@@ -1209,21 +1203,21 @@ namespace VL53L0X {
     } // switch
 
     if (EnableZeroValue) {//ick: did 908f refactoring invert this decision?
-      if (TempFix1616 == 0) {
+      if (limitChecksValue == 0) {
         /* disabled: return value from memory */
-        TempFix1616 = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId);
+        limitChecksValue = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId);
 
         VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, false);
       } else {
-        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId, TempFix1616);
+        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId, limitChecksValue);
         VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, true);
       }
     }
-    return TempFix1616;
+    return limitChecksValue;
   } // GetLimitCheckValue
 
 
-  Error Core::get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData, uint8_t *pPalRangeStatus) {
+  Erroneous <RangeStatus> Core::get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START;
 
     /*
@@ -1236,14 +1230,14 @@ namespace VL53L0X {
     uint8_t DeviceRangeStatusInternal = getBits<6, 3>(DeviceRangeStatus);
     uint8_t NoneFlag = (DeviceRangeStatusInternal == 0 || DeviceRangeStatusInternal == 5 || DeviceRangeStatusInternal == 7 || DeviceRangeStatusInternal == 12 || DeviceRangeStatusInternal == 13 || DeviceRangeStatusInternal == 14 || DeviceRangeStatusInternal == 15);
 
-    Erroneous<uint16_t> tmpWord;
+    Erroneous<FixPoint<9,7>> tmpWord;
     /* LastSignalRefMcps */
     {
       auto pager = autoCloser(Private_Pager, 0x01, 0x00);
       fetch(tmpWord, REG_RESULT_PEAK_SIGNAL_RATE_REF);
     }
 
-    FixPoint1616_t LastSignalRefMcps = VL53L0X_FIXPOINT97TOFIXPOINT1616(tmpWord);//ick: ignoring error on getting tmpWord value.
+    FixPoint<16,16> LastSignalRefMcps = tmpWord.wrapped;//ick: ignoring error on getting tmpWord value.
     PALDevDataSet(LastSignalRefMcps, LastSignalRefMcps);
 
     /*
@@ -1261,8 +1255,8 @@ namespace VL53L0X {
       Erroneous<FixPoint1616_t> SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData, Dmax_mm);
       if (SigmaEstimate.isOk()) {
         pRangingMeasurementData.RangeDMaxMilliMeter = Dmax_mm;
-        Erroneous<FixPoint1616_t> SigmaLimitValue = GetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE);
-        if ((SigmaLimitValue.wrapped.raw > 0) && (SigmaEstimate > SigmaLimitValue)) {
+        Erroneous<FixPoint<9,7>> SigmaLimitValue = GetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE);
+        if ((SigmaLimitValue.wrapped.raw > 0) && (SigmaEstimate.wrapped > SigmaLimitValue.wrapped)) {//todo: check for factor of 2 error due to refactoring
           /* Limit Fail */
           SigmaLimitflag = true;
         }
@@ -1278,7 +1272,7 @@ namespace VL53L0X {
     uint8_t SignalRefClipflag = 0;
     if ((SignalRefClipLimitCheckEnable != 0) && (Error == ERROR_NONE)) {
       auto SignalRefClipValue = GetLimitCheckValue(CHECKENABLE_SIGNAL_REF_CLIP);
-      if ((SignalRefClipValue.wrapped.raw > 0) && (LastSignalRefMcps > SignalRefClipValue)) {
+      if ((SignalRefClipValue.wrapped.raw > 0) && (LastSignalRefMcps > SignalRefClipValue.wrapped)) {//todo: check for factor of 2 error due to refactoring
         /* Limit Fail */
         SignalRefClipflag = 1;
       }
@@ -1301,32 +1295,33 @@ namespace VL53L0X {
 
       auto RangeIgnoreThresholdValue = GetLimitCheckValue(CHECKENABLE_RANGE_IGNORE_THRESHOLD);
 
-      if ((RangeIgnoreThresholdValue.wrapped.raw > 0) && (SignalRatePerSpad < RangeIgnoreThresholdValue)) {
+      if ((RangeIgnoreThresholdValue.wrapped.raw > 0) && (SignalRatePerSpad < RangeIgnoreThresholdValue.wrapped)) {//todo: check for factor of 2 error due to refactoring
         /* Limit Fail add 2^6 to range status */
         RangeIgnoreThresholdflag = 1;
       }
     }
 
+    RangeStatus rangeStatus;
     if (Error == ERROR_NONE) {
       if (NoneFlag == 1) {
-        *pPalRangeStatus = 255; /* NONE */
+        rangeStatus = Not_Set; /* NONE */
       } else if (DeviceRangeStatusInternal == 1 || DeviceRangeStatusInternal == 2 || DeviceRangeStatusInternal == 3) {
-        *pPalRangeStatus = 5; /* HW fail */
+        rangeStatus = HW_fail;
       } else if (DeviceRangeStatusInternal == 6 || DeviceRangeStatusInternal == 9) {
-        *pPalRangeStatus = 4; /* Phase fail */
+        rangeStatus = Phase_fail;
       } else if (DeviceRangeStatusInternal == 8 || DeviceRangeStatusInternal == 10 || SignalRefClipflag == 1) {
-        *pPalRangeStatus = 3; /* Min range */
+        rangeStatus = Min_range;
       } else if (DeviceRangeStatusInternal == 4 || RangeIgnoreThresholdflag == 1) {
-        *pPalRangeStatus = 2; /* Signal Fail */
+        rangeStatus = Signal_Fail;
       } else if (SigmaLimitflag == 1) {
-        *pPalRangeStatus = 1; /* Sigma	 Fail */
+        rangeStatus = Sigma_Fail;
       } else {
-        *pPalRangeStatus = 0; /* Range Valid */
+        rangeStatus = Range_Valid;
       }
     }
 
     /* DMAX only relevant during range error */
-    if (*pPalRangeStatus == 0) {
+    if (rangeStatus == Range_Valid) {
       pRangingMeasurementData.RangeDMaxMilliMeter = 0;
     }
 
@@ -1338,7 +1333,7 @@ namespace VL53L0X {
     VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGNAL_REF_CLIP, (SignalRefClipLimitCheckEnable == 0) || (SignalRefClipflag == 1));
     VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_RANGE_IGNORE_THRESHOLD, (RangeIgnoreThresholdLimitCheckEnable == 0) || (RangeIgnoreThresholdflag == 1));
 
-    return Error;
+    return rangeStatus;
   } // VL53L0X_get_pal_range_status
 
 

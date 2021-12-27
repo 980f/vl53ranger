@@ -432,19 +432,20 @@ namespace VL53L0X {
     return {cp.wrapped.PhaseCal,cp.error};
   } // VL53L0X_perform_phase_calibration
 
-  Error Api::perform_ref_calibration(CalibrationParameters &p, bool get_data_enable) {
+  Erroneous<Api::CalibrationParameters> Api::perform_ref_calibration(bool get_data_enable) {
     Erroneous<uint8_t> newvhv = perform_vhv_calibration(get_data_enable, false);
     if (newvhv.isOk()) {
       Erroneous<uint8_t> newphaser = perform_phase_calibration(get_data_enable, false);
       if (newphaser.isOk()) {
+        CalibrationParameters p;
         p.PhaseCal = newphaser;
         p.VhvSettings = newvhv;
-        return ERROR_NONE;
+        return p;
       } else {
         return {newphaser.error};
       }
     } else {
-      return newvhv.error;
+      return {newvhv.error};
     }
   } // VL53L0X_perform_ref_calibration
 

@@ -119,7 +119,7 @@ public:
   boolean setLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId, uint8_t LimitCheckEnable);
   boolean getLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId);
   boolean setLimitCheckValue(VL53L0X::CheckEnable LimitCheckId, FixPoint1616_t LimitCheckValue);
-  FixPoint1616_t getLimitCheckValue(VL53L0X::CheckEnable LimitCheckId);
+  FixPoint<9,7> getLimitCheckValue(VL53L0X::CheckEnable LimitCheckId);
 
 private:
   VL53L0X::Api MyDevice;

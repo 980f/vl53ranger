@@ -96,7 +96,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE   Success
  * @return  "Other error code"  See ::Error
  */
-    Error GetDeviceInfo(DeviceInfo_t *pDeviceInfo);
+    Error GetDeviceInfo(DeviceInfo_t &pDeviceInfo);
 
 /**
  * @brief Read current status of the error register for the selected device
@@ -269,7 +269,9 @@ namespace VL53L0X {
  * @param   GroupParamHold   Group parameter Hold state to be set (on/off)
  * @return  ERROR_NOT_IMPLEMENTED        Not implemented
  */
-    Error SetGroupParamHold(uint8_t GroupParamHold);
+    Error SetGroupParamHold(uint8_t GroupParamHold){
+      VL53L0X_NYI
+    }
 
 /**
  * @brief Get the maximal distance for actual setup
@@ -289,7 +291,9 @@ namespace VL53L0X {
  * (in millimeter)
  * @return  ERROR_NOT_IMPLEMENTED        Not implemented
  */
-    Error GetUpperLimitMilliMeter(uint16_t *pUpperLimitMilliMeter);
+    Erroneous<uint16_t> GetUpperLimitMilliMeter(){
+      VL53L0X_NYI
+    }
 
 /**
  * @brief Get the Total Signal Rate
@@ -1032,7 +1036,7 @@ namespace VL53L0X {
  *  LimitCheckId or LimitCheckValue value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Error SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint1616_t LimitCheckValue);
+    Error SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
 
 
 
@@ -1057,7 +1061,7 @@ namespace VL53L0X {
  * LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Error GetLimitCheckCurrent(uint16_t LimitCheckId, FixPoint1616_t *pLimitCheckCurrent);
+    Erroneous <FixPoint1616_t> GetLimitCheckCurrent(CheckEnable LimitCheckId);
 
 /**
  * @brief  Enable (or disable) Wrap around Check
@@ -1165,7 +1169,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Error PerformRefCalibration(CalibrationParameters *c);
+    Erroneous<CalibrationParameters > PerformRefCalibration();
 
 /**
  * @brief Perform XTalk Measurement
@@ -1328,7 +1332,7 @@ namespace VL53L0X {
  * @param   MaxLoop    Max Number of polling loop (timeout).
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Error WaitDeviceReadyForNewMeasurement(uint32_t MaxLoop);
+    Error WaitDeviceReadyForNewMeasurement(unsigned MaxLoop);
 
 /**
  * @brief Retrieve the Reference Signal after a measurements
@@ -1464,7 +1468,7 @@ namespace VL53L0X {
  * @param   pNumberOfROIZones     Pointer to the Number of ROI Zones value.
  * @return  ERROR_NONE     Success
  */
-    Error GetNumberOfROIZones(uint8_t *pNumberOfROIZones);
+    unsigned GetNumberOfROIZones();
 
 /**
  * @brief Get the Maximum number of ROI Zones managed by the Device
@@ -1479,7 +1483,7 @@ namespace VL53L0X {
  *  of ROI Zones value.
  * @return  ERROR_NONE      Success
  */
-    Error GetMaxNumberOfROIZones(uint8_t *pMaxNumberOfROIZones);
+    unsigned GetMaxNumberOfROIZones();
 
 /** @} measurement_group */
 
@@ -1602,7 +1606,8 @@ namespace VL53L0X {
  * @return  ERROR_NONE      Success
  * @return  "Other error code"     See ::Error
  */
-    Error GetStopCompletedStatus(uint32_t *pStopStatus);
+
+    Erroneous <uint8_t> GetStopCompletedStatus();
 
 /**
  * @brief Clear given system interrupt condition
@@ -1791,7 +1796,6 @@ namespace VL53L0X {
 
 /** @} cut11_group */
 
-    Erroneous <uint8_t> GetStopCompletedStatus();
     Error check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo);
     Error get_device_info(DeviceInfo_t &pDeviceInfo);
 
@@ -1813,16 +1817,13 @@ namespace VL53L0X {
     Erroneous<SpadCount> get_reference_spads();
 
     Erroneous <uint8_t> perform_phase_calibration( bool get_data_enable,  bool restore_config);
-    Error perform_ref_calibration(CalibrationParameters &p, bool get_data_enable);
+    Erroneous<Api::CalibrationParameters> perform_ref_calibration( bool get_data_enable);
 
     Error set_ref_calibration(CalibrationParameters p, bool setv, bool setp) ;
 
     Erroneous<CalibrationParameters> get_ref_calibration( bool vhv_enable, bool phase_enable);
 
     Error waitOnResetIndicator( bool disappear);
-
-    unsigned int GetMaxNumberOfROIZones();
-    unsigned int GetNumberOfROIZones();
 
     static const SpadArray::Index startSelect;// was 0xB4 but is not a bit pattern, rather it is a decimal number
 

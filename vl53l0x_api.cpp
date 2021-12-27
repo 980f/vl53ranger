@@ -229,14 +229,6 @@ namespace VL53L0X {
     return PALDevDataGet(LinearityCorrectiveGain);
   }
 
-  Error Api::SetGroupParamHold(uint8_t GroupParamHold) {
-    VL53L0X_NYI
-  }
-
-  Error Api::GetUpperLimitMilliMeter(uint16_t *pUpperLimitMilliMeter) {
-    VL53L0X_NYI
-  }
-
   Erroneous<FixPoint1616_t> Api::GetTotalSignalRate() {
     LOG_FUNCTION_START;
     RangingMeasurementData_t LastRangeDataBuffer = PALDevDataGet(LastRangeMeasure);
@@ -773,7 +765,7 @@ namespace VL53L0X {
     LimitCheckEnable = LimitCheckEnable != 0;//in case someone got around compiler checking
     bool LimitCheckDisable = !LimitCheckEnable;
 
-    FixPoint1616_t TempFix1616 = LimitCheckEnable ? VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId) : FixPoint1616_t(0);
+    FixPoint<9, 7> TempFix1616 = LimitCheckEnable ? VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId) : FixPoint<9, 7>(0);
 
     switch (LimitCheckId) {
       case CHECKENABLE_SIGMA_FINAL_RANGE:
@@ -782,7 +774,7 @@ namespace VL53L0X {
         break;
 
       case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
-        Error |= comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, VL53L0X_FIXPOINT1616TOFIXPOINT97(TempFix1616));
+        Error |= comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, TempFix1616);
         break;
 
       case CHECKENABLE_SIGNAL_REF_CLIP:
@@ -796,7 +788,7 @@ namespace VL53L0X {
         break;
 
       case CHECKENABLE_SIGNAL_RATE_MSRC:
-        Error |= comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~(1 << 0), LimitCheckDisable << 1);//bug:clear lsb set bit 1
+        Error |= comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~(1 << 0), LimitCheckDisable << 1);//BUG:clear lsb set bit 1
         break;
 
       case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
@@ -815,7 +807,7 @@ namespace VL53L0X {
   } // VL53L0X_SetLimitCheckEnable
 
 
-  Error Api::SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint1616_t LimitCheckValue) {
+  Error Api::SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue) {
 
     LOG_FUNCTION_START;
 
@@ -831,7 +823,7 @@ namespace VL53L0X {
           break;
 
         case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
-          Error |= comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, FixPoint<9, 7>(LimitCheckValue));
+          Error |= comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
           break;
 
         case CHECKENABLE_SIGNAL_REF_CLIP:
@@ -846,7 +838,7 @@ namespace VL53L0X {
 
         case CHECKENABLE_SIGNAL_RATE_MSRC:
         case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-          Error |= comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, VL53L0X_FIXPOINT1616TOFIXPOINT97(LimitCheckValue));
+          Error |= comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
           break;
 
         default:
@@ -861,56 +853,33 @@ namespace VL53L0X {
   } // VL53L0X_SetLimitCheckValue
 
 
-  Error Api::GetLimitCheckCurrent(uint16_t LimitCheckId, FixPoint1616_t *pLimitCheckCurrent) {
-
-    RangingMeasurementData_t LastRangeDataBuffer;
-
-    LOG_FUNCTION_START;
-
+  Erroneous<FixPoint1616_t> Api::GetLimitCheckCurrent(CheckEnable LimitCheckId) {
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
       return ERROR_INVALID_PARAMS;
     }
     switch (LimitCheckId) {
       case CHECKENABLE_SIGMA_FINAL_RANGE:
         /* Need to run a ranging to have the latest values */
-        *pLimitCheckCurrent = PALDevDataGet(SigmaEstimate);
-        break;
-
-      case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
-        /* Need to run a ranging to have the latest values */
-        LastRangeDataBuffer = PALDevDataGet(LastRangeMeasure);
-        *pLimitCheckCurrent = LastRangeDataBuffer.SignalRateRtnMegaCps;
+        return PALDevDataGet(SigmaEstimate);
         break;
 
       case CHECKENABLE_SIGNAL_REF_CLIP:
         /* Need to run a ranging to have the latest values */
-        *pLimitCheckCurrent = PALDevDataGet(LastSignalRefMcps);
+        return PALDevDataGet(LastSignalRefMcps);
         break;
 
+      case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
       case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
-        /* Need to run a ranging to have the latest values */
-        LastRangeDataBuffer = PALDevDataGet(LastRangeMeasure);
-        *pLimitCheckCurrent = LastRangeDataBuffer.SignalRateRtnMegaCps;
-        break;
-
       case CHECKENABLE_SIGNAL_RATE_MSRC:
-        /* Need to run a ranging to have the latest values */
-        LastRangeDataBuffer = PALDevDataGet(LastRangeMeasure);
-        *pLimitCheckCurrent = LastRangeDataBuffer.SignalRateRtnMegaCps;
-        break;
-
       case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-        /* Need to run a ranging to have the latest values */
-        LastRangeDataBuffer = PALDevDataGet(LastRangeMeasure);
-        *pLimitCheckCurrent = LastRangeDataBuffer.SignalRateRtnMegaCps;
+        /* Need to run a ranging to have the latest values */;
+        return PALDevDataGet(LastRangeMeasure).SignalRateRtnMegaCps;
         break;
 
       default:
-        return ERROR_INVALID_PARAMS;
+        return LOG_ERROR(ERROR_INVALID_PARAMS);
     } // switch
 
-
-    return Error;
   } // GetLimitCheckCurrent
 
 /*
@@ -992,9 +961,9 @@ namespace VL53L0X {
   } // VL53L0X_PerformSingleMeasurement
 
 
-  Error Api::PerformRefCalibration(Api::CalibrationParameters *p) {
+  Erroneous<Api::CalibrationParameters> Api::PerformRefCalibration() {
     LOG_FUNCTION_START;
-    return perform_ref_calibration(*p, true);
+    return perform_ref_calibration(true);
   }
 
   Error Api::PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps) {
@@ -1135,23 +1104,12 @@ namespace VL53L0X {
     }
   } // GetMeasurementDataReady
 
-  Error Api::WaitDeviceReadyForNewMeasurement(uint32_t MaxLoop) {
+  Error Api::WaitDeviceReadyForNewMeasurement(unsigned MaxLoop) {
     VL53L0X_NYI
   }
 
   Error Api::GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData) {
-    uint8_t DeviceRangeStatus;
-    uint8_t PalRangeStatus;
-    uint8_t XTalkCompensationEnable;
-    uint16_t AmbientRate;
-    FixPoint1616_t SignalRate;
-
-    uint16_t tmpuint16;
-    uint16_t XtalkRangeMilliMeter;
-    uint16_t LinearityCorrectiveGain;
-
     LOG_FUNCTION_START;
-
     /*
      * use multi read even if some registers are not useful, result will
      * be more efficient
@@ -1161,87 +1119,68 @@ namespace VL53L0X {
 
     uint8_t localBuffer[12];
     Error |= comm.ReadMulti(0x14, localBuffer, 12);
+    ERROR_OUT;
 
-    if (Error == ERROR_NONE) {
+    pRangingMeasurementData.ZoneId = 0;    /* Only one zone */
+    pRangingMeasurementData.TimeStamp = 0; /* Not Implemented */
 
-      pRangingMeasurementData.ZoneId = 0;    /* Only one zone */
-      pRangingMeasurementData.TimeStamp = 0; /* Not Implemented */
+    /* cut1.1 if SYSTEM__RANGE_CONFIG if 1 range is 2bits fractional
+     *(format 11.2) else no fractional
+     */
 
-      tmpuint16 = MAKEUINT16(localBuffer[11], localBuffer[10]);
-      /* cut1.1 if SYSTEM__RANGE_CONFIG if 1 range is 2bits fractional
-       *(format 11.2) else no fractional
-       */
+    pRangingMeasurementData.MeasurementTimeUsec = 0;
 
-      pRangingMeasurementData.MeasurementTimeUsec = 0;
+    /* peak_signal_count_rate_rtn_mcps */
+    FixPoint1616_t SignalRate = FixPoint<9, 7>(MAKEUINT16(localBuffer[7], localBuffer[6]));
+    pRangingMeasurementData.SignalRateRtnMegaCps = SignalRate;
 
-      SignalRate = VL53L0X_FIXPOINT97TOFIXPOINT1616(MAKEUINT16(localBuffer[7], localBuffer[6]));
-      /* peak_signal_count_rate_rtn_mcps */
-      pRangingMeasurementData.SignalRateRtnMegaCps = SignalRate;
+    pRangingMeasurementData.AmbientRateRtnMegaCps = FixPoint<9, 7>(MAKEUINT16(localBuffer[9], localBuffer[8]));
 
-      AmbientRate = MAKEUINT16(localBuffer[9], localBuffer[8]);
-      pRangingMeasurementData.AmbientRateRtnMegaCps = VL53L0X_FIXPOINT97TOFIXPOINT1616(AmbientRate);
+    FixPoint<8, 8> EffectiveSpadRtnCount(MAKEUINT16(localBuffer[3], localBuffer[2]));
+    pRangingMeasurementData.EffectiveSpadRtnCount = EffectiveSpadRtnCount;
 
-      FixPoint<8, 8> EffectiveSpadRtnCount(MAKEUINT16(localBuffer[3], localBuffer[2]));
-      pRangingMeasurementData.EffectiveSpadRtnCount = EffectiveSpadRtnCount;
+    auto DeviceRangeStatus = localBuffer[0];
 
-      DeviceRangeStatus = localBuffer[0];
+    /* Get Linearity Corrective Gain */
+    uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
 
-      /* Get Linearity Corrective Gain */
-      LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
+    /* Get ranging configuration */
+    bool RangeFractionalEnable = PALDevDataGet(RangeFractionalEnable);
 
-      /* Get ranging configuration */
-      bool RangeFractionalEnable = PALDevDataGet(RangeFractionalEnable);
+    auto RangeMilliMeter = MAKEUINT16(localBuffer[11], localBuffer[10]);//todo: needs informative name
+    if (LinearityCorrectiveGain != 1000) {
+      RangeMilliMeter = roundedDivide(LinearityCorrectiveGain * RangeMilliMeter, 1000);
 
-      if (LinearityCorrectiveGain != 1000) {
-        tmpuint16 = roundedDivide(LinearityCorrectiveGain * tmpuint16, 1000);
+      /* Implement Xtalk */
+      bool XTalkCompensationEnable = VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
 
-        /* Implement Xtalk */
-        XTalkCompensationEnable = VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
-
-        if (XTalkCompensationEnable) {
-          uint16_t XTalkCompensationRateMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
-          auto dry = SignalRate.raw - ((XTalkCompensationRateMegaCps * EffectiveSpadRtnCount) >> 8);
-          XtalkRangeMilliMeter = dry > 0 ? (tmpuint16 * SignalRate) / dry : (RangeFractionalEnable ? 8888 : (8888 << 2));//bug: magic value
-          tmpuint16 = XtalkRangeMilliMeter;
-        }
-      }
-
-      if (RangeFractionalEnable) {
-        pRangingMeasurementData.RangeMilliMeter = (uint16_t) ((tmpuint16) >> 2);
-        pRangingMeasurementData.RangeFractionalPart = tmpuint16 << (8 - 2);//ick: former mask was gratuitous along with the cast.
-      } else {
-        pRangingMeasurementData.RangeMilliMeter = tmpuint16;
-        pRangingMeasurementData.RangeFractionalPart = 0;
-      }
-
-      /*
-       * For a standard definition of rangeError, this should
-       * return 0 in case of good result after a ranging
-       * The range status depends on the device so call a device
-       * specific function to obtain the right Error.
-       */
-      Error |= get_pal_range_status(DeviceRangeStatus, SignalRate, EffectiveSpadRtnCount, pRangingMeasurementData, &PalRangeStatus);
-
-      if (Error == ERROR_NONE) {
-        pRangingMeasurementData.rangeError = PalRangeStatus;
+      if (XTalkCompensationEnable) {
+        uint16_t XTalkCompensationRateMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
+        auto dry = SignalRate.raw - ((XTalkCompensationRateMegaCps * EffectiveSpadRtnCount) >> 8);
+        RangeMilliMeter = dry > 0 ? (RangeMilliMeter * SignalRate) / dry : (RangeFractionalEnable ? 8888 : (8888 << 2));//bug: magic value
       }
     }
 
-    if (Error == ERROR_NONE) {
-      /* Copy last read data into Dev buffer */
-      auto LastRangeDataBuffer = PALDevDataGet(LastRangeMeasure);
-
-      LastRangeDataBuffer.RangeMilliMeter = pRangingMeasurementData.RangeMilliMeter;
-      LastRangeDataBuffer.RangeFractionalPart = pRangingMeasurementData.RangeFractionalPart;
-      LastRangeDataBuffer.RangeDMaxMilliMeter = pRangingMeasurementData.RangeDMaxMilliMeter;
-      LastRangeDataBuffer.MeasurementTimeUsec = pRangingMeasurementData.MeasurementTimeUsec;
-      LastRangeDataBuffer.SignalRateRtnMegaCps = pRangingMeasurementData.SignalRateRtnMegaCps;
-      LastRangeDataBuffer.AmbientRateRtnMegaCps = pRangingMeasurementData.AmbientRateRtnMegaCps;
-      LastRangeDataBuffer.EffectiveSpadRtnCount = pRangingMeasurementData.EffectiveSpadRtnCount;
-      LastRangeDataBuffer.rangeError = pRangingMeasurementData.rangeError;
-
-      PALDevDataSet(LastRangeMeasure, LastRangeDataBuffer);
+    if (RangeFractionalEnable) {
+      pRangingMeasurementData.RangeMilliMeter = (uint16_t) ((RangeMilliMeter) >> 2);
+      pRangingMeasurementData.RangeFractionalPart = RangeMilliMeter << (8 - 2);//ick: former mask was gratuitous along with the cast.
+    } else {
+      pRangingMeasurementData.RangeMilliMeter = RangeMilliMeter;
+      pRangingMeasurementData.RangeFractionalPart = 0;
     }
+
+    /*
+     * For a standard definition of rangeError, this should
+     * return 0 in case of good result after a ranging
+     * The range status depends on the device so call a device
+     * specific function to obtain the right Error.
+     */
+    auto PalRangeStatus = get_pal_range_status(DeviceRangeStatus, SignalRate, EffectiveSpadRtnCount, pRangingMeasurementData);
+    ERROR_ON(PalRangeStatus)
+    pRangingMeasurementData.rangeError = PalRangeStatus;
+
+    /* Copy last read data into Dev buffer */
+    PALDevDataGet(LastRangeMeasure) = pRangingMeasurementData;
 
     return Error;
   } // GetRangingMeasurementData
@@ -1523,9 +1462,10 @@ namespace VL53L0X {
     Error = comm.WrByte(REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
     ERROR_OUT;
     /* Perform ref calibration */
-    CalibrationParameters p;
-    Error = perform_ref_calibration(p, false);//ick: PhaseCal value then ignored. ditto for VhvSettings
-    ERROR_OUT;
+    auto p = perform_ref_calibration(false);//ick: PhaseCal value then ignored. ditto for VhvSettings
+    if (!p.isOk()) {
+      return p.error;
+    }
     /* Enable Minimum NON-APERTURE Spads */
     SpadArray::Index currentSpadIndex = 0;
 
@@ -1643,10 +1583,10 @@ namespace VL53L0X {
     }
 
     Erroneous<uint32_t> arf = GetInterMeasurementPeriodMilliSeconds();
-//    EXIT_ON(arf)
+//todo:    EXIT_ON(arf)
     wad.InterMeasurementPeriodMilliSeconds = arf;
 
-    wad.XTalkCompensationEnable = 0;//ick: why don't we read the actual enabl?
+    wad.XTalkCompensationEnable = false;//ick: why don't we use the actual enable?
     auto arf2 = GetXTalkCompensationRateMegaCps();
     ERROR_OUT;
     wad.XTalkCompensationRateMegaCps = arf2;

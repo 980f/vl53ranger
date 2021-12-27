@@ -79,7 +79,7 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
 //    return false;
 //  }
 
-  Error = MyDevice.GetDeviceInfo(&DeviceInfo);
+  Error = MyDevice.GetDeviceInfo(DeviceInfo);
 
   if (Error == ERROR_NONE) {
     if (debug) {
@@ -134,8 +134,8 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
     if (debug) {
       Serial.println(F("VL53L0X: PerformRefCalibration"));
     }
-    Api::CalibrationParameters calp;
-    Error = MyDevice.PerformRefCalibration(&calp); // Device Initialization
+    Erroneous<Api::CalibrationParameters> calp = MyDevice.PerformRefCalibration(); // Device Initialization
+    Error =calp.error;
   }
 
   if (Error == ERROR_NONE) {
@@ -303,7 +303,7 @@ Error Adafruit_VL53L0X::GetSingleRangingMeasurement(RangingMeasurementData_t &Ra
   }
 
   if (debug) {
-    MyDevice.GetLimitCheckCurrent(CHECKENABLE_RANGE_IGNORE_THRESHOLD, &LimitCheckCurrent);
+    MyDevice.GetLimitCheckCurrent(CHECKENABLE_RANGE_IGNORE_THRESHOLD);
 
     Serial.print(F("RANGE IGNORE THRESHOLD: "));
     Serial.println((float) LimitCheckCurrent / 65536.0);
@@ -579,7 +579,7 @@ bool Adafruit_VL53L0X::getLimitCheckEnable(CheckEnable LimitCheckId) {
  */
 /**************************************************************************/
 
-boolean Adafruit_VL53L0X::setLimitCheckValue(CheckEnable LimitCheckId, FixPoint1616_t LimitCheckValue) {
+boolean Adafruit_VL53L0X::setLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9,7> LimitCheckValue) {
   Error = MyDevice.SetLimitCheckValue(LimitCheckId, LimitCheckValue);
   return Error == ERROR_NONE;
 }
@@ -592,7 +592,7 @@ boolean Adafruit_VL53L0X::setLimitCheckValue(CheckEnable LimitCheckId, FixPoint1
  *   @return  limit check value in FixPoint1616
  */
 /**************************************************************************/
-FixPoint1616_t Adafruit_VL53L0X::getLimitCheckValue(CheckEnable LimitCheckId) {
+FixPoint<9,7> Adafruit_VL53L0X::getLimitCheckValue(CheckEnable LimitCheckId) {
   auto LimitCheckValue = MyDevice.GetLimitCheckValue(LimitCheckId);
   Error=LimitCheckValue.error;
   return LimitCheckValue;

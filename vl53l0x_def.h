@@ -166,7 +166,7 @@ namespace VL53L0X {
     HistogramModes HistogramMode;/*!< Defines type of histogram measurement to be done for the next measure */
     uint32_t MeasurementTimingBudgetMicroSeconds; /*!< Defines the allowed total time for a single measurement */
     uint32_t InterMeasurementPeriodMilliSeconds; /*!< Defines time between two consecutive measurements (between two	measurement starts). If set to 0 means back-to-back mode */
-    uint8_t XTalkCompensationEnable; /*!< Tells if Crosstalk compensation shall be enable or not	 */
+    bool XTalkCompensationEnable; /*!< Tells if Crosstalk compensation shall be enable or not	 */
     uint16_t XTalkCompensationRangeMilliMeter;  /*!< CrossTalk compensation range in millimeter	 */
     FixPoint1616_t XTalkCompensationRateMegaCps; /*!< CrossTalk compensation rate in Mega counts per seconds.	*/
     int32_t RangeOffsetMicroMeters; /*!< Range offset adjustment (mm).	*/
@@ -174,7 +174,7 @@ namespace VL53L0X {
     //todo: struct and single array.
     bool LimitChecksEnable[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Limit Check enable for this device. */
     bool LimitChecksStatus[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Error of the check linked to last measurement. */
-    FixPoint1616_t LimitChecksValue[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
+    FixPoint<9,7> LimitChecksValue[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
 
     uint8_t WrapAroundCheckEnable; /*!< Tells if Wrap Around Check shall be enable or not */
   };
@@ -199,10 +199,8 @@ namespace VL53L0X {
 /** @brief Structure containing the Dmax computation parameters and data
  */
   struct DMaxData_t {
-    int32_t AmbTuningWindowFactor_K;
-    /*!<  internal algo tuning (*1000) */
-    int32_t RetSignalAt0mm;
-    /*!< intermediate dmax computation value caching */
+    int32_t AmbTuningWindowFactor_K;    /*!<  internal algo tuning (*1000) */
+    int32_t RetSignalAt0mm;    /*!< intermediate dmax computation value caching */
   };
 
 /**
@@ -210,7 +208,7 @@ namespace VL53L0X {
  * @brief Range measurement data.
  */
   struct RangingMeasurementData_t {
-    uint32_t TimeStamp; /*!< 32-bit time stamp. */
+    uint32_t TimeStamp; /*!< 32-bit time stamp. */ //todo: actually set a timestamp value into this!
     uint32_t MeasurementTimeUsec;     /*!< Give the Measurement time needed by the device to do the measurement.*/
 
     uint16_t RangeMilliMeter; /*!< range distance in millimeter. */
@@ -220,11 +218,11 @@ namespace VL53L0X {
     FixPoint1616_t SignalRateRtnMegaCps; /*!< Return signal rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of target reflectance.*/
     FixPoint1616_t AmbientRateRtnMegaCps;  /*!< Return ambient rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of the ambient light.*/
 
-    FixPoint<8, 8> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256 */
+    FixPoint<8, 8> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256  (call .rounded()) */
 
     uint8_t ZoneId;  /*!< Denotes which zone and range scheduler stage the range data relates to. */
     uint8_t RangeFractionalPart; /*!< Fractional part of range distance. Final value is a FixPoint168 value. */
-    uint8_t rangeError;  /*!< Range Error for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
+    RangeStatus rangeError;  /*!< Range Error for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
   };
 
 #define VL53L0X_HISTOGRAM_BUFFER_SIZE 24
@@ -270,22 +268,22 @@ namespace VL53L0X {
     GpioFunctionality Pin0GpioFunctionality = GPIOFUNCTIONALITY_OFF;/* store the functionality of the GPIO: pin0 */
 
     struct RangeSetting {
-      uint32_t TimeoutMicroSecs;/*!< Execution time of the final range*/
-      uint8_t VcselPulsePeriod;/*!< Vcsel pulse period (pll clocks) for the final range measurement*/
+      uint32_t TimeoutMicroSecs=0;/*!< Execution time of the final range*/
+      uint8_t VcselPulsePeriod=0;/*!< Vcsel pulse period (pll clocks) for the final range measurement*/
     };
     RangeSetting FinalRange;/*!< Execution &Vcsel time of the final range*/
     RangeSetting PreRange;/*!< Execution time of the pre-range range (ST had rogue tile in this comment) */
 
     SigmaEstimates SigmaEst;
 
-    uint8_t ReadDataFromDeviceDone; /* 3bits for subsets of device data having been read */
+    uint8_t ReadDataFromDeviceDone=0; /* 3bits for subsets of device data having been read */
 
-    uint8_t ModuleId;               /* Module ID */
-    uint8_t Revision;               /* test Revision */
-    char ProductId[VL53L0X_MAX_STRING_LENGTH];/* Product Identifier String  */
+    uint8_t ModuleId=0;               /* Module ID */
+    uint8_t Revision=0;               /* test Revision */
+    char ProductId[VL53L0X_MAX_STRING_LENGTH]="";/* Product Identifier String  */
 
     SpadCount ReferenceSpad;
-    bool RefSpadsInitialised; /* reports if ref spads are initialised. */
+    bool RefSpadsInitialised=false; /* reports if ref spads are initialised. */
 
     struct PartUID_t {
       uint32_t Upper = 0;       /*!< Unique Part ID Upper */
@@ -304,7 +302,7 @@ namespace VL53L0X {
  * These must never access directly but only via macro
  */
   struct DevData_t {
-    DMaxData_t DMaxData;     /*!< Dmax Data */
+//not used, appears to be for debug of some calculation     DMaxData_t DMaxData;     /*!< Dmax Data */
     int32_t Part2PartOffsetNVMMicroMeter;     /*!< backed up NVM value */
     int32_t Part2PartOffsetAdjustmentNVMMicroMeter;     /*!< backed up NVM value representing additional offset adjustment */
     DeviceParameters_t CurrentParameters;     /*!< Current Device Parameter */
@@ -328,7 +326,7 @@ namespace VL53L0X {
     bool UseInternalTuningSettings;     /*!< Indicate if we use	 Tuning Settings table */
     uint16_t LinearityCorrectiveGain;     /*!< Linearity Corrective Gain value in x1000 */
     struct DmaxCal {
-      uint16_t RangeMilliMeter;     /*!< Dmax Calibration Range millimeter */
+      uint16_t RangeMilliMeter=0;     /*!< Dmax Calibration Range millimeter */
       FixPoint1616_t SignalRateRtnMegaCps;     /*!< Dmax Calibration Signal Rate Return MegaCps */
     } dmaxCal;
   };
@@ -466,7 +464,7 @@ namespace VL53L0X {
 #define VL53L0X_FIXPOINT102TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 12)
 
   constexpr uint16_t MAKEUINT16(uint8_t lsb, uint8_t msb) {
-    return uint16_t(msb) << 8 + uint16_t(lsb);
+    return (uint16_t(msb) << 8) + uint16_t(lsb);
   }
 
 /** @} VL53L0X_define_GeneralMacro_group */

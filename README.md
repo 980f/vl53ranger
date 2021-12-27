@@ -30,6 +30,16 @@ A microcontoller that is pushed for resources will not have an RTOS and as such 
 Back to logging: the ST setup had 31 channels defined and only two used. Perhaps a third was intended for i2c error logging but the Adafruit module uses Serial.print. Globalizing error reporting will allow dropping of excess layers of calling, saving code and execution time. Object wrapping per 980f's Wire support would greatly simplify the source code retaining easy porting to other platforms, those other platforms being windows/linux/macOS, or ST's HAL stuff (another bucket of worms due to coding in C rather than C++).
 
 So, the next order of attack: object access to I2C values, RAII logging.
+
+## branch longjmp
+Since we don't want to compile with exception handling, but the system begs for it we will use setjmp/longjmp and a THROW macro. The throw macro will pass the __FUNCTION__ to the logging system along with the error code which it the returns.
+RAII has been used to ensure that certained paired I2C operations happen. Longjmp prevents those from executing so we need to set some flags for each while it exists and do the necessary actions upon longjmp's return.
+These will all be statically created with some mechanism to mark when they are pending. A stack, separate from the program stack, seems to be the mechanism most likely to honor program semantics. 
+When normal execution runs a destructor it pops the error stack, which is pushed where we present do a construction. 
+The original code was haphazard in ensuring that this matched actions occured, it is unlikely that we could do worse than that, but we need to strictly retain the order that error less execution performed.
+
+Instances:
+
  
 
 

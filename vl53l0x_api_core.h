@@ -101,7 +101,7 @@ namespace VL53L0X {
     Erroneous<FixPoint1616_t> get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
     /** RMD not const due to setting of darkMM */
-    Error get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount,RangingMeasurementData_t &pRangingMeasurementData, uint8_t *pPalRangeStatus);
+    Erroneous <RangeStatus> get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData);
 
     /**
  * @brief  Get specific limit check enable state
@@ -148,7 +148,7 @@ namespace VL53L0X {
  *  when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Erroneous<FixPoint1616_t> GetLimitCheckValue(CheckEnable LimitCheckId);
+    Erroneous<FixPoint<9,7>> GetLimitCheckValue(CheckEnable LimitCheckId);
 
 
     /** deriving from ErrorAccumulator to use some early out macros */
@@ -170,7 +170,7 @@ namespace VL53L0X {
 
     /** call this to ensure a restore operation occurs when the object goes out of scope. */
     SysPopper push(uint8_t  index, uint8_t push, uint8_t pop){
-      return SysPopper(comm,index,push,pop);
+      return {comm, index, push, pop};
     }
 
     class FFPopper: public ErrorAccumulator{
@@ -193,7 +193,7 @@ namespace VL53L0X {
 
     /** call this to ensure a restore operation occurs when the object goes out of scope. */
     FFPopper FFpush(uint8_t  index, uint8_t push, uint8_t pop){
-      return FFPopper(comm,index,push,pop);
+      return {comm, index, push, pop};
     }
 
     class MagicTrio {
@@ -213,7 +213,7 @@ namespace VL53L0X {
     };
     /** RAII widget that surrounds some fetches. */
     MagicTrio magicWrapper(){
-      return MagicTrio(comm);
+      return {comm};
     }
 
     /** creating one of these saves sequence config, sets it, and on destruction restores what was saved.
@@ -284,7 +284,7 @@ namespace VL53L0X {
     /** @returns an interesting computation that someone should document */
     uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
 
-    Error SetXTalkCompensationEnable(uint8_t XTalkCompensationEnable);
+    Error SetXTalkCompensationEnable(bool XTalkCompensationEnable);
 
     Error set_ref_spad_map(SpadArray &refSpadArray);//writes to device
     Error get_ref_spad_map(SpadArray &refSpadArray);//read from device

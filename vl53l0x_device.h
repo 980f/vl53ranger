@@ -72,6 +72,18 @@ namespace VL53L0X {
     , DEVICEERROR_RANGEIGNORETHRESHOLD
 /** @} end of VL53L0X_DeviceError_group */
   };
+
+  /** this enum extracted from comments in source code, then applied to where they came from */
+  enum RangeStatus : uint8_t {
+    Range_Valid = 0
+    , Sigma_Fail = 1
+    , Signal_Fail = 2
+    , Min_range = 3
+    , Phase_fail = 4
+    , HW_fail = 5
+    , Not_Set = 255
+  };
+
 /** @defgroup VL53L0X_CheckEnable_group Check Enable list
  *  @brief Check Enable code
  *
@@ -105,9 +117,8 @@ namespace VL53L0X {
   };
 
   bool valid(GpioFunctionality functionality) {
-    return functionality<=GPIOFUNCTIONALITY_NEW_MEASURE_READY;
+    return functionality <= GPIOFUNCTIONALITY_NEW_MEASURE_READY;
   }
-
 
   /** @defgroup VL53L0X_define_InterruptPolarity_group Defines the Polarity
  * of the Interrupt
@@ -133,9 +144,9 @@ namespace VL53L0X {
 /* Device register map */
 
   enum SysRange {
-   /** bit 0 in #REG_SYSRANGE_START write 1 toggles state in continuous mode and arms next shot in single shot mode */
+    /** bit 0 in #REG_SYSRANGE_START write 1 toggles state in continuous mode and arms next shot in single shot mode */
     REG_SYSRANGE_MODE_START_STOP = (1 << 0)
-     ,/** bit 1 write 0 in #REG_SYSRANGE_START set single shot mode */
+    ,/** bit 1 write 0 in #REG_SYSRANGE_START set single shot mode */
     REG_SYSRANGE_MODE_SINGLESHOT = (0 << 1)
     , /** bit 1 write 1 in #REG_SYSRANGE_START set back-to-back operation mode */
     REG_SYSRANGE_MODE_BACKTOBACK = (1 << 1)
@@ -144,7 +155,7 @@ namespace VL53L0X {
     , /** bit 3 write 1 in #REG_SYSRANGE_START set histogram operation mode */
     REG_SYSRANGE_MODE_HISTOGRAM = (1 << 3)
     , /** mask existing bit in #REG_SYSRANGE_START*/
-    REG_SYSRANGE_MODE_MASK = Mask<3,0>::places
+    REG_SYSRANGE_MODE_MASK = Mask<3, 0>::places
 
     //todo: document the other 4 bits in the register. Since the mask is unused one presumes the bits are as well.
   };
@@ -160,7 +171,7 @@ namespace VL53L0X {
   enum RegSystem : uint8_t {//the original defines had 16 bit constants, but hardware only has 8.
     REG_SYSRANGE_START = 0
     , REG_SYSTEM_SEQUENCE_CONFIG = 0x01
-    ,  REG_SYSTEM_THRESH_HIGH = 0x0C
+    , REG_SYSTEM_THRESH_HIGH = 0x0C
     , REG_SYSTEM_THRESH_LOW = 0x0E
     , REG_SYSTEM_RANGE_CONFIG = 0x09
     , REG_SYSTEM_INTERMEASUREMENT_PERIOD = 0x04
@@ -218,12 +229,12 @@ namespace VL53L0X {
     , REG_ALGO_PHASECAL_LIM = 0x30 /* 0x130 */
     , REG_ALGO_PHASECAL_CONFIG_TIMEOUT = 0x30
 
-      //formerly hidden inside code, naming for documentation purposes
-      ,Private_Strober=0x83  /** strobe related */
-      ,Private_04=0x04 /** ?completion status */
-      ,Private_PowerMode=0x80
-      ,Private_Pager=0xFF  /** guessing a page select, or freeze for atomic update */
-    };
+    //formerly hidden inside code, naming for documentation purposes
+    , Private_Strober = 0x83  /** strobe related */
+    , Private_04 = 0x04 /** ?completion status */
+    , Private_PowerMode = 0x80
+    , Private_Pager = 0xFF  /** guessing a page select, or freeze for atomic update */
+  };
 
   /** the following defines were dropped in favor of a function:
 //#define REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_0 0x0B0
