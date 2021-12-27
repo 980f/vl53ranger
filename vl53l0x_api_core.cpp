@@ -1017,32 +1017,25 @@ namespace VL53L0X {
       FixPoint1616_t sigmaEstimateP1 = cPulseEffectiveWidth_centi_ns;
 
       /* ((FixPoint1616 << 16)* uint32)/uint32 = FixPoint1616 */
-      FixPoint1616_t sigmaEstimateP2 = ambientRate_kcps.boost(16) / peakSignalRate_kcps.raw;
+      FixPoint1616_t sigmaEstimateP2(ambientRate_kcps.boost(16), peakSignalRate_kcps.raw);
 
-      if (sigmaEstimateP2.raw > cAmbToSignalRatioMax.raw) {
-        /* Clip to prevent overflow. Will ensure safe
-         * max result. */
-        sigmaEstimateP2 = cAmbToSignalRatioMax;
-      }
-
-      sigmaEstimateP2.raw *= cAmbientEffectiveWidth_centi_ns;
-
-      FixPoint1616_t sigmaEstimateP3 = 2 * isqrt(vcselTotalEventsRtn * 12);
+      /* Clip to prevent overflow. Will ensure safe max result. */
+      sigmaEstimateP2.lessen(cAmbToSignalRatioMax);
+      sigmaEstimateP2 *= cAmbientEffectiveWidth_centi_ns;
+      FixPoint1616_t sigmaEstimateP3(isqrt(vcselTotalEventsRtn * 12) * 2);
 
       /* uint32 * FixPoint1616 = FixPoint1616 */
-      FixPoint1616_t deltaT_ps = pRangingMeasurementData.RangeMilliMeter * cTOF_per_mm_ps.raw;
+      FixPoint1616_t deltaT_ps(pRangingMeasurementData.RangeMilliMeter * cTOF_per_mm_ps.raw);
 
       /*
        * vcselRate - xtalkCompRate
        * (uint32 << 16) - FixPoint1616 = FixPoint1616.
        * Divide result by 1000 to convert to mcps.
-       * 500 is added to ensure rounding when integer division
-       * truncates.
        */
-      FixPoint1616_t diff1_mcps = roundedDivide(peakSignalRate_kcps.boosted(16) - xTalkCompRate_kcps, 1000);
+      FixPoint1616_t diff1_mcps(peakSignalRate_kcps.boosted(16) - xTalkCompRate_kcps, 1000, 0);
 
       /* vcselRate + xtalkCompRate */
-      FixPoint1616_t diff2_mcps = roundedDivide((peakSignalRate_kcps.boosted(16) + xTalkCompRate_kcps), 1000);
+      FixPoint1616_t diff2_mcps((peakSignalRate_kcps.boosted(16) + xTalkCompRate_kcps), 1000, 0);
 
       /* Shift by 8 bits to increase resolution prior to the division */
       diff1_mcps.boost(8);
@@ -1054,7 +1047,7 @@ namespace VL53L0X {
       xTalkCorrection.boost(8);
 
       /* FixPoint1616/uint32 = FixPoint1616 */
-      FixPoint1616_t pwMult = deltaT_ps.raw / cVcselPulseWidth_ps; /* smaller than 1.0f */ //ick: not rounded
+      FixPoint1616_t pwMult(deltaT_ps.raw, cVcselPulseWidth_ps, 0); /* smaller than 1.0f */ //ick: 980f added rounding
 
       /*
        * FixPoint1616 * FixPoint1616 = FixPoint3232, however both
@@ -1082,16 +1075,16 @@ namespace VL53L0X {
       pwMult.shrink(14);
 
       /* FixPoint1616 * uint32 = FixPoint1616 */
-      FixPoint1616_t sqr1 = pwMult.raw * sigmaEstimateP1.raw;
+      FixPoint1616_t sqr1(pwMult.raw * sigmaEstimateP1.raw);
       /* (FixPoint1616 >> 16) = FixPoint3200 */
-      sqr1 = roundedScale(sqr1, 16);
+      sqr1.shrink(16);
 
       FixPoint1616_t sqr2 = sigmaEstimateP2;
       /* (FixPoint1616 >> 16) = FixPoint3200 */
       sqr2.shrink(16);
 
       /* SQRT(FixPoin6400) = FixPoint3200 */
-      FixPoint1616_t sqrtResult_centi_ns = quadrature_sum(sqr1, sqr2);
+      FixPoint1616_t sqrtResult_centi_ns(quadrature_sum(sqr1, sqr2));
 
       /* (FixPoint3200 << 16) = FixPoint1616 */
       sqrtResult_centi_ns.boost(16);
@@ -1101,21 +1094,21 @@ namespace VL53L0X {
        * seconds (2997) Therefore to get mm/ns we have to divide by
        * 10000
        */
-      FixPoint1616_t sigmaEstRtn = ((roundedDivide(sqrtResult_centi_ns, 100) / sigmaEstimateP3.raw));//ick: formerly not rounded
+      FixPoint1616_t sigmaEstRtn((roundedDivide(sqrtResult_centi_ns, 100) / sigmaEstimateP3.raw));//ick: formerly not rounded
       sigmaEstRtn.raw *= SPEED_OF_LIGHT_IN_AIR;
       sigmaEstRtn.divideby(10000);
       /* Clip to prevent overflow. Will ensure safe max result. */
       sigmaEstRtn.lessen(cSigmaEstRtnMax);
 
       /* sqrt(FixPoint3232) = FixPoint1616 */
-      FixPoint1616_t sqrtResult = quadrature_sum(sigmaEstRtn, cSigmaEstRef);
+      FixPoint1616_t sqrtResult(quadrature_sum(sigmaEstRtn, cSigmaEstRef));
       /*
        * Note that the Shift by 4 bits increases resolution prior to
        * the sqrt, therefore the result must be shifted by 2 bits to
        * the right to revert back to the FixPoint1616 format.
        */
 
-      FixPoint1616_t sigmaEstimate = 1000 * sqrtResult;
+      FixPoint1616_t sigmaEstimate(1000 * sqrtResult);
 
       if ((peakSignalRate_kcps.raw < 1) || (vcselTotalEventsRtn < 1) || (sigmaEstimate.raw > cSigmaEstMax.raw)) {
         sigmaEstimate = cSigmaEstMax;
@@ -1125,8 +1118,6 @@ namespace VL53L0X {
       PALDevDataSet(SigmaEstimate, sigmaEstimate);
       return {sigmaEstimate};
     }
-
-    return ERROR_NONE;
   }
 
   Erroneous<bool> Core::GetSequenceStepEnable(SequenceStepId StepId) {
@@ -1212,14 +1203,12 @@ namespace VL53L0X {
     LOG_FUNCTION_START;
 
     /*
-     * VL53L0X has a good ranging when the value of the
-     * DeviceRangeStatus = 11. This function will replace the value 0 with
-     * the value 11 in the DeviceRangeStatus.
-     * In addition, the SigmaEstimator is not included in the VL53L0X
-     * DeviceRangeStatus, this will be added in the PalRangeStatus.
+     * VL53L0X has a good ranging when the value of the DeviceRangeStatus = 11.
+     * This function will replace the value 0 with the value 11 in the DeviceRangeStatus.
+     * In addition, the SigmaEstimator is not included in the VL53L0X DeviceRangeStatus, this will be added in the PalRangeStatus.
      */
     uint8_t DeviceRangeStatusInternal = getBits<6, 3>(DeviceRangeStatus);
-    uint8_t NoneFlag = (DeviceRangeStatusInternal == 0 || DeviceRangeStatusInternal == 5 || DeviceRangeStatusInternal == 7 || DeviceRangeStatusInternal == 12 || DeviceRangeStatusInternal == 13 || DeviceRangeStatusInternal == 14 || DeviceRangeStatusInternal == 15);
+    bool NoneFlag = (DeviceRangeStatusInternal == 0 || DeviceRangeStatusInternal == 5 || DeviceRangeStatusInternal == 7 || DeviceRangeStatusInternal == 12 || DeviceRangeStatusInternal == 13 || DeviceRangeStatusInternal == 14 || DeviceRangeStatusInternal == 15);
 
     Erroneous<FixPoint<9, 7>> tmpWord;
     /* LastSignalRefMcps */
@@ -1260,12 +1249,12 @@ namespace VL53L0X {
      */
     bool SignalRefClipLimitCheckEnable = GetLimitCheckEnable(CHECKENABLE_SIGNAL_REF_CLIP);
 
-    uint8_t SignalRefClipflag = 0;
-    if ((SignalRefClipLimitCheckEnable != 0) && (Error == ERROR_NONE)) {
+    bool SignalRefClipflag = false;
+    if ((Error == ERROR_NONE) && SignalRefClipLimitCheckEnable) {
       auto SignalRefClipValue = GetLimitCheckValue(CHECKENABLE_SIGNAL_REF_CLIP);
       if ((SignalRefClipValue.wrapped.raw > 0) && (LastSignalRefMcps > SignalRefClipValue.wrapped)) {//todo: check for factor of 2 error due to refactoring
         /* Limit Fail */
-        SignalRefClipflag = 1;
+        SignalRefClipflag = true;
       }
     }
 
@@ -1277,9 +1266,9 @@ namespace VL53L0X {
      */
     auto RangeIgnoreThresholdLimitCheckEnable = GetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD);
 
-    uint8_t RangeIgnoreThresholdflag = 0;
+    bool RangeIgnoreThresholdflag = false;
 
-    if ((RangeIgnoreThresholdLimitCheckEnable != 0) && (Error == ERROR_NONE)) {
+    if (Error == ERROR_NONE && RangeIgnoreThresholdLimitCheckEnable) {
       /* Compute the signal rate per spad */
       //floating point is laboriously averted even though that might retain a literal bit more precision.
       FixPoint1616_t SignalRatePerSpad = (EffectiveSpadRtnCount != 0) ? SignalRate.boost(8).divideby(EffectiveSpadRtnCount) : FixPoint1616_t(0);//had to cast the 0 to ensure floating point would not be used temporarily even though correct answer would have been achieved.
@@ -1288,23 +1277,23 @@ namespace VL53L0X {
 
       if ((RangeIgnoreThresholdValue.wrapped.raw > 0) && (SignalRatePerSpad < RangeIgnoreThresholdValue.wrapped)) {//todo: check for factor of 2 error due to refactoring
         /* Limit Fail add 2^6 to range status */
-        RangeIgnoreThresholdflag = 1;
+        RangeIgnoreThresholdflag = true;
       }
     }
 
     RangeStatus rangeStatus;
     if (Error == ERROR_NONE) {
-      if (NoneFlag == 1) {
+      if (NoneFlag) {
         rangeStatus = Not_Set; /* NONE */
       } else if (DeviceRangeStatusInternal == 1 || DeviceRangeStatusInternal == 2 || DeviceRangeStatusInternal == 3) {
         rangeStatus = HW_fail;
       } else if (DeviceRangeStatusInternal == 6 || DeviceRangeStatusInternal == 9) {
         rangeStatus = Phase_fail;
-      } else if (DeviceRangeStatusInternal == 8 || DeviceRangeStatusInternal == 10 || SignalRefClipflag == 1) {
+      } else if (DeviceRangeStatusInternal == 8 || DeviceRangeStatusInternal == 10 || SignalRefClipflag) {
         rangeStatus = Min_range;
-      } else if (DeviceRangeStatusInternal == 4 || RangeIgnoreThresholdflag == 1) {
+      } else if (DeviceRangeStatusInternal == 4 || RangeIgnoreThresholdflag) {
         rangeStatus = Signal_Fail;
-      } else if (SigmaLimitflag == 1) {
+      } else if (SigmaLimitflag) {
         rangeStatus = Sigma_Fail;
       } else {
         rangeStatus = Range_Valid;
@@ -1318,11 +1307,11 @@ namespace VL53L0X {
 
     /* fill the Limit Check Error */
     bool SignalRateFinalRangeLimitCheckEnable = GetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE);
-
-    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGMA_FINAL_RANGE, (SigmaLimitCheckEnable == 0) || (SigmaLimitflag == 1));
-    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (DeviceRangeStatusInternal == 4) || !SignalRateFinalRangeLimitCheckEnable);
-    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGNAL_REF_CLIP, (SignalRefClipLimitCheckEnable == 0) || (SignalRefClipflag == 1));
-    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_RANGE_IGNORE_THRESHOLD, (RangeIgnoreThresholdLimitCheckEnable == 0) || (RangeIgnoreThresholdflag == 1));
+//below:  true if not looked at or if looked and was true
+    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGMA_FINAL_RANGE, !SigmaLimitCheckEnable || SigmaLimitflag);
+    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, !SignalRateFinalRangeLimitCheckEnable || (DeviceRangeStatusInternal == 4));
+    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGNAL_REF_CLIP, !SignalRefClipLimitCheckEnable || SignalRefClipflag);
+    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_RANGE_IGNORE_THRESHOLD, !RangeIgnoreThresholdLimitCheckEnable || RangeIgnoreThresholdflag);
 
     return rangeStatus;
   } // VL53L0X_get_pal_range_status
@@ -1336,133 +1325,124 @@ namespace VL53L0X {
     return comm.ReadMulti(REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_BASE, reinterpret_cast<uint8_t *>(&refSpadArray), SpadArray::NumberOfBytes);
   }
 
+  struct VcselRangeChecker {
+    uint8_t Min;
+    uint8_t Max;
+
+    bool inRange(uint8_t value) const {
+      return value >= Min && value <= Max;
+    }
+  };
+
+  const VcselRangeChecker PreVcselCheck = {12, 18};
+  const VcselRangeChecker FinalVcselCheck = {8, 14};
+
   Error Core::set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK) {
-    uint8_t vcsel_period_reg;
-    const uint8_t MinPreVcselPeriodPCLK = 12;
-    const uint8_t MaxPreVcselPeriodPCLK = 18;
-    const uint8_t MinFinalVcselPeriodPCLK = 8;
-    const uint8_t MaxFinalVcselPeriodPCLK = 14;
-    uint32_t MeasurementTimingBudgetMicroSeconds;
-
-    uint8_t PhaseCalInt = 0;
-
+    if (unsigned(VcselPeriodType) > 1) {    //ick: invalid VcselPeriodType was formerly ignored
+      return ERROR_INVALID_PARAMS;
+    }
+    if (getBit<0>(VCSELPulsePeriodPCLK)) {/* Value must be an even number */
+      return ERROR_INVALID_PARAMS;
+    }
+    const bool isFinal = VcselPeriodType;
     /* Check if valid clock period requested */
+    if (!((isFinal ? FinalVcselCheck : PreVcselCheck).inRange(VCSELPulsePeriodPCLK))) {
+      return ERROR_INVALID_PARAMS;
+    }
 
-    if ((VCSELPulsePeriodPCLK % 2) != 0) {
-      /* Value must be an even number */
-      return ERROR_INVALID_PARAMS;
-    }
-    if (VcselPeriodType == VCSEL_PERIOD_PRE_RANGE && (VCSELPulsePeriodPCLK < MinPreVcselPeriodPCLK || VCSELPulsePeriodPCLK > MaxPreVcselPeriodPCLK)) {
-      return ERROR_INVALID_PARAMS;
-    }
-    if (VcselPeriodType == VCSEL_PERIOD_FINAL_RANGE && (VCSELPulsePeriodPCLK < MinFinalVcselPeriodPCLK || VCSELPulsePeriodPCLK > MaxFinalVcselPeriodPCLK)) {
-      return ERROR_INVALID_PARAMS;
-    }
     ErrorAccumulator Error = ERROR_NONE;
     //BUG: the code below repeatedly ignores errors of writing to ..._PHASE_HIGH.
     //BUG: the code below repeatedly ignores errors in I2C operations with the result that incoherent settings might be made
     //... if you are going to ignore errors then make some tables and iterate over them, that takes less code.
     /* Apply specific settings for the requested clock period */
-    switch (VcselPeriodType) {
-      case VCSEL_PERIOD_PRE_RANGE: {
-        /* Set phase check limits */
-        switch (VCSELPulsePeriodPCLK) {
-          case 12:
-            Error = setValidPhase(0x18, 0x08);
-            break;
-          case 14:
-            Error = setValidPhase(0x30, 0x08);
-            break;
-          case 16:
-            Error = setValidPhase(0x40, 0x08);
-            break;
-          case 18:
-            Error = setValidPhase(0x50, 0x08);
-            break;
-        }
-        break;
-        case VCSEL_PERIOD_FINAL_RANGE:
-          switch (VCSELPulsePeriodPCLK) {
-            case 8:
-              Error = setValidPhase(0x10, 0x08);
-              Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x02);
-              Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x0C);
-              Error |= setPhasecalLimit(0x30);
-              break;
-            case 10:
-              Error = setValidPhase(0x28, 0x08);
-              Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
-              Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x09);
-              Error |= setPhasecalLimit(0x20);
-              break;
-            case 12:
-              Error = setValidPhase(0x38, 0x08);
-              Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
-              Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x08);
-              Error |= setPhasecalLimit(0x20);
-              break;
-            case 14:
-              Error = setValidPhase(0x048, 0x08);
-              Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
-              Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x07);
-              Error |= setPhasecalLimit(0x20);
-              break;
-              break;
-            default:
-              break;
-          }
-      }
-    }
-    /* Re-calculate and apply timeouts, in macro periods */
-
-    if (!Error) {
-      vcsel_period_reg = encode_vcsel_period(VCSELPulsePeriodPCLK);
-
-      /* When the VCSEL period for the pre or final range is changed,
-       * the corresponding timeout must be read from the device using
-       * the current VCSEL period, then the new VCSEL period can be
-       * applied. The timeout then must be written back to the device
-       * using the new VCSEL period.
-       *
-       * For the MSRC timeout, the same applies - this timeout being
-       * dependant on the pre-range vcsel period.
-       */
-      switch (VcselPeriodType) {
-        case VCSEL_PERIOD_PRE_RANGE: {
-          auto PreRangeTimeoutMicroSeconds = get_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE);
-          ERROR_ON(PreRangeTimeoutMicroSeconds);
-
-          auto MsrcTimeoutMicroSeconds = get_sequence_step_timeout(SEQUENCESTEP_MSRC);
-          ERROR_ON(MsrcTimeoutMicroSeconds);
-
-          Error = comm.WrByte(REG_PRE_RANGE_CONFIG_VCSEL_PERIOD, vcsel_period_reg);
-          ERROR_OUT;
-          Error = set_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE, PreRangeTimeoutMicroSeconds);
-          ERROR_OUT;
-          Error = set_sequence_step_timeout(SEQUENCESTEP_MSRC, MsrcTimeoutMicroSeconds);
-
-          VL53L0X_SETDEVICESPECIFICPARAMETER(PreRange.VcselPulsePeriod, VCSELPulsePeriodPCLK);
-        }
+    if (isFinal) {
+      switch (VCSELPulsePeriodPCLK) {
+        case 8:
+          Error = setValidPhase(0x10);
+          Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x02);
+          Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x0C);
+          Error |= setPhasecalLimit(0x30);
           break;
-        case VCSEL_PERIOD_FINAL_RANGE: {
-          auto FinalRangeTimeoutMicroSeconds = get_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE);
-          ERROR_ON(FinalRangeTimeoutMicroSeconds);
-          Error = comm.WrByte(REG_FINAL_RANGE_CONFIG_VCSEL_PERIOD, vcsel_period_reg);
-          ERROR_OUT;
-          Error = set_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, FinalRangeTimeoutMicroSeconds);
-          //ick: error not checked.
-          VL53L0X_SETDEVICESPECIFICPARAMETER(FinalRange.VcselPulsePeriod, VCSELPulsePeriodPCLK);
-        }
+        case 10:
+          Error = setValidPhase(0x28);
+          Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
+          Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x09);
+          Error |= setPhasecalLimit(0x20);
+          break;
+        case 12:
+          Error = setValidPhase(0x38);
+          Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
+          Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x08);
+          Error |= setPhasecalLimit(0x20);
+          break;
+        case 14:
+          Error = setValidPhase(0x048);
+          Error |= comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
+          Error |= comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x07);
+          Error |= setPhasecalLimit(0x20);
+          break;
           break;
         default:
-          return ERROR_INVALID_PARAMS;
-      } // switch
+          break;
+      }
+    } else {
+      /* Set phase check limits */
+      switch (VCSELPulsePeriodPCLK) {
+        case 12:
+          Error = setValidPhase(0x18);//24
+          break;
+        case 14:
+          Error = setValidPhase(0x30);//48
+          break;
+        case 16:
+          Error = setValidPhase(0x40);//64
+          break;
+        case 18:
+          Error = setValidPhase(0x50);//80
+          break;
+        default:
+          break;
+      }
     }
+    ERROR_OUT;
+    /* Re-calculate and apply timeouts, in macro periods */
 
+    uint8_t vcsel_period_reg = encode_vcsel_period(VCSELPulsePeriodPCLK);
+
+    /* When the VCSEL period for the pre or final range is changed,
+     * the corresponding timeout must be read from the device using
+     * the current VCSEL period, then the new VCSEL period can be
+     * applied. The timeout then must be written back to the device
+     * using the new VCSEL period.
+     *
+     * For the MSRC timeout, the same applies - this timeout being
+     * dependant on the pre-range vcsel period.
+     */
+    if (isFinal) {
+      auto FinalRangeTimeoutMicroSeconds = get_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE);
+      ERROR_ON(FinalRangeTimeoutMicroSeconds);
+      Error = comm.WrByte(REG_FINAL_RANGE_CONFIG_VCSEL_PERIOD, vcsel_period_reg);
+      ERROR_OUT;
+      Error = set_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE, FinalRangeTimeoutMicroSeconds);
+      //ick: error not checked.
+      VL53L0X_SETDEVICESPECIFICPARAMETER(FinalRange.VcselPulsePeriod, VCSELPulsePeriodPCLK);
+    } else {
+      auto PreRangeTimeoutMicroSeconds = get_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE);
+      ERROR_ON(PreRangeTimeoutMicroSeconds);
+
+      auto MsrcTimeoutMicroSeconds = get_sequence_step_timeout(SEQUENCESTEP_MSRC);
+      ERROR_ON(MsrcTimeoutMicroSeconds);
+
+      Error = comm.WrByte(REG_PRE_RANGE_CONFIG_VCSEL_PERIOD, vcsel_period_reg);
+      ERROR_OUT;
+      Error = set_sequence_step_timeout(SEQUENCESTEP_PRE_RANGE, PreRangeTimeoutMicroSeconds);
+      ERROR_OUT;
+      Error = set_sequence_step_timeout(SEQUENCESTEP_MSRC, MsrcTimeoutMicroSeconds);
+
+      VL53L0X_SETDEVICESPECIFICPARAMETER(PreRange.VcselPulsePeriod, VCSELPulsePeriodPCLK);
+    }
     /* Finally, the timing budget must be re-applied */
-
-    MeasurementTimingBudgetMicroSeconds = VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds);
-    return set_measurement_timing_budget_micro_seconds(MeasurementTimingBudgetMicroSeconds);
+    return set_measurement_timing_budget_micro_seconds(VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds));
   } // VL53L0X_set_vcsel_pulse_period
 
   Error Core::set_SequenceConfig(uint8_t packed, bool andCache) {

@@ -81,23 +81,34 @@ void NonBlocking::doMeasurementComplete(bool successful) {
     theLastMeasurement = take(measurementInProgress);
     switch (theLastMeasurement) {
       case forXtalk:
-        if (theXtalkProcess.onMeasurement(theRangingMeasurementData)) {
-          requestMeasurement(forXtalk);
+        if (theXtalkProcess.onMeasurement()) {
+          theXtalkProcess.startNext();
         } else {
           //todo: do we notify on xtalk meas complete?
         }
         return;
+
+      case forOffset:
+        if (theOffsetProcess.onMeasurement()) {
+          theOffsetProcess.startNext();
+        } else {
+          //todo: do we notify on offset meas complete?
+        }
+        return;
+
       case Abandoned:
         return; //already handled prior to switch
-      case forRange:
+      case forRange: //the actual reason this device exists!
+        //todo: notify we have a datum
         break;
-      case forVHV:
+      case forRefCal:
+        if (theCalProcess.onMeasurement()) {
+          theCalProcess.startNext();//phase one
+        } else {
+          //todo notify phasecal complete.
+        }
         break;
-      case forPhase:
-        break;
-      case forRef:
-        break;
-      case forOffset:
+      case forRefSignal:
         break;
     }
   } else {
@@ -114,146 +125,207 @@ bool NonBlocking::startMeasurement(NonBlocking::MeasurementAction action) {
   return true;
 }
 
-bool NonBlocking::XtalkProcess::begin() {
-  if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
-//        return ERROR_INVALID_PARAMS;
-    return false;
-  }
-/* Disable the XTalk compensation */
-  dev.SetXTalkCompensationEnable(0);
-  /* Disable the RIT */
-  dev.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
-  measurementRemaining = 50;
-  dev.startMeasurement(forXtalk);
-}
+////////////////////////////////////////////
 
-bool NonBlocking::XtalkProcess::onMeasurement(const RangingMeasurementData_t &RangingMeasurementData) {
-  //process each:
-  if (RangingMeasurementData.rangeError == 0) {
-    sum_ranging += RangingMeasurementData.RangeMilliMeter;
-    sum_signalRate += RangingMeasurementData.SignalRateRtnMegaCps;
-    sum_spads += RangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
-    ++total_count;
-  } else {
-    //todo: abend the process
-    return false;
-  }
-
-  if (--measurementRemaining == 0) {   //post process
-    /* no valid values found */
-    if (total_count == 0) {
-//todo          return ERROR_RANGE_ERROR;
-    }
-    /* FixPoint1616_t / uint16_t = FixPoint1616_t */
-    FixPoint1616_t xTalkStoredMeanSignalRate(sum_signalRate, total_count, 0);//ick: was not rounded prior to 980f
-    FixPoint1616_t xTalkStoredMeanRange(sum_ranging, total_count);//round the division
-    FixPoint1616_t xTalkStoredMeanRtnSpads(sum_spads, total_count);
-
-    /* Round Mean Spads to Whole Number.
-     * Typically the calculated mean SPAD count is a whole number or very close to a whole number,
-     * therefore any truncation will not result in a significant loss in accuracy.
-     * Also, for a grey target at a typical distance of around 400mm, around 220 SPADs will be enabled,
-     * therefore any truncation will result in a loss of accuracy of less than 0.5%.
-     */
-    uint32_t xTalkStoredMeanRtnSpadsAsInt = roundedScale(xTalkStoredMeanRtnSpads, 16);
-
-    /* Round Cal Distance to Whole Number.
-     * Note that the cal distance is in mm, therefore no resolution is lost.*/
-    uint32_t xTalkCalDistanceAsInt = roundedScale(XTalkCalDistance, 16);
-    FixPoint1616_t XTalkCompensationRateMegaCps;
-
-    if (xTalkStoredMeanRtnSpadsAsInt == 0 || xTalkCalDistanceAsInt == 0 || xTalkStoredMeanRange >= XTalkCalDistance) {
-      XTalkCompensationRateMegaCps = 0.0F;
-    } else {
-      /* Apply division by mean spad count early in the calculation to keep the numbers small.
-       * This ensures we can maintain a 32bit calculation.
-       * Fixed1616 / int := Fixed1616 */
-      uint32_t signalXTalkTotalPerSpad = (xTalkStoredMeanSignalRate) / xTalkStoredMeanRtnSpadsAsInt;//ick: round divide
-
-      /* Complete the calculation for total Signal XTalk per SPAD
-       * Fixed1616 * (Fixed1616 - Fixed1616/int) := (2^16 * Fixed1616)     */
-      signalXTalkTotalPerSpad *= (Unity.raw - (xTalkStoredMeanRange / xTalkCalDistanceAsInt));//ick: round divide
-
-      /* Round from 2^16 * Fixed1616, to Fixed1616. */
-      XTalkCompensationRateMegaCps = roundedScale(signalXTalkTotalPerSpad, 16);
-    }
-
-    /* Enable the XTalk compensation */
-    dev.SetXTalkCompensationEnable(true);
-
-    /* Enable the XTalk compensation */
-    dev.SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
-
-    dev.logError(VL53L0X::ERROR_NONE, "Xtalk Process");
-    //todo: how shall we signal 'process complete'?
-    return false;
-  } else {
-    //caller makes the next request
-    return true;//
-  }
-}
-
-NonBlocking::XtalkProcess::XtalkProcess(NonBlocking &dev) : dev(dev) {
-}
-
-NonBlocking::OffsetProcess::OffsetProcess(NonBlocking &dev) : dev(dev) {
-}
-
-bool NonBlocking::OffsetProcess::begin() {
-  /* Get the value of the TCC */
-  SequenceStepWasEnabled = dev.GetSequenceStepEnable(SEQUENCESTEP_TCC);
-  /* Disable the TCC */
-   dev.SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
-  /* Disable the RIT */
-  dev.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
-  /* Perform 50 measurements and compute the averages */
+bool NonBlocking::AveragingProcess::begin() {
   sum_ranging = 0;
   total_count = 0;
-  measurementRemaining=50;
-  //todo: actually fire off first measurement
+  if (CalDistanceMilliMeter.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero. Most likely a non-zero value is necessary
+    measurementRemaining = 0;//COA
+    return false;
+  }
+  measurementRemaining = 50;
+  return true;
+}
+
+bool NonBlocking::AveragingProcess::onMeasurement() {
+  if (dev.theRangingMeasurementData.rangeError == VL53L0X::Range_Valid) {
+    sum_ranging += dev.theRangingMeasurementData.RangeMilliMeter;
+    sum_signalRate += dev.theRangingMeasurementData.SignalRateRtnMegaCps;
+    ++total_count;
+    alsoSum();
+    if (--measurementRemaining > 0) {
+      return true;
+    }
+    /* no valid values found */
+    if (total_count == 0) {//ick: really should be a larger number, like 90% success rate
+      dev.logError(VL53L0X::ERROR_RANGE_ERROR, __FUNCTION__);
+      return false;
+    }
+    finish();
+    return false;
+  } else {
+    //todo: abend the process instead of skipping perhaps all but one measurement
+    return true; //try for some more.
+  }
+}
+
+bool NonBlocking::XtalkProcess::begin() {
+  if (AveragingProcess::begin()) {
+/* Disable the XTalk compensation */
+    dev.SetXTalkCompensationEnable(false);
+    /* Disable the RIT */
+    dev.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
+    dev.startMeasurement(forXtalk);
+    return true;
+  }
   return false;
 }
 
-bool NonBlocking::OffsetProcess::onMeasurement(const RangingMeasurementData_t &RangingMeasurementData) {
-  if (RangingMeasurementData.rangeError == VL53L0X::Range_Valid) {
-    sum_ranging += RangingMeasurementData.RangeMilliMeter;
-    ++total_count;
-  } else {
-    //todo: how to handle a range Error? until we try again:
-    dev.logError(VL53L0X::ERROR_RANGE_ERROR, __FUNCTION__);
-    return false;
-  }
+void NonBlocking::XtalkProcess::alsoSum() {
+  sum_spads += dev.theRangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
+}
 
-  /* no valid values found */
-  if (total_count == 0) {
-    dev.logError(VL53L0X::ERROR_RANGE_ERROR, __FUNCTION__ );
-    return false;
-  }
-  if (--measurementRemaining > 0) {
-    return true;
-  }
-
+bool NonBlocking::XtalkProcess::finish() {
   /* FixPoint1616_t / uint16_t = FixPoint1616_t */
-  FixPoint1616_t StoredMeanRange(sum_ranging, total_count);
-  int32_t StoredMeanRangeAsInt = StoredMeanRange.rounded();
+  FixPoint1616_t StoredMeanSignalRate(sum_signalRate, total_count, 0);//ick: was not rounded prior to 980f
+  FixPoint1616_t StoredMeanRange(sum_ranging, total_count);//round the division
+  FixPoint1616_t StoredMeanRtnSpads(sum_spads, total_count);
+
+  /* Round Mean Spads to Whole Number.
+   * Typically the calculated mean SPAD count is a whole number or very close to a whole number,
+   * therefore any truncation will not result in a significant loss in accuracy.
+   * Also, for a grey target at a typical distance of around 400mm, around 220 SPADs will be enabled,
+   * therefore any truncation will result in a loss of accuracy of less than 0.5%.
+   */
+  unsigned StoredMeanRtnSpadsAsInt = roundedScale(StoredMeanRtnSpads, 16);
 
   /* Round Cal Distance to Whole Number.
+   * Note that the cal distance is in mm, therefore no resolution is lost.*/
+  unsigned CalDistanceAsInt = roundedScale(CalDistanceMilliMeter, 16);
+  FixPoint1616_t XTalkCompensationRateMegaCps;
+
+  if (StoredMeanRtnSpadsAsInt == 0 || CalDistanceAsInt == 0 || StoredMeanRange >= CalDistanceMilliMeter) {
+    XTalkCompensationRateMegaCps = 0.0F;
+  } else {
+    /* Apply division by mean spad count early in the calculation to keep the numbers small.
+     * This ensures we can maintain a 32bit calculation.
+     * Fixed1616 / int := Fixed1616 */
+    uint32_t signalXTalkTotalPerSpad = (StoredMeanSignalRate) / StoredMeanRtnSpadsAsInt;//ick: please round divide
+
+    /* Complete the calculation for total Signal XTalk per SPAD
+     * Fixed1616 * (Fixed1616 - Fixed1616/int) := (2^16 * Fixed1616)     */
+    signalXTalkTotalPerSpad *= (Unity.raw - (StoredMeanRange / CalDistanceAsInt));//ick: need rounded divide
+
+    /* Round from 2^16 * Fixed1616, to Fixed1616. */
+    XTalkCompensationRateMegaCps = roundedScale(signalXTalkTotalPerSpad, 16);
+  }
+
+  /* Enable the XTalk compensation */
+  dev.SetXTalkCompensationEnable(true);
+
+  /* Enable the XTalk compensation */
+  dev.SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
+
+  dev.logError(VL53L0X::ERROR_NONE, "Xtalk Process");
+  return false;
+}
+
+NonBlocking::XtalkProcess::XtalkProcess(NonBlocking &dev) : AveragingProcess(dev) {
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+NonBlocking::OffsetProcess::OffsetProcess(NonBlocking &dev) : AveragingProcess(dev) {
+}
+
+bool NonBlocking::OffsetProcess::begin() {
+  if (AveragingProcess::begin()) {
+    /* Get the value of the TCC */
+    SequenceStepWasEnabled = dev.GetSequenceStepEnable(SEQUENCESTEP_TCC);
+    /* Disable the TCC */
+    dev.SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
+    /* Disable the RIT */
+    dev.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);//ick: why don't we save and restore this?
+    //todo: actually fire off first measurement
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool NonBlocking::OffsetProcess::finish() {
+  /* FixPoint1616_t / uint16_t = FixPoint1616_t */
+  FixPoint1616_t StoredMeanRange(sum_ranging, total_count);
+  /* Rounding distances to Whole Number.
    * Note that the cal distance is in mm, therefore no resolution is lost.
    * 980f: but why not retain the fractional part for tracability of the value? Rounding to resolution is unnecessary */
-  int32_t CalDistanceAsInt_mm = CalDistanceMilliMeter.rounded();
-  int32_t OffsetMicroMeter = (CalDistanceAsInt_mm - StoredMeanRangeAsInt) * 1000;
+  int32_t OffsetMicroMeter = (CalDistanceMilliMeter.rounded() - StoredMeanRange.rounded()) * 1000;
 
   /* Apply the calculated offset */
   dev.Data.CurrentParameters.RangeOffsetMicroMeters = OffsetMicroMeter;//record
-  auto ok= dev.SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);//send to device
-  if(!ok) {
-    dev.logError(ok ,"Offset Measurement failed on send to device");
+  auto ok = dev.SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);//send to device
+  if (~ok) {
+    dev.logError(ok, "Offset Measurement failed on send to device");
   } else {
-    dev.logError(VL53L0X::ERROR_NONE,__FUNCTION__ );
+    dev.logError(VL53L0X::ERROR_NONE, __FUNCTION__);
   }
   /* Restore the TCC */
   if (SequenceStepWasEnabled) {
     return dev.SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
   }
   return false;//done
+}
+
+/////////////////////////////////////////////////////
+
+const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::places;
+
+void NonBlocking::CalProcess::startNext() {
+  uint8_t magic = lastStep ? 0 : Bitter(6);
+  dev.set_SequenceConfig(magic, false);//todo: debate the false here, it may have been a bug in the original code.
+  dev.comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | magic);
+}
+
+bool NonBlocking::CalProcess::begin() {
+  mycache = dev.PALDevDataGet(SequenceConfig);//in case we keep the PAL updated at all times, unlike what might have been a bug in the past
+  lastStep = false;
+  startNext();
+  return true;
+}
+
+bool NonBlocking::CalProcess::onMeasurement(const RangingMeasurementData_t &RangingMeasurementData) {
+  if (lastStep) {
+    /* if measurement ok */{
+      dev.FFpush(0, 0, 1);
+      dev.comm.RdByte(0xCB, &p.VhvSettings);
+      dev.comm.RdByte(0xEE, &p.PhaseCal);
+      p.PhaseCal &= phaseMask; // was 0xEF, ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
+    }
+    /* restore the previous Sequence Config */
+    auto ok = dev.set_SequenceConfig(mycache, true);
+    if (~ok) {
+      dev.logError(ok, "failed to restore sequence config at end of Cal Process");
+    }
+    return false;
+  } else {
+    //vhv done
+    lastStep = true;
+    startNext();
+    return true;
+  }
+}
+
+NonBlocking::CalProcess::CalProcess(NonBlocking &dev) : dev(dev) {
+  //no actions.
+}
+
+bool NonBlocking::RefSignalProcess::onMeasurement(const RangingMeasurementData_t &RangingMeasurementData) {
+  // if measurement ok:
+  rate = dev.FFread<uint16_t>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
+
+  /* restore the previous Sequence Config */
+  auto ok = dev.set_SequenceConfig(mycache, true);
+  if (~ok) {
+    dev.logError(ok, "failed to restore sequence config at end of Ref Rate Process");
+  }
+  return false;
+}
+
+bool NonBlocking::RefSignalProcess::begin() {
+  mycache = dev.PALDevDataGet(SequenceConfig);//in case we keep the PAL updated at all times, unlike what might have been a bug in the past
+  return true;
+}
+
+void NonBlocking::RefSignalProcess::startNext() {
+  dev.set_SequenceConfig(0xC0, false);
 }

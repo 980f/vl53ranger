@@ -59,7 +59,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     raw=stuff;
   }
 
-  /** two ints init item to ratio, with boost of numerator by @param boostit which defaults to fract, which treats num  as an integer value */
+  /** two ints init item to ratio, with boost of numerator by @param boostit power of two which defaults to fract, which treats num  as an integer value */
   template <typename IntishUp,typename IntishDown>
   constexpr FixPoint(IntishUp num,IntishDown denom,unsigned boostit=fract){
     raw=num;//expand to 32 bits asap.

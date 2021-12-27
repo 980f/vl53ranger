@@ -30,9 +30,10 @@ public:
   enum MeasurementAction {
     Abandoned = 0   //for state machine reset.
     , forRange  //normal use, when not in continuous mode
-    , forVHV     //special seqconfig
-    , forPhase   //special seqconfig
-    , forRef     //special seqconfig
+//    , forVHV     //special seqconfig
+//    , forPhase   //special seqconfig
+  ,forRefCal   //vhv and phase
+    , forRefSignal     //special seqconfig
     , forOffset  //50 times
     , forXtalk   //50 times
   };
@@ -57,17 +58,16 @@ public:
   bool requestMeasurement(MeasurementAction use){
     //todo: check if any in progress and refuse, until we implement a queue
     switch (use) {
+      default:
       case Abandoned:
         return false;
       case forXtalk:
         return theXtalkProcess.begin();
       case forRange:
         break;
-      case forVHV:
+      case forRefCal:
         break;
-      case forPhase:
-        break;
-      case forRef:
+      case forRefSignal:
         break;
       case forOffset:
         break;
@@ -75,43 +75,109 @@ public:
   }
 
 protected:
-  /** makes a buch of measurements then sets XTalkCompensationRateMegaCps.
-   * usage:    .theXtalkProcess.XTalkCalDistance= your value for it;  .requestMeasurement(forXtalk) */
-  class XtalkProcess {
-    NonBlocking &dev;
-  public:
-    FixPoint1616_t XTalkCalDistance;
-  private:
-    /* Perform 50 measurements and compute the averages */
-    unsigned sum_ranging = 0;//bug: former use of 16 bit begged for integer overflow
-    unsigned sum_spads = 0;//... which we will tolerate only on processors whose natural int is 16 bits
-    FixPoint1616_t sum_signalRate = 0;
-    uint32_t total_count = 0;//ick: unsigned is probably adequate
-    unsigned measurementRemaining = 0;
-  public:
-    XtalkProcess(NonBlocking &dev);
-    bool begin();
-    /** @returns whether to continue the process. if not then dev.lastError details why  */
-    bool onMeasurement(const VL53L0X::RangingMeasurementData_t &RangingMeasurementData);
-  } theXtalkProcess;
 
-  class OffsetProcess {
-  public:
-    OffsetProcess(NonBlocking &dev);
-  private:
+  /** common base for Xtalk and Offset process
+   *
+    * Perform 50 measurements and compute the averages
+    */
+  class AveragingProcess {
+    friend class NonBlocking;
+  protected:
     NonBlocking &dev;
   public:
     FixPoint1616_t CalDistanceMilliMeter;
+  protected:
+    unsigned total_count = 0;//ick: former use of 32bit was excessive
+    unsigned sum_ranging = 0;//bug: former use of 16 bit begged for integer overflow
+
+    FixPoint1616_t sum_signalRate = 0;
+    //measurement count
+    unsigned measurementRemaining = 0;
+  protected:
+    explicit AveragingProcess(NonBlocking &dev):dev(dev){}
+    virtual bool begin();
+    virtual void startNext()=0;
+
+    /** @returns whether to continue the process. if not then dev.lastError details why  */
+    virtual void alsoSum(){}
+
+    bool onMeasurement();
+    /** overrides called when last measurement has been summed into dataset */
+    virtual bool finish()=0;
+
+  } ;
+
+
+  /** makes a bunch of measurements then sets XTalkCompensationRateMegaCps.
+   * usage:
+   * place reflector at known distance
+   * .theXtalkProcess.CalDistanceMilliMeter= your value for that;
+   * .requestMeasurement(forXtalk) */
+  class XtalkProcess:public AveragingProcess {
+  public:
+    FixPoint1616_t CalDistanceMilliMeter;
+  private:
+    unsigned sum_spads = 0;//... which we will tolerate only on processors whose natural int is 16 bits
+  public:
+    explicit XtalkProcess(NonBlocking &dev);
+    bool begin();
+    void startNext();
+    void alsoSum();
+    bool finish();
+  } theXtalkProcess;
+
+  /** makes a bunch of measurements then sets offset.
+   * usage:
+   * place reflector at known distance
+   * .theOffsetProcess.CalDistanceMilliMeter= your value for that;
+   * .requestMeasurement(forOffset) */
+  class OffsetProcess:public AveragingProcess {
+  public:
+    explicit OffsetProcess(NonBlocking &dev);
   private:
     bool SequenceStepWasEnabled=false;
-    uint16_t sum_ranging = 0;
-    uint32_t total_count = 0;
-    unsigned measurementRemaining=0;
+  public:
+    bool begin();
+    /** @returns whether to continue the process. if not then dev.lastError details why  */
+    bool finish();
+    void startNext();
+  } theOffsetProcess;
+
+
+  class CalProcess{
+  public:
+    explicit CalProcess(NonBlocking &dev);
+  private:
+    NonBlocking &dev;
+    bool lastStep= false;//which of two measurements
+    uint8_t mycache;//for seq value
+
+  public:
+    bool restore_config;
+    CalibrationParameters p;
   public:
     bool begin();
     /** @returns whether to continue the process. if not then dev.lastError details why  */
     bool onMeasurement(const VL53L0X::RangingMeasurementData_t &RangingMeasurementData);
-  } theOffsetProcess;
+    void startNext();
+  } theCalProcess;
+
+  /** single measurement from which a reference signal rate is extracted*/
+  class RefSignalProcess {
+  public:
+    explicit RefSignalProcess(NonBlocking &dev);
+  private:
+    NonBlocking &dev;
+    uint8_t mycache;//for seq value
+  public:
+
+    uint16_t rate;//the output of the process
+    bool begin();
+    /** @returns whether to continue the process. if not then dev.lastError details why  */
+    bool onMeasurement(const VL53L0X::RangingMeasurementData_t &RangingMeasurementData);
+    void startNext();
+
+  }theRefSignalProcess;
 
   /** result of most recent measurement of any type */
   VL53L0X::RangingMeasurementData_t theRangingMeasurementData;

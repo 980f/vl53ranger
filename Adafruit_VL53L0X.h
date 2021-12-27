@@ -116,9 +116,9 @@ public:
 
   uint8_t getVcselPulsePeriod(VL53L0X::VcselPeriod VcselPeriodType);
 
-  boolean setLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId, uint8_t LimitCheckEnable);
+  boolean setLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId, bool LimitCheckEnable);
   boolean getLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId);
-  boolean setLimitCheckValue(VL53L0X::CheckEnable LimitCheckId, FixPoint1616_t LimitCheckValue);
+  boolean setLimitCheckValue(VL53L0X::CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
   FixPoint<9,7> getLimitCheckValue(VL53L0X::CheckEnable LimitCheckId);
 
 private:

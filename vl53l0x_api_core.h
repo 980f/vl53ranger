@@ -263,8 +263,7 @@ namespace VL53L0X {
       bool restore_it;
     public:
       SeqConfigStacker(Core &core, bool restore_config, uint8_t settit) : core(core) {
-        mycache = restore_config ? core.PALDevDataGet(SequenceConfig) : 0;
-        (*this) |= core.set_SequenceConfig(settit, false);//todo: debate the false here, it may have been a bug in the original code.
+        uint8_t mycache;//for seq value
         restore_it = restore_config; //maydo: don't restore if we failed to set.
       }
 
@@ -290,7 +289,7 @@ namespace VL53L0X {
       return item.isOk();
     }
 
-    Error setValidPhase(uint8_t high, uint8_t low);
+    Error setValidPhase(uint8_t high, uint8_t low=8);
 
     Error setPhasecalLimit(uint8_t value);
 

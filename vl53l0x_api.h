@@ -818,7 +818,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                    Success
  * @return  "Other error code"                   See ::Error
  */
-    Error SetInterMeasurementPeriodMilliSeconds(uint32_t InterMeasurementPeriodMilliSeconds);
+    Error SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds);
 
 /**
  * Get continuous mode Inter-Measurement period in milliseconds
@@ -1222,7 +1222,7 @@ namespace VL53L0X {
  * DEVICEMODE_SINGLE_RANGING
  *
  * @param   Dev                  Device Handle
- * @param   XTalkCalDistance     XTalkCalDistance value used for the XTalk
+ * @param   XTalkCalDistance     CalDistanceMilliMeter value used for the XTalk
  * computation.
  * @param   pXTalkCompensationRateMegaCps  Pointer to new
  * XTalkCompensation value.

@@ -158,6 +158,7 @@ namespace VL53L0X {
     REG_SYSRANGE_MODE_MASK = Mask<3, 0>::places
 
     //todo: document the other 4 bits in the register. Since the mask is unused one presumes the bits are as well.
+    //bit 6 seems to be 'vhv cal'
   };
 
 /** @defgroup VL53L0X_DefineRegisters_group Define Registers
@@ -171,7 +172,7 @@ namespace VL53L0X {
   enum RegSystem : uint8_t {//the original defines had 16 bit constants, but hardware only has 8.
     REG_SYSRANGE_START = 0
       ,REG_SYSRANGE_stopper = 0x91      //980f guess, and needs MagicTrio wrapper
-    , REG_SYSTEM_SEQUENCE_CONFIG = 0x01
+    , REG_SYSTEM_SEQUENCE_CONFIG = 0x01  //msb is wrap around enable
     , REG_SYSTEM_THRESH_HIGH = 0x0C
     , REG_SYSTEM_THRESH_LOW = 0x0E
     , REG_SYSTEM_RANGE_CONFIG = 0x09

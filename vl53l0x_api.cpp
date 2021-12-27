@@ -125,10 +125,10 @@ namespace VL53L0X {
     return {0, 0};//use a sentinal value instead of tedious error warpping.
   } // GetProductRevision
 
-//Error Api::GetDeviceInfo(DeviceInfo_t &pVL53L0X_DeviceInfo){
-//  LOG_FUNCTION_START;
-//return get_device_info( pVL53L0X_DeviceInfo);
-//}
+  Error Api::GetDeviceInfo(DeviceInfo_t &pVL53L0X_DeviceInfo) {
+    LOG_FUNCTION_START;
+    return get_device_info(pVL53L0X_DeviceInfo);
+  }
 
   Erroneous<DeviceError> Api::GetDeviceErrorStatus() {
     LOG_FUNCTION_START;
@@ -255,7 +255,7 @@ namespace VL53L0X {
     /* by default the I2C is running at 1V8 if you want to change it you
      * need to include this define at compilation level. */
 #ifdef USE_I2C_2V8
-    Error |= comm.UpdateBit(REG_VHV_CONFIG_PAD_SCL_SDA__EXTSUP_HV, 0, 1);//ick: former code had stupid value (clearing and setting the same bit) that worked only because of a fine hidden detail in UpdateByte
+    Error |= comm.UpdateBit(REG_VHV_CONFIG_PAD_SCL_SDA__EXTSUP_HV, 0, true);//ick: former code had stupid value (clearing and setting the same bit) that worked only because of a fine hidden detail in UpdateByte
 #endif
 
     /* Set I2C standard mode */
@@ -532,16 +532,12 @@ namespace VL53L0X {
   }
 
   Error Api::SetRangeFractionEnable(bool Enable) {
-
     LOG_FUNCTION_START;
     Error(" %u", Enable);
-
     Error |= comm.WrByte(REG_SYSTEM_RANGE_CONFIG, Enable);
-
     if (Error == ERROR_NONE) {
       PALDevDataSet(RangeFractionalEnable, Enable);
     }
-
     return Error;
   } // VL53L0X_SetRangeFractionEnable
 
@@ -611,7 +607,6 @@ namespace VL53L0X {
   Error Api::SetSequenceStepTimeout(SequenceStepId SequenceStepId, FixPoint1616_t TimeOutMilliSecs) {
     LOG_FUNCTION_START;
     /* Read back the current value in case we need to revert back to this.  */
-
     auto OldTimeOutMicroSeconds = get_sequence_step_timeout(SequenceStepId);
     if (OldTimeOutMicroSeconds.isOk()) {
       auto TimeoutMicroSeconds = TimeOutMilliSecs.millis();
@@ -638,33 +633,20 @@ namespace VL53L0X {
 
     auto TimeoutMicroSeconds = get_sequence_step_timeout(SequenceStepId);
     if (TimeoutMicroSeconds.isOk()) {
-      return FixPoint1616_t(TimeoutMicroSeconds, 1000);//gnarly stuff here moved into a constructor
+      return FixPoint1616_t(TimeoutMicroSeconds, 1000);
     } else {
       return {TimeoutMicroSeconds.error};
     }
   } // GetSequenceStepTimeout
 
-  Error Api::SetInterMeasurementPeriodMilliSeconds(uint32_t InterMeasurementPeriodMilliSeconds) {
-    uint16_t osc_calibrate_val;
-    uint32_t IMPeriodMilliSeconds;
-
+  Error Api::SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds) {
     LOG_FUNCTION_START;
-
+    uint16_t osc_calibrate_val;
     Error |= comm.RdWord(REG_OSC_CALIBRATE_VAL, &osc_calibrate_val);
-
-    if (Error == ERROR_NONE) {
-      if (osc_calibrate_val != 0) {
-        IMPeriodMilliSeconds = InterMeasurementPeriodMilliSeconds * osc_calibrate_val;
-      } else {
-        IMPeriodMilliSeconds = InterMeasurementPeriodMilliSeconds;
-      }
-      Error |= comm.WrDWord(REG_SYSTEM_INTERMEASUREMENT_PERIOD, IMPeriodMilliSeconds);
-    }
-
-    if (Error == ERROR_NONE) {
-      VL53L0X_SETPARAMETERFIELD(InterMeasurementPeriodMilliSeconds, InterMeasurementPeriodMilliSeconds);
-    }
-
+    ERROR_OUT;
+    uint32_t IMPeriodMilliSeconds = (osc_calibrate_val != 0) ? InterMeasurementPeriodMilliSeconds * osc_calibrate_val : InterMeasurementPeriodMilliSeconds;
+    Error |= comm.WrDWord(REG_SYSTEM_INTERMEASUREMENT_PERIOD, IMPeriodMilliSeconds);
+    ERROR_OUT;
     return Error;
   } // VL53L0X_SetInterMeasurementPeriodMilliSeconds
 
@@ -674,7 +656,6 @@ namespace VL53L0X {
     if (fetch(osc_calibrate_val, REG_OSC_CALIBRATE_VAL)) {
       Erroneous<uint32_t> IMPeriodMilliSeconds;
       if (fetch(IMPeriodMilliSeconds, REG_SYSTEM_INTERMEASUREMENT_PERIOD)) {
-
         auto ratio = roundedDivide(IMPeriodMilliSeconds.wrapped, osc_calibrate_val);
         if (ratio != 0) {//presuming due to div by zero
           VL53L0X_SETPARAMETERFIELD(InterMeasurementPeriodMilliSeconds, ratio);
@@ -705,7 +686,6 @@ namespace VL53L0X {
         VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
       }
     }
-
     return Error;
   } // VL53L0X_SetXTalkCompensationRateMegaCps
 
@@ -788,11 +768,11 @@ namespace VL53L0X {
         break;
 
       case CHECKENABLE_SIGNAL_RATE_MSRC:
-        Error |= comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), LimitCheckDisable ?Bitter(1):0);//BUG:clear lsb set bit 1
+        Error |= comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), LimitCheckDisable ? Bitter(1) : 0);//BUG:clear lsb set bit 1
         break;
 
       case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-        Error |= comm.UpdateBit(REG_MSRC_CONFIG_CONTROL,  4, LimitCheckDisable);
+        Error |= comm.UpdateBit(REG_MSRC_CONFIG_CONTROL, 4, LimitCheckDisable);
         break;
 
       default:
@@ -808,39 +788,24 @@ namespace VL53L0X {
 
 
   Error Api::SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue) {
-
     LOG_FUNCTION_START;
-
     auto Temp8 = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId);
-
     if (Temp8 == 0) { /* disabled write only internal value */
       VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId, LimitCheckValue);
     } else {
       switch (LimitCheckId) {
         case CHECKENABLE_SIGMA_FINAL_RANGE:
-          /* internal computation: */
-          VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, CHECKENABLE_SIGMA_FINAL_RANGE, LimitCheckValue);
+        case CHECKENABLE_SIGNAL_REF_CLIP:
+        case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
+          //these three don't go to the device
           break;
-
         case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
           Error |= comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
           break;
-
-        case CHECKENABLE_SIGNAL_REF_CLIP:
-          /* internal computation: */
-          VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, CHECKENABLE_SIGNAL_REF_CLIP, LimitCheckValue);
-          break;
-
-        case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
-          /* internal computation: */
-          VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, CHECKENABLE_RANGE_IGNORE_THRESHOLD, LimitCheckValue);
-          break;
-
         case CHECKENABLE_SIGNAL_RATE_MSRC:
         case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
           Error |= comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
           break;
-
         default:
           return ERROR_INVALID_PARAMS;
       } // switch
@@ -886,8 +851,8 @@ namespace VL53L0X {
  * WRAPAROUND Check
  */
   Error Api::SetWrapAroundCheckEnable(bool WrapAroundCheckEnable) {
-    bool WrapAroundCheckEnableInt = WrapAroundCheckEnable != 0;//in case someone somehow circumvented compiler checks
     LOG_FUNCTION_START;
+    bool WrapAroundCheckEnableInt = WrapAroundCheckEnable != 0;//in case someone somehow circumvented compiler checks
     Error |= comm.UpdateBit(REG_SYSTEM_SEQUENCE_CONFIG, 7, WrapAroundCheckEnableInt);
     ERROR_OUT;
     setBit<7>(Data.SequenceConfig, WrapAroundCheckEnableInt);
@@ -966,7 +931,7 @@ namespace VL53L0X {
     return perform_ref_calibration(true);
   }
 
-  Erroneous <FixPoint1616_t> Api::PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance) {
+  Erroneous<FixPoint1616_t> Api::PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance) {
     LOG_FUNCTION_START;
     return perform_xtalk_calibration(XTalkCalDistance);
   }

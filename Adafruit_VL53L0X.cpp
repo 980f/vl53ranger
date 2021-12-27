@@ -549,7 +549,7 @@ uint8_t Adafruit_VL53L0X::getVcselPulsePeriod(VcselPeriod VcselPeriodType) {
  *   @return  true if succeeded
  */
 /**************************************************************************/
-boolean Adafruit_VL53L0X::setLimitCheckEnable(CheckEnable LimitCheckId, uint8_t LimitCheckEnable) {
+boolean Adafruit_VL53L0X::setLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable) {
   Error = MyDevice.SetLimitCheckEnable(LimitCheckId, LimitCheckEnable);
   return Error == ERROR_NONE;
 }
