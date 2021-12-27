@@ -63,7 +63,7 @@ namespace VL53L0X {
       if (value.isOk() && value == 1) {//980f: reversed legacy order of testing, test valid before testing value.
         return ERROR_NONE;
       }
-      PollingDelay();//delay is on comm so that it can use platform specific technique
+      PollingDelay();
     }
     return ERROR_TIME_OUT;//was init to 'timeout'
   } // VL53L0X_measurement_poll_for_completion
@@ -788,11 +788,11 @@ namespace VL53L0X {
         break;
 
       case CHECKENABLE_SIGNAL_RATE_MSRC:
-        Error |= comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~(1 << 0), LimitCheckDisable << 1);//BUG:clear lsb set bit 1
+        Error |= comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), LimitCheckDisable ?Bitter(1):0);//BUG:clear lsb set bit 1
         break;
 
       case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-        Error |= comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~(1 << 4), LimitCheckDisable << 4);
+        Error |= comm.UpdateBit(REG_MSRC_CONFIG_CONTROL,  4, LimitCheckDisable);
         break;
 
       default:
@@ -966,9 +966,9 @@ namespace VL53L0X {
     return perform_ref_calibration(true);
   }
 
-  Error Api::PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps) {
+  Erroneous <FixPoint1616_t> Api::PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance) {
     LOG_FUNCTION_START;
-    return perform_xtalk_calibration(XTalkCalDistance, pXTalkCompensationRateMegaCps);
+    return perform_xtalk_calibration(XTalkCalDistance);
   }
 
   Erroneous<int32_t> Api::PerformOffsetCalibration(FixPoint1616_t CalDistanceMilliMeter) {

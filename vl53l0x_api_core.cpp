@@ -194,7 +194,6 @@ namespace VL53L0X {
 
     /* Each subgroup of this access is done only once after that a GetDeviceInfo or datainit is done */
     if (ReadDataFromDeviceDone != 7) { //if not all done
-
       {
         auto trio = magicWrapper();
         auto yappoper = YAPopper(comm);//sets some bit now, clears it later
@@ -203,7 +202,7 @@ namespace VL53L0X {
         Error |= comm.WrByte(0xFF, 0x07);
         Error |= comm.WrByte(0x81, 0x01);
 
-        Error |= PollingDelay();
+// dropped as inconvenient and timings are fixed and predictable. The caller can ask for one group at a time if asking for all of them takes too long.         Error |= PollingDelay();
 
         {
           auto popper = push(0x80, 0x01, 0x00);//NB: just outer item of magicWrapper

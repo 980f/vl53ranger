@@ -49,5 +49,5 @@ SET(platform
 
 SET(adafruit
  Adafruit_VL53L0X.cpp
-)
+  nonBlocking.cpp nonBlocking.h)
 ADD_EXECUTABLE(vl53  ${platform} ${coreSources} ${adafruit})

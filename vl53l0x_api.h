@@ -65,6 +65,7 @@ namespace VL53L0X {
  *  @{
  */
 
+
 /** @defgroup general_group VL53L0X General Functions
  *  @brief    General functions and definitions
  *  @{
@@ -1228,7 +1229,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Error PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
+    Erroneous <FixPoint1616_t> PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance);
 
 /**
  * @brief Perform Offset Calibration
@@ -1790,7 +1791,7 @@ namespace VL53L0X {
  *                                       spad configuration.
  * @return  "Other error code"           See ::Error
  */
-    Erroneous<SpadCount> GetReferenceSpads();
+    Erroneous<SpadCount> GetReferenceSpads();//todo: restore from st's code
 
 /** @} SPADfunctions_group */
 
@@ -1803,7 +1804,7 @@ namespace VL53L0X {
     Error perform_ref_spad_management(SpadCount &ref);//#staying with reference parameter for error handling ease in one place
 
   private: //calibration.h was high level actions hidden from direct use in api
-    Error perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance, FixPoint1616_t &pXTalkCompensationRateMegaCps);
+
 
     Erroneous <int32_t> perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter);
 

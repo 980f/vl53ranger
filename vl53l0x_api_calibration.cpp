@@ -142,7 +142,7 @@ namespace VL53L0X {
   } // VL53L0X_perform_xtalk_calibration
 
   Erroneous<int32_t> Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter) {
-    if (CalDistanceMilliMeter.raw <= 0) {
+    if (CalDistanceMilliMeter.raw <= 0) {//ick,unsigned numbers are never negative, todo: need a maximum check here.
       return ERROR_INVALID_PARAMS;
     }
     ErrorAccumulator Error = SetOffsetCalibrationDataMicroMeter(0);
