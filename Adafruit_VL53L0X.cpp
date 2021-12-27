@@ -235,7 +235,7 @@ boolean Adafruit_VL53L0X::configSensor(Sense_config_t vl_config) {
         Error = MyDevice.SetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE, (FixPoint1616_t) (60 * 65536));
       }
       if (Error == ERROR_NONE) {
-        Error = SetMeasurementTimingBudgetMicroSeconds(33000);
+        Error = MyDevice.SetMeasurementTimingBudgetMicroSeconds(33000);
       }
 
       if (Error == ERROR_NONE) {
@@ -342,7 +342,7 @@ void Adafruit_VL53L0X::printRangeStatus(RangingMeasurementData_t &pRangingMeasur
 uint16_t Adafruit_VL53L0X::readRange() {
   VL53L0X::RangingMeasurementData_t measure; // keep our own private copy
 
-  Error = getSingleRangingMeasurement(measure, false);
+  Error = GetSingleRangingMeasurement(measure, false);
   _rangeStatus = measure.rangeError;
 
   if (Error == VL53L0X::ERROR_NONE) {
@@ -598,6 +598,6 @@ FixPoint1616_t Adafruit_VL53L0X::getLimitCheckValue(CheckEnable LimitCheckId) {
   return LimitCheckValue;
 }
 
-Adafruit_VL53L0X::Adafruit_VL53L0X(uint8_t i2c_addr, TwoWire &i2c) : MyDevice( i2c,i2c_addr,400){
+Adafruit_VL53L0X::Adafruit_VL53L0X(uint8_t i2c_addr, TwoWire &i2c) : MyDevice( {i2c,i2c_addr,400}){
   //but do not begin or start etc so that we can static init if we wish.
 }

@@ -29,7 +29,8 @@
 #ifndef _VL53L0X_PLATFORM_H_
 #define _VL53L0X_PLATFORM_H_
 
-#include "vl53l0x_def.h"  //DevData and pointless connection to Error
+#include "vl53l0x_def.h"  //DevData
+#include "vl53l0x_error.h"
 #include "vl53l0x_i2c_platform.h"
 
 namespace VL53L0X {

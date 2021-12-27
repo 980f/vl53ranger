@@ -40,15 +40,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //do this via compile command line or build.h:  #define VL53L0X_LOG_ENABLE 0
 
-enum TRACE_LEVEL {
-  NONE
-  , ERRORS
-  , WARNING
-  , INFO
-  , DEBUG
-  , ALL
-  , IGNORE
-};
+//unused feature
+//enum TRACE_LEVEL {
+//  NONE
+//  , ERRORS
+//  , WARNING
+//  , INFO
+//  , DEBUG
+//  , ALL
+//  , IGNORE
+//};
+
+#include "vl53l0x_error.h"
 
 #if VL53L0X_LOG_ENABLE
 

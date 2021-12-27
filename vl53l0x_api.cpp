@@ -683,7 +683,7 @@ namespace VL53L0X {
       Erroneous<uint32_t> IMPeriodMilliSeconds;
       if (fetch(IMPeriodMilliSeconds, REG_SYSTEM_INTERMEASUREMENT_PERIOD)) {
 
-        auto ratio = roundedDivide(IMPeriodMilliSeconds, osc_calibrate_val);
+        auto ratio = roundedDivide(IMPeriodMilliSeconds.wrapped, osc_calibrate_val);
         if (ratio != 0) {//presuming due to div by zero
           VL53L0X_SETPARAMETERFIELD(InterMeasurementPeriodMilliSeconds, ratio);
         }
@@ -1255,12 +1255,12 @@ namespace VL53L0X {
     /* This function will do a complete single ranging
      * Here we fix the mode! */
     Error |= SetDeviceMode(DEVICEMODE_SINGLE_RANGING);
-ERROR_OUT;
-      Error |= PerformSingleMeasurement();
     ERROR_OUT;
-      Error |= GetRangingMeasurementData(pRangingMeasurementData);
+    Error |= PerformSingleMeasurement();
     ERROR_OUT;
-      Error |= ClearInterruptMask(0);
+    Error |= GetRangingMeasurementData(pRangingMeasurementData);
+    ERROR_OUT;
+    Error |= ClearInterruptMask(0);
 
     return Error;
   } // VL53L0X_PerformSingleRangingMeasurement
@@ -1639,17 +1639,17 @@ ERROR_OUT;
 
     auto DeviceMode = GetDeviceMode();
     if (isValid(DeviceMode)) {
-     wad.DeviceMode=DeviceMode;
+      wad.DeviceMode = DeviceMode;
     }
 
-    Erroneous<uint32_t> arf= GetInterMeasurementPeriodMilliSeconds();
+    Erroneous<uint32_t> arf = GetInterMeasurementPeriodMilliSeconds();
 //    EXIT_ON(arf)
-    wad.InterMeasurementPeriodMilliSeconds=arf;
+    wad.InterMeasurementPeriodMilliSeconds = arf;
 
     wad.XTalkCompensationEnable = 0;//ick: why don't we read the actual enabl?
-    auto arf2= GetXTalkCompensationRateMegaCps();
+    auto arf2 = GetXTalkCompensationRateMegaCps();
     ERROR_OUT;
-    wad.XTalkCompensationRateMegaCps=arf2;
+    wad.XTalkCompensationRateMegaCps = arf2;
 
     Erroneous<decltype(wad.RangeOffsetMicroMeters)> romm = GetOffsetCalibrationDataMicroMeter();
     if (!romm.isOk()) {
@@ -1661,9 +1661,11 @@ ERROR_OUT;
       /* get first the values, then the enables.
        * GetLimitCheckValue will modify the enable flags
        */
-      auto ckvalue= GetLimitCheckValue(static_cast<CheckEnable>(i));
-      ERROR_ON(ckvalue)
-      wad.LimitChecksValue[i]=ckvalue;
+      auto ckvalue = GetLimitCheckValue(static_cast<CheckEnable>(i));
+      if (~ckvalue) {
+        return {ckvalue.error};
+      }
+      wad.LimitChecksValue[i] = ckvalue;
       Erroneous<bool> arf = GetLimitCheckEnable(static_cast<CheckEnable>(i));
       if (arf.isOk()) {
         wad.LimitChecksEnable[i] = arf;
@@ -1672,17 +1674,15 @@ ERROR_OUT;
       }
     }
     auto wcenable = GetWrapAroundCheckEnable();
-    ERROR_ON(wcenable);
+    if (~wcenable) {
+      return {wcenable.error};
+    }
     wad.WrapAroundCheckEnable = wcenable;
-    Error |= GetMeasurementTimingBudgetMicroSeconds();
-    wad.MeasurementTimingBudgetMicroSeconds
-    return Error;
+    auto timbudget = GetMeasurementTimingBudgetMicroSeconds();
+    if (~timbudget) {
+      return {timbudget.error};
+    }
+    wad.MeasurementTimingBudgetMicroSeconds = timbudget;
+    return ERROR_NONE;
   }
-
-
-
-// GetDeviceParameters
-
-
-
-// VL53L0X_perform_ref_spad_management
+}//end namespace

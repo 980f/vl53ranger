@@ -3,6 +3,7 @@
 /** implementation for vl53l0x_i2c_platform.h, given a spurious name for legacy reasons */
 
 #include "vl53l0x_i2c_platform.h"
+#include "vl53l0x_platform_log.h"
 #include <Wire.h>
 
 //#define I2C_DEBUG
@@ -69,7 +70,7 @@ bool ArduinoWirer::read_multi(uint8_t index, uint8_t *pdata, int count) {
     count = -count;//now positive
     pdata += count;//past end
   }
-    i2c.beginTransmission(devAddr);
+  i2c.beginTransmission(devAddr);
   i2c.write(index);
   i2c.endTransmission();
   auto didit = i2c.requestFrom(devAddr, count);
@@ -110,6 +111,15 @@ bool ArduinoWirer::read_multi(uint8_t index, uint8_t *pdata, int count) {
 
 void ArduinoWirer::i2c_init() {
   i2c.begin();
-  i2c.setClock(1000* comms_speed_khz);
+  i2c.setClock(1000 * comms_speed_khz);
 }
+
+uint32_t PerformanceTracer::logclock() {
+  return micros();//most actions time are sub millisecond
+}
+
+void PerformanceTracer::printf(const char *format, ...) {
+}
+
+bool PerformanceTracer::enabled = false;  //todo:init with some compiler defined flag
 

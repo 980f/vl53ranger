@@ -22,6 +22,9 @@ struct Arg { //the class name here should be made a bit more specific ;)
   Arg(Arg &&args):i2c(i2c),devAddr(devAddr),comms_speed_khz(comms_speed_khz){
 
   }
+
+  Arg(TwoWire &i2C, uint8_t devAddr, uint16_t commsSpeedKhz) : i2c(i2C), devAddr(devAddr), comms_speed_khz(commsSpeedKhz) {
+  }
 } ;
 
 
