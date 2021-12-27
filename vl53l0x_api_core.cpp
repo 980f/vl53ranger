@@ -188,7 +188,6 @@ namespace VL53L0X {
     Erroneous<uint32_t> SignalRateMeasFixed1104_400_mm;
     FixPoint1616_t SignalRateMeasFixed400mmFix {0};
 
-
     LOG_FUNCTION_START;
     uint8_t ReadDataFromDeviceDone = VL53L0X_GETDEVICESPECIFICPARAMETER(ReadDataFromDeviceDone);
     uint8_t needs = infoGroups & ~ReadDataFromDeviceDone;
@@ -196,87 +195,80 @@ namespace VL53L0X {
     /* Each subgroup of this access is done only once after that a GetDeviceInfo or datainit is done */
     if (ReadDataFromDeviceDone != 7) { //if not all done
 
-      Error |= comm.WrByte(0x80, 0x01);
-      Error |= comm.WrByte(0xFF, 0x01);
-      Error |= comm.WrByte(0x00, 0x00);
-      Error |= comm.WrByte(0xFF, 0x06);
+      {
+        auto trio = magicWrapper();
+        auto yappoper = YAPopper(comm);//sets some bit now, clears it later
+        Error |= yappoper;
 
-      Error |= comm.UpdateBit(0x83, 2, true);
+        Error |= comm.WrByte(0xFF, 0x07);
+        Error |= comm.WrByte(0x81, 0x01);
 
-      Error |= comm.WrByte(0xFF, 0x07);
-      Error |= comm.WrByte(0x81, 0x01);
+        Error |= PollingDelay();
 
-      Error |= PollingDelay();
+        {
+          auto popper = push(0x80, 0x01, 0x00);//NB: just outer item of magicWrapper
 
-      Error |= comm.WrByte(0x80, 0x01);
-
-      if (getBit<0>(needs)) {
-        auto packed = packed90<uint32_t>(0x6b);
-        if (packed.isOk()) {//ick: some error checking has been added by 980f, but it is still not sane.
-          ReferenceSpad.quantity = getBits<14, 8>(packed.wrapped);
-          ReferenceSpad.isAperture = getBit<15>(packed.wrapped);
-        }
-        packed = packed90<uint32_t>(0x24);
-        if (packed.isOk()) {
-          NvmRefGoodSpadMap[0] = getByte<3>(packed.wrapped);
-          NvmRefGoodSpadMap[1] = getByte<2>(packed.wrapped);
-          NvmRefGoodSpadMap[2] = getByte<1>(packed.wrapped);
-          NvmRefGoodSpadMap[3] = getByte<0>(packed.wrapped);
-        }
-        packed = packed90<uint32_t>(0x25);
-        if (packed.isOk()) {
-          NvmRefGoodSpadMap[4] = getByte<3>(packed.wrapped);
-          NvmRefGoodSpadMap[5] = getByte<2>(packed.wrapped);
-        }
-      }
-
-      if (getBit<1>(needs)) {
-        ModuleId = packed90<uint8_t>(0x02);
-        Revision = packed90<uint8_t>(0x7B);
-
-        //now to unpack 7 bit fields from a series of 32 bit words:
-        {//indent what might become a function someday
-          Erroneous<uint32_t> packed {0};//zero init here matters!
-          const uint8_t mask7=  Mask<6,0>::shifted;
-          uint8_t pager = 0x77;//first page
-          char *prodid = ProductId;//will increment as data is acquired sequentially
-          int msb = 0;//misnamed, should be 'number of bits'
-          char *const end = prodid + 19;//place where the null goes
-          while (prodid < end) {
-            if (msb >= 7) {//enough to pull an ascii char from the bitstream
-              msb -= 7;
-              *prodid++ |= mask7 & (packed >> msb);
-              *prodid = 0;//erases old content (garbage) as we go along, and makes sure string is terminated
-            } else {
-              //partial character from lsbs of 32 bits into msbs of 7:
-              *prodid = mask7 & (packed << (7 - msb));//feed residual forward
-              packed = packed90<uint32_t>(pager++);
-              if (~packed) {
-                break;
-              }
-              msb += 32;
+          if (getBit<0>(needs)) {
+            auto packed = packed90<uint32_t>(0x6b);
+            if (packed.isOk()) {//ick: some error checking has been added by 980f, but it is still not sane.
+              ReferenceSpad.quantity = getBits<14, 8>(packed.wrapped);
+              ReferenceSpad.isAperture = getBit<15>(packed.wrapped);
+            }
+            packed = packed90<uint32_t>(0x24);
+            if (packed.isOk()) {
+              NvmRefGoodSpadMap[0] = getByte<3>(packed.wrapped);
+              NvmRefGoodSpadMap[1] = getByte<2>(packed.wrapped);
+              NvmRefGoodSpadMap[2] = getByte<1>(packed.wrapped);
+              NvmRefGoodSpadMap[3] = getByte<0>(packed.wrapped);
+            }
+            packed = packed90<uint32_t>(0x25);
+            if (packed.isOk()) {
+              NvmRefGoodSpadMap[4] = getByte<3>(packed.wrapped);
+              NvmRefGoodSpadMap[5] = getByte<2>(packed.wrapped);
             }
           }
-          //ick: here is where we would note that we got all of the prodid, presently errors getting it are ignored resulting in a truncated id.
+
+          if (getBit<1>(needs)) {
+            ModuleId = packed90<uint8_t>(0x02);
+            Revision = packed90<uint8_t>(0x7B);
+
+            //now to unpack 7 bit fields from a series of 32 bit words:
+            {//indent what might become a function someday
+              Erroneous<uint32_t> packed {0};//zero init here matters!
+              const uint8_t mask7 = Mask<6, 0>::shifted;
+              uint8_t pager = 0x77;//first page
+              char *prodid = ProductId;//will increment as data is acquired sequentially
+              int msb = 0;//misnamed, should be 'number of bits'
+              char *const end = prodid + 19;//place where the null goes
+              while (prodid < end) {
+                if (msb >= 7) {//enough to pull an ascii char from the bitstream
+                  msb -= 7;
+                  *prodid++ |= mask7 & (packed >> msb);
+                  *prodid = 0;//erases old content (garbage) as we go along, and makes sure string is terminated
+                } else {
+                  //partial character from lsbs of 32 bits into msbs of 7:
+                  *prodid = mask7 & (packed << (7 - msb));//feed residual forward
+                  packed = packed90<uint32_t>(pager++);
+                  if (~packed) {
+                    break;
+                  }
+                  msb += 32;
+                }
+              }
+              //ick: here is where we would note that we got all of the prodid, presently errors getting it are ignored resulting in a truncated id.
+            }
+          }//end option 1
+
+          if (getBit<2>(needs)) {
+            PartUID.wrapped.Upper = packed90<uint32_t>(0x7B);
+            PartUID.wrapped.Lower = packed90<uint32_t>(0x7C);
+            //next items are 32 bits out of 64, kinda like a 24.8 out of a 32.32
+            SignalRateMeasFixed1104_400_mm = middleof64(0x73);
+            DistMeasFixed1104_400_mm = middleof64(0x75);
+          }//end option 2
+
         }
-      }//end option 1
-
-      if (getBit<2>(needs)) {
-        PartUID.wrapped.Upper = packed90<uint32_t>(0x7B);
-        PartUID.wrapped.Lower = packed90<uint32_t>(0x7C);
-        //next items are 32 bits out of 64, kinda like a 24.8 out of a 32.32
-        SignalRateMeasFixed1104_400_mm = middleof64(0x73);
-        DistMeasFixed1104_400_mm = middleof64(0x75);
-      }//end option 2
-
-      Error |= comm.WrByte(0x81, 0x00);
-      Error |= comm.WrByte(0xFF, 0x06);
-
-      Error |= comm.UpdateBit(0x83, 2, false);
-
-      FFwrap(RegSystem(0x00), 0x01);
-
-      Error |= comm.WrByte(0x80, 0x00);
+      }
 
       ERROR_OUT;
     }
@@ -305,7 +297,7 @@ namespace VL53L0X {
         VL53L0X_SETDEVICESPECIFICPARAMETER(SignalRateMeasFixed400mm, SignalRateMeasFixed400mmFix);
         int32_t OffsetMicroMeters(0);//BUG: was int16, truncating too soon
         if (DistMeasFixed1104_400_mm != 0) {
-        int32_t OffsetFixed1104_mm = DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm;//was uint32_t despite being an intrinsically signed value
+          int32_t OffsetFixed1104_mm = DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm;//was uint32_t despite being an intrinsically signed value
           OffsetMicroMeters = -((OffsetFixed1104_mm * 1000) >> 4);//ick: truncates
         }
         PALDevDataSet(Part2PartOffsetAdjustmentNVMMicroMeter, OffsetMicroMeters);
@@ -345,7 +337,7 @@ namespace VL53L0X {
   } // VL53L0X_encode_timeout
 
   bool sequence_step_enabled(SequenceStepId stepId, uint8_t SequenceConfig) {
-    return getBit(bitFor(stepId),SequenceConfig );
+    return getBit(bitFor(stepId), SequenceConfig);
   } // sequence_step_enabled
 
   uint32_t decode_timeout(uint16_t encoded_timeout) {
@@ -371,7 +363,7 @@ namespace VL53L0X {
   Error Core::SetXTalkCompensationEnable(bool XTalkCompensationEnable) {
     LOG_FUNCTION_START;
     uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
-    FixPoint1616_t TempFix1616( ((XTalkCompensationEnable) && (LinearityCorrectiveGain == 1000)) ? VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps.raw):0);
+    FixPoint1616_t TempFix1616(((XTalkCompensationEnable) && (LinearityCorrectiveGain == 1000)) ? VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps.raw) : 0);
 
     /* the following register has a format 3.13 */
     Error |= comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, VL53L0X_FIXPOINT1616TOFIXPOINT313(TempFix1616.raw));
@@ -1159,11 +1151,11 @@ namespace VL53L0X {
     return Data.CurrentParameters.LimitChecksEnable[LimitCheckId];
   } // GetLimitCheckEnable
 
-  Erroneous<FixPoint<9,7>> Core::GetLimitCheckValue(CheckEnable LimitCheckId) {
+  Erroneous<FixPoint<9, 7>> Core::GetLimitCheckValue(CheckEnable LimitCheckId) {
     LOG_FUNCTION_START;
     bool EnableZeroValue = false;
 
-    Erroneous<FixPoint<9,7>> limitChecksValue;
+    Erroneous<FixPoint<9, 7>> limitChecksValue;
     switch (LimitCheckId) {
       case CHECKENABLE_SIGMA_FINAL_RANGE:
         /* internal computation: */
@@ -1217,7 +1209,7 @@ namespace VL53L0X {
   } // GetLimitCheckValue
 
 
-  Erroneous <RangeStatus> Core::get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData) {
+  Erroneous<RangeStatus> Core::get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START;
 
     /*
@@ -1230,14 +1222,14 @@ namespace VL53L0X {
     uint8_t DeviceRangeStatusInternal = getBits<6, 3>(DeviceRangeStatus);
     uint8_t NoneFlag = (DeviceRangeStatusInternal == 0 || DeviceRangeStatusInternal == 5 || DeviceRangeStatusInternal == 7 || DeviceRangeStatusInternal == 12 || DeviceRangeStatusInternal == 13 || DeviceRangeStatusInternal == 14 || DeviceRangeStatusInternal == 15);
 
-    Erroneous<FixPoint<9,7>> tmpWord;
+    Erroneous<FixPoint<9, 7>> tmpWord;
     /* LastSignalRefMcps */
     {
       auto pager = autoCloser(Private_Pager, 0x01, 0x00);
       fetch(tmpWord, REG_RESULT_PEAK_SIGNAL_RATE_REF);
     }
 
-    FixPoint<16,16> LastSignalRefMcps = tmpWord.wrapped;//ick: ignoring error on getting tmpWord value.
+    FixPoint<16, 16> LastSignalRefMcps = tmpWord.wrapped;//ick: ignoring error on getting tmpWord value.
     PALDevDataSet(LastSignalRefMcps, LastSignalRefMcps);
 
     /*
@@ -1255,7 +1247,7 @@ namespace VL53L0X {
       Erroneous<FixPoint1616_t> SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData, Dmax_mm);
       if (SigmaEstimate.isOk()) {
         pRangingMeasurementData.RangeDMaxMilliMeter = Dmax_mm;
-        Erroneous<FixPoint<9,7>> SigmaLimitValue = GetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE);
+        Erroneous<FixPoint<9, 7>> SigmaLimitValue = GetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE);
         if ((SigmaLimitValue.wrapped.raw > 0) && (SigmaEstimate.wrapped > SigmaLimitValue.wrapped)) {//todo: check for factor of 2 error due to refactoring
           /* Limit Fail */
           SigmaLimitflag = true;

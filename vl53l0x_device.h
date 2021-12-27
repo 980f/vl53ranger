@@ -170,6 +170,7 @@ namespace VL53L0X {
  */
   enum RegSystem : uint8_t {//the original defines had 16 bit constants, but hardware only has 8.
     REG_SYSRANGE_START = 0
+      ,REG_SYSRANGE_stopper = 0x91      //980f guess, and needs MagicTrio wrapper
     , REG_SYSTEM_SEQUENCE_CONFIG = 0x01
     , REG_SYSTEM_THRESH_HIGH = 0x0C
     , REG_SYSTEM_THRESH_LOW = 0x0E

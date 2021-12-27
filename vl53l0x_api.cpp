@@ -313,7 +313,7 @@ namespace VL53L0X {
 
     {
       auto magic = magicWrapper();
-      Error |= comm.RdByte(0x91, &PALDevDataGet(StopVariable));
+      Error |= comm.RdByte(REG_SYSRANGE_stopper, &PALDevDataGet(StopVariable));
     }
     ERROR_OUT;
     /* Enable all check */
@@ -1008,16 +1008,10 @@ namespace VL53L0X {
 
     DeviceModes DeviceMode = GetDeviceMode();
 
-    Error |= comm.WrByte(0x80, 0x01);  //todo: is ths another instance of magicTrio?
-
-    Error |= comm.WrByte(0xFF, 0x01);
-    Error |= comm.WrByte(0x00, 0x00);
-    Error |= comm.WrByte(0x91, PALDevDataGet(StopVariable));
-    Error |= comm.WrByte(0x00, 0x01);
-    Error |= comm.WrByte(0xFF, 0x00);
-
-    Error |= comm.WrByte(0x80, 0x00);
-
+    {
+      auto popper = magicWrapper();
+      Error |= comm.WrByte(REG_SYSRANGE_stopper, PALDevDataGet(StopVariable));
+    }
     ERROR_OUT;
     switch (DeviceMode) {
       case DEVICEMODE_SINGLE_RANGING:
@@ -1066,12 +1060,10 @@ namespace VL53L0X {
     LOG_FUNCTION_START;
 
     Error |= comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_SINGLESHOT);
-
-    Error |= comm.WrByte(0xFF, 0x01);
-    Error |= comm.WrByte(0x00, 0x00);
-    Error |= comm.WrByte(0x91, 0x00);
-    Error |= comm.WrByte(0x00, 0x01);
-    Error |= comm.WrByte(0xFF, 0x00);
+    {
+      auto popper = MagicDuo(comm);
+      Error |= comm.WrByte(REG_SYSRANGE_stopper, 0x00);
+    }
 
     ERROR_OUT;
     /* Set PAL State to Idle */
@@ -1344,7 +1336,7 @@ namespace VL53L0X {
 
     if (Byte.isOk() && Byte == 0) {
       auto magic = magicWrapper();
-      comm.WrByte(0x91, PALDevDataGet(StopVariable));//ick: error ignored
+      comm.WrByte(REG_SYSRANGE_stopper, PALDevDataGet(StopVariable));//ick: error ignored
     }
 
     return Byte;
