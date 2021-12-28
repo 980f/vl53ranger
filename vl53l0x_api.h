@@ -36,7 +36,7 @@
 #include "vl53l0x_api_core.h" //extends this
 #include "vl53l0x_platform_log.h"
 
-#define  VL53L0X_NYI   return LOG_ERROR(ERROR_NOT_IMPLEMENTED);
+#define  VL53L0X_NYI(fakeout)   LOG_ERROR(ERROR_NOT_IMPLEMENTED); return fakeout;
 
 namespace VL53L0X {
 
@@ -97,7 +97,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE   Success
  * @return  "Other error code"  See ::Error
  */
-    Error GetDeviceInfo(DeviceInfo_t &pDeviceInfo);
+    bool GetDeviceInfo(DeviceInfo_t &pDeviceInfo);
 
 /**
  * @brief Read current status of the error register for the selected device
@@ -184,7 +184,7 @@ namespace VL53L0X {
  * is not in the supported list
  * @return  "Other error code"    See ::Error
  */
-    Error SetPowerMode(PowerModes PowerMode);
+    bool SetPowerMode(PowerModes PowerMode);
 
 /**
  * @brief Get the power mode for a given Device
@@ -244,7 +244,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                  Success
  * @return  "Other error code"                 See ::Error
  */
-    Error SetLinearityCorrectiveGain(int16_t LinearityCorrectiveGain);
+    bool SetLinearityCorrectiveGain(int16_t LinearityCorrectiveGain);
 
 /**
  * @brief Get the linearity corrective gain
@@ -270,8 +270,8 @@ namespace VL53L0X {
  * @param   GroupParamHold   Group parameter Hold state to be set (on/off)
  * @return  ERROR_NOT_IMPLEMENTED        Not implemented
  */
-    Error SetGroupParamHold(uint8_t GroupParamHold){
-      VL53L0X_NYI
+    bool SetGroupParamHold(uint8_t GroupParamHold){
+      VL53L0X_NYI(false);
     }
 
 /**
@@ -292,8 +292,8 @@ namespace VL53L0X {
  * (in millimeter)
  * @return  ERROR_NOT_IMPLEMENTED        Not implemented
  */
-    Erroneous<uint16_t> GetUpperLimitMilliMeter(){
-      VL53L0X_NYI
+    uint16_t GetUpperLimitMilliMeter(){
+      VL53L0X_NYI(~0);
     }
 
 /**
@@ -402,7 +402,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error StaticInit();
+    bool StaticInit();
 
 /**
  * @brief Wait for device booted after chip enable (hardware standby)
@@ -414,8 +414,8 @@ namespace VL53L0X {
  * @return  ERROR_NOT_IMPLEMENTED Not implemented
  *
  */
-    Error WaitDeviceBooted(){
-      VL53L0X_NYI;
+    bool WaitDeviceBooted(){
+      VL53L0X_NYI(false);
     }
 
 /**
@@ -576,8 +576,8 @@ namespace VL53L0X {
  * HistogramMode is not in the supported list
  * @return  "Other error code"    See ::Error
  */
-    Error SetHistogramMode(HistogramModes HistogramMode){
-      VL53L0X_NYI
+    bool SetHistogramMode(HistogramModes HistogramMode){
+      VL53L0X_NYI(false);
     }
 
 /**
@@ -622,7 +622,7 @@ namespace VL53L0X {
  *  MeasurementTimingBudgetMicroSeconds out of range
  * @return  "Other error code"            See ::Error
  */
-    Error SetMeasurementTimingBudgetMicroSeconds(uint32_t MeasurementTimingBudgetMicroSeconds){
+    bool SetMeasurementTimingBudgetMicroSeconds(uint32_t MeasurementTimingBudgetMicroSeconds){
       return set_measurement_timing_budget_micro_seconds(MeasurementTimingBudgetMicroSeconds);
     }
 
@@ -681,7 +681,7 @@ namespace VL53L0X {
  *                                       supported.
  * @return  "Other error code"           See ::Error
  */
-    Error SetVcselPulsePeriod(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriod);
+    bool SetVcselPulsePeriod(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriod);
 
 /**
  * @brief Sets the (on/off) state of a requested sequence step.
@@ -699,41 +699,43 @@ namespace VL53L0X {
  *                                       supported.
  * @return  "Other error code"           See ::Error
  */
-    Error SetSequenceStepEnable(SequenceStepId SequenceStepId, bool SequenceStepEnabled);
+    void SetSequenceStepEnable(SequenceStepId SequenceStepId, bool SequenceStepEnabled);
 
-/**
- * @brief Gets the (on/off) state of a requested sequence step.
- *
- * @par Function Description
- * This function retrieves the state of a requested sequence step, i.e. on/off.
- *
- * @note This function Accesses the device
- *
- * @param   Dev                    Device Handle
- * @param   SequenceStepId         Sequence step identifier.
- * @param   pSequenceStepEnabled   Out parameter reporting if the sequence step
- *                                 is enabled {0=Off,1=On}.
- * @return  ERROR_NONE            Success
- * @return  ERROR_INVALID_PARAMS  Error SequenceStepId parameter not
- *                                       supported.
- * @return  "Other error code"           See ::Error
- */
-    Erroneous<bool> GetSequenceStepEnable(SequenceStepId StepId);
+    //Core:
+///**
+// * @brief Gets the (on/off) state of a requested sequence step.
+// *
+// * @par Function Description
+// * This function retrieves the state of a requested sequence step, i.e. on/off.
+// *
+// * @note This function Accesses the device
+// *
+// * @param   Dev                    Device Handle
+// * @param   SequenceStepId         Sequence step identifier.
+// * @param   pSequenceStepEnabled   Out parameter reporting if the sequence step
+// *                                 is enabled {0=Off,1=On}.
+// * @return  ERROR_NONE            Success
+// * @return  ERROR_INVALID_PARAMS  Error SequenceStepId parameter not
+// *                                       supported.
+// * @return  "Other error code"           See ::Error
+// */
+//    bool GetSequenceStepEnable(SequenceStepId StepId);
 
-/**
- * @brief Gets the (on/off) state of all sequence steps.
- *
- * @par Function Description
- * This function retrieves the state of all sequence step in the scheduler.
- *
- * @note This function Accesses the device
- *
- * @param   Dev                          Device Handle
- * @param   pSchedulerSequenceSteps      Pointer to struct containing result.
- * @return  ERROR_NONE            Success
- * @return  "Other error code"           See ::Error
- */
-    Erroneous<SchedulerSequenceSteps_t> GetSequenceStepEnables();
+//disappeared
+///**
+// * @brief Gets the (on/off) state of all sequence steps.
+// *
+// * @par Function Description
+// * This function retrieves the state of all sequence step in the scheduler.
+// *
+// * @note This function Accesses the device
+// *
+// * @param   Dev                          Device Handle
+// * @param   pSchedulerSequenceSteps      Pointer to struct containing result.
+// * @return  ERROR_NONE            Success
+// * @return  "Other error code"           See ::Error
+// */
+//    SchedulerSequenceSteps_t GetSequenceStepEnables();
 
 /**
  * @brief Sets the timeout of a requested sequence step.
@@ -751,7 +753,7 @@ namespace VL53L0X {
  *                                       supported.
  * @return  "Other error code"           See ::Error
  */
-    Error SetSequenceStepTimeout(SequenceStepId SequenceStepId, FixPoint1616_t TimeOutMilliSecs);
+    bool SetSequenceStepTimeout(SequenceStepId SequenceStepId, FixPoint1616_t TimeOutMilliSecs);
 
 /**
  * @brief Gets the timeout of a requested sequence step.
@@ -769,7 +771,7 @@ namespace VL53L0X {
  *                                       supported.
  * @return  "Other error code"           See ::Error
  */
-    Erroneous<FixPoint1616_t> GetSequenceStepTimeout(SequenceStepId SequenceStepId);
+    FixPoint1616_t GetSequenceStepTimeout(SequenceStepId SequenceStepId);
 
 /**
  * @brief Gets number of sequence steps managed by the API.
@@ -818,7 +820,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                    Success
  * @return  "Other error code"                   See ::Error
  */
-    Error SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds);
+    void SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds);
 
 /**
  * Get continuous mode Inter-Measurement period in milliseconds
@@ -834,7 +836,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                    Success
  * @return  "Other error code"                   See ::Error
  */
-    Erroneous<uint32_t> GetInterMeasurementPeriodMilliSeconds();
+    uint32_t GetInterMeasurementPeriodMilliSeconds();
 
 /**
  * @brief Enable/Disable Cross talk compensation feature
@@ -878,7 +880,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE              Success
  * @return  "Other error code"             See ::Error
  */
-    Error SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps);
+    bool SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps);
 
 /**
  * @brief Get Cross talk compensation rate
@@ -992,7 +994,7 @@ namespace VL53L0X {
  *  returned when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Erroneous<bool> GetLimitCheckStatus(CheckEnable LimitCheckId);
+    bool GetLimitCheckStatus(CheckEnable LimitCheckId);
 
 /**
  * @brief  Enable/Disable a specific limit check
@@ -1015,7 +1017,7 @@ namespace VL53L0X {
  *  when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Error SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable);
+    bool SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable);
 
 
 /**
@@ -1037,7 +1039,7 @@ namespace VL53L0X {
  *  LimitCheckId or LimitCheckValue value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Error SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
+    void SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
 
 
 
@@ -1075,7 +1077,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE      Success
  * @return  "Other error code"     See ::Error
  */
-    Error SetWrapAroundCheckEnable(bool WrapAroundCheckEnable);
+    void SetWrapAroundCheckEnable(bool WrapAroundCheckEnable);
 
 /**
  * @brief  Get setup of Wrap around Check
@@ -1170,7 +1172,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Erroneous<CalibrationParameters > PerformRefCalibration();
+    CalibrationParameters PerformRefCalibration();
 
 /**
  * @brief Perform XTalk Measurement
@@ -1199,8 +1201,9 @@ namespace VL53L0X {
  * for this operation. Must not be less than 10PCLKS.
  * @return  "Other error code"   See ::Error
  */
-    Error PerformXTalkMeasurement(uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad, uint8_t *pAmbientTooHigh){
-      VL53L0X_NYI
+    bool PerformXTalkMeasurement(uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad, uint8_t *pAmbientTooHigh){
+      VL53L0X_NYI(false);
+//similar name but quite different technique from      perform_xtalk_calibration()
     }
 
 /**
@@ -1229,7 +1232,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Erroneous <FixPoint1616_t> PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance);
+    bool PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance);
 
 /**
  * @brief Perform Offset Calibration
@@ -1281,7 +1284,7 @@ namespace VL53L0X {
  * @return  ERROR_TIME_OUT    Time out on start measurement
  * @return  "Other error code"   See ::Error
  */
-    Error StartMeasurement();
+    bool StartMeasurement();
 
 /**
  * @brief Stop device measurement
@@ -1298,7 +1301,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Error StopMeasurement();
+    bool StopMeasurement();
 
 /**
  * @brief Return Measurement Data Ready
@@ -1315,12 +1318,12 @@ namespace VL53L0X {
  *
  * @return whether we have a definite indication of data being ready.
  */
-    Erroneous<bool> GetMeasurementDataReady();
+    bool GetMeasurementDataReady();
 
 
     /** formerly declared in core.h but implemented in api.cpp
      * @returns false on timeout */
-    Error measurement_poll_for_completion();
+    bool measurement_poll_for_completion();
 
 
     /**
@@ -1333,7 +1336,9 @@ namespace VL53L0X {
  * @param   MaxLoop    Max Number of polling loop (timeout).
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Error WaitDeviceReadyForNewMeasurement(unsigned MaxLoop);
+    bool WaitDeviceReadyForNewMeasurement(unsigned MaxLoop){
+      VL53L0X_NYI(false);
+    }
 
 /**
  * @brief Retrieve the Reference Signal after a measurements
@@ -1350,7 +1355,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE        Success
  * @return  "Other error code"       See ::Error
  */
-    Error GetMeasurementRefSignal(FixPoint1616_t *pMeasurementRefSignal);
+  FixPoint1616_t GetMeasurementRefSignal();
 
 /**
  * @brief Retrieve the measurements from device for a given setup
@@ -1387,8 +1392,8 @@ namespace VL53L0X {
  * @param   pHistogramMeasurementData   Pointer to the histogram data structure.
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Error GetHistogramMeasurementData(HistogramMeasurementData_t &pHistogramMeasurementData){
-      VL53L0X_NYI
+    bool GetHistogramMeasurementData(HistogramMeasurementData_t &pHistogramMeasurementData){
+      VL53L0X_NYI(false);
     }
 
 /**
@@ -1413,7 +1418,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE         Success
  * @return  "Other error code"        See ::Error
  */
-    Error PerformSingleRangingMeasurement(RangingMeasurementData_t &pRangingMeasurementData);
+    bool PerformSingleRangingMeasurement(RangingMeasurementData_t &pRangingMeasurementData);
 
 /**
  * @brief Performs a single histogram measurement and retrieve the histogram
@@ -1431,8 +1436,8 @@ namespace VL53L0X {
  * @param   pHistogramMeasurementData  Pointer to the data structure to fill up.
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Error PerformSingleHistogramMeasurement(HistogramMeasurementData_t &pHistogramMeasurementData){
-      VL53L0X_NYI
+    bool PerformSingleHistogramMeasurement(HistogramMeasurementData_t &pHistogramMeasurementData){
+      VL53L0X_NYI(false)
     }
 
 /**
@@ -1451,7 +1456,7 @@ namespace VL53L0X {
  * @return  ERROR_INVALID_PARAMS   This error is returned if
  * NumberOfROIZones != 1
  */
-    Error SetNumberOfROIZones(uint8_t NumberOfROIZones);
+    bool SetNumberOfROIZones(uint8_t NumberOfROIZones);
 
 /**
  * @brief Get the number of ROI Zones managed by the Device
@@ -1570,7 +1575,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Error SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold);
+    void SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold);
 
 /**
  * @brief  Get high and low Interrupt thresholds for a given mode
@@ -1591,7 +1596,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE   Success
  * @return  "Other error code"  See ::Error
  */
-    Error GetInterruptThresholds(DeviceModes DeviceMode, RangeWindow &pThreshold);
+    RangeWindow GetInterruptThresholds(DeviceModes DeviceMode);
 
 /**
  * @brief Return device stop completion status
@@ -1608,7 +1613,7 @@ namespace VL53L0X {
  * @return  "Other error code"     See ::Error
  */
 
-    Erroneous <uint8_t> GetStopCompletedStatus();
+    uint8_t GetStopCompletedStatus();
 
 /**
  * @brief Clear given system interrupt condition
@@ -1625,7 +1630,7 @@ namespace VL53L0X {
  *
  * @return  "Other error code"   See ::Error
  */
-    Error ClearInterruptMask(uint32_t InterruptMask);
+    bool ClearInterruptMask(uint32_t InterruptMask);
 
 /**
  * @brief Return device interrupt status
@@ -1642,7 +1647,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE      Success
  * @return  "Other error code"     See ::Error
  */
-    Erroneous<uint8_t> GetInterruptMaskStatus();
+    uint8_t GetInterruptMaskStatus();
 
 /**
  * @brief Configure ranging interrupt reported to system
@@ -1654,7 +1659,7 @@ namespace VL53L0X {
  *  (0:interrupt disabled or 1: interrupt enabled)
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    Error EnableInterruptMask(uint32_t InterruptMask);
+    bool EnableInterruptMask(uint32_t InterruptMask);
 
 /** @} interrupt_group */
 
@@ -1676,7 +1681,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    Error SetSpadAmbientDamperThreshold(uint16_t SpadAmbientDamperThreshold);
+    void SetSpadAmbientDamperThreshold(uint16_t SpadAmbientDamperThreshold);
 
 /**
  * @brief  Get the current SPAD Ambient Damper Threshold value
@@ -1692,7 +1697,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    Erroneous<uint16_t> GetSpadAmbientDamperThreshold( );
+    uint16_t GetSpadAmbientDamperThreshold( );
 
 /**
  * @brief  Set the SPAD Ambient Damper Factor value
@@ -1707,7 +1712,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    Error SetSpadAmbientDamperFactor(uint16_t SpadAmbientDamperFactor);
+    void SetSpadAmbientDamperFactor(uint16_t SpadAmbientDamperFactor);
 
 /**
  * @brief  Get the current SPAD Ambient Damper Factor value
@@ -1723,7 +1728,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    Erroneous<uint8_t> GetSpadAmbientDamperFactor(); //former code expanded to 16 bits locally. It is just 8 in the device, let us not hide that.
+    uint8_t GetSpadAmbientDamperFactor(); //former code expanded to 16 bits locally. It is just 8 in the device, let us not hide that.
 
 /**
  * @brief Performs Reference Spad Management
@@ -1797,19 +1802,19 @@ namespace VL53L0X {
 
 /** @} cut11_group */
 
-    Error check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo);
-    Error get_device_info(DeviceInfo_t &pDeviceInfo);
+    bool check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo);
+    bool get_device_info(DeviceInfo_t &pDeviceInfo);
 
 
-    Error perform_ref_spad_management(SpadCount &ref);//#staying with reference parameter for error handling ease in one place
+    bool perform_ref_spad_management(SpadCount &ref);//#staying with reference parameter for error handling ease in one place
 
   private: //calibration.h was high level actions hidden from direct use in api
 
 
     Erroneous <int32_t> perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter);
 
-    Error set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
-    Erroneous<int32_t> get_offset_calibration_data_micro_meter();
+    void set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
+    int32_t get_offset_calibration_data_micro_meter();
 
     Error apply_offset_adjustment();
 
@@ -1833,22 +1838,22 @@ namespace VL53L0X {
     SpadArray::Index get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr);
 
     Error initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
-    Erroneous <SpadArray::Index > enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset);
+    SpadArray::Index enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset);
 
-    Error CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
-    Error perform_single_ref_calibration(uint8_t vhv_init_byte);
+    bool CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
+    bool perform_single_ref_calibration(uint8_t vhv_init_byte);
 
 
     Erroneous <uint8_t> perform_vhv_calibration(const bool get_data_enable, const bool restore_config);
     /** @returns Cal parameters after running a calibration of one type or the other. Only one param will be meaningful */
     Erroneous <CalibrationParameters> perform_item_calibration(bool vElseP, const bool get_data_enable, const bool restore_config);
 
-    Erroneous <uint16_t> perform_ref_signal_measurement();
-    Erroneous <FixPoint1616_t> perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance);
-    FixPoint1616_t GetMeasurementRefSignal();
+    /** @returns the rate if measurmeent succeeds else @param iffails (not sure what makes a good sentinal, 0 or ~0 ) */
+    uint16_t perform_ref_signal_measurement(uint16_t iffails);
+    bool perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance);
 
-    Error set_threshold(RegSystem index, FixPoint1616_t ThresholdLow);
-    Erroneous <FixPoint1616_t> get_threshold(RegSystem index);
+    void set_threshold(RegSystem index, FixPoint1616_t ThresholdLow);
+    FixPoint1616_t get_threshold(RegSystem index);
   };
 }//end namespace
 #endif /* __H_ */

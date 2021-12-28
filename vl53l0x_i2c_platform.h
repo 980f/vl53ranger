@@ -28,6 +28,8 @@ struct Arg { //the class name here should be made a bit more specific ;)
 } ;
 
 
+#include <csetjmp>
+
 class ArduinoWirer : public Arg { //inheriting as a cheap way to not have to edit as much existing code while still hiding the details of the constructor args list.
 public:
   ArduinoWirer(Arg &&arg):Arg(std::forward<Arg>(arg)){}

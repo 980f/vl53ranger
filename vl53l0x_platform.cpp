@@ -97,64 +97,61 @@ namespace VL53L0X {
 //}
 
 
-  Error Physical::WriteMulti(uint8_t index, const uint8_t *pdata, int count) {
+  void Physical::WriteMulti(uint8_t index, const uint8_t *pdata, int count) {
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
-      return ERROR_INVALID_PARAMS;//BUG: formerly went ahead and asked for invalid transfer
+      THROW (ERROR_INVALID_PARAMS);//BUG: formerly went ahead and asked for invalid transfer
     }
-    return recode(wirer.write_multi( index, pdata, count));
+    wirer.write_multi( index, pdata, count);
   }
 
-  Error Physical::ReadMulti( uint8_t index, uint8_t *pdata, int count) {
+  void Physical::ReadMulti( uint8_t index, uint8_t *pdata, int count) {
     VL53L0X_I2C_USER_VAR
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
-      return ERROR_INVALID_PARAMS;//BUG: formerly went ahead and sent truncated data
+      THROW( ERROR_INVALID_PARAMS);//BUG: formerly went ahead and sent truncated data
     }
-    return recode(wirer.read_multi( index, pdata, count));
+    wirer.read_multi( index, pdata, count);
   } // VL53L0X_ReadMulti
 
-  Error Physical::WrByte( uint8_t index, uint8_t data) {
+  void Physical::WrByte( uint8_t index, uint8_t data) {
     //BUG?: not locked like the ReadMulti was, why not?
-    return recode(wirer.Write( index, data));
+    wirer.Write( index, data);
   } // VL53L0X_WrByte
 
-  Error Physical::WrWord( uint8_t index, uint16_t data) {
-    return recode(wirer.Write( index, data));
+  void Physical::WrWord( uint8_t index, uint16_t data) {
+    wirer.Write( index, data,true);
   } // comm.WrWord
 
-  Error Physical::WrDWord(uint8_t index, uint32_t data) {
-    return recode(wirer.Write( index, data));
+  void Physical::WrDWord(uint8_t index, uint32_t data) {
+    wirer.Write( index, data,true);
   } // comm.WrDWord
 
-  Error Physical::RdByte( uint8_t index, uint8_t *data) {
-    return recode(wirer.Read(index, data));
+  void Physical::RdByte( uint8_t index, uint8_t *data) {
+    wirer.Read(index, data);
   } // comm.RdByte
 
-  Error Physical::RdWord( uint8_t index, uint16_t *data) {
-    return recode(wirer.Read( index, data));
+  void Physical::RdWord( uint8_t index, uint16_t *data) {
+    wirer.Read( index, data,true);
   } // comm.RdWord
 
-  Error Physical::RdDWord(uint8_t index, uint32_t *data) {
-    return recode(wirer.Read( index, data) != 0);
+  void Physical::RdDWord(uint8_t index, uint32_t *data) {
+    wirer.Read( index, data, true) ;
   } // comm.RdDWord
 
-  Error Physical::UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData) {
+  void Physical::UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData) {
     uint8_t data;
-    if (wirer.Read( index, data)) {
-      return ERROR_CONTROL_INTERFACE;
-    }
+    wirer.Read( index, data);
     data = (data & AndData) | OrData;
-    return recode(wirer.Write( index, data));
+    wirer.Write( index, data);
   }
 
 //ick: below is a parameter that must be tuned per platform, but is buried deep in the source:
 #define VL53L0X_POLLINGDELAY_LOOPNB 250
-  Error Dev_t::PollingDelay() {
+  void Dev_t::PollingDelay() {
     LOG_FUNCTION_START ;
     for (volatile unsigned i = VL53L0X_POLLINGDELAY_LOOPNB; i-- > 0;) {
       // Do nothing, except keep compiler from dropping loop due to no side-effects!
       asm ("nop");
     }
-    return ERROR_NONE;
   } // VL53L0X_PollingDelay
 
 } //end namespace

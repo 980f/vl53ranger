@@ -14,19 +14,16 @@ template<typename Scalar> Scalar take(Scalar &owner) {
 using namespace VL53L0X; //# this file exists to manage entities from this namespace
 
 void NonBlocking::inLoop() {
+  //setjmp here!
   if (waitOnStart) {
-    Erroneous<uint8_t> flags;
+    uint8_t flags;
     fetch(flags, REG_SYSRANGE_START);
-    if (flags.isOk()) {
-      if (getBit<0>(flags.wrapped) == 0) {
-        waitOnStart = 0;
-      } else {
-        if (--waitOnStart == 0) {
-          //toodo: abandon pending process and measurements
-        }
-      }
+    if (getBit<0>(flags) == 0) {
+      waitOnStart = 0;
     } else {
-      //todo: handle error on waiting for start, most likely same as timeout.
+      if (--waitOnStart == 0) {
+        //toodo: abandon pending process and measurements
+      }
     }
   }
   if (waitOnMeasurementComplete) {

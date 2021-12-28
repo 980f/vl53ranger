@@ -103,7 +103,7 @@ namespace VL53L0X {
  * @return  ERROR_CONTROL_INTERFACE i2c tx buffer overflow
  * @returns ERROR_BAD_PARAMS count>buffer size.
  */
-    Error WriteMulti(uint8_t index, const uint8_t *pdata, int count);
+    void WriteMulti(uint8_t index, const uint8_t *pdata, int count);
 
 /**
  * Reads the requested number of bytes from the device
@@ -113,21 +113,21 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error ReadMulti(uint8_t index, uint8_t *pdata, int count);
+    void ReadMulti(uint8_t index, uint8_t *pdata, int count);
 
     /**  */
-    template<typename Scalar> Error Write(uint8_t index, Scalar data, bool swapendians = false) {
-      return WriteMulti(index, reinterpret_cast<uint8_t *>(&data), sizeof(Scalar) * (swapendians ? -1 : 1));
+    template<typename Scalar> void Write(uint8_t index, Scalar data, bool swapendians = false) {
+      WriteMulti(index, reinterpret_cast<uint8_t *>(&data), sizeof(Scalar) * (swapendians ? -1 : 1));
     }
 
     /** reads into variable passed by address */
-    template<typename Scalar> Error Read(uint8_t index, Scalar &data, bool swapendians = false) {
-      return ReadMulti(index, reinterpret_cast<uint8_t *>(data), sizeof(Scalar) * (swapendians ? -1 : 1));
+    template<typename Scalar> void Read(uint8_t index, Scalar &data, bool swapendians = false) {
+      ReadMulti(index, reinterpret_cast<uint8_t *>(data), sizeof(Scalar) * (swapendians ? -1 : 1));
     }
 
 /** update paired value and 'Error' of reading that value.
  * This is a macro as we aren't ready to make Erroneous<> pervasive quite yet. */
-#define Fetch( erroneousThing, regcode) erroneousThing.error = comm.Read( regcode, erroneousThing.wrapped);
+#define Fetch( erroneousThing, regcode)  comm.Read( regcode, erroneousThing);
 
     /**
  * Write single byte register
@@ -136,7 +136,7 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error WrByte(uint8_t index, uint8_t data);
+    void WrByte(uint8_t index, uint8_t data);
 
 /**
  * Write word register
@@ -145,7 +145,7 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error WrWord(uint8_t index, uint16_t data);
+    void WrWord(uint8_t index, uint16_t data);
 
 /**
  * Write double word (4 byte) register
@@ -155,7 +155,7 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error WrDWord(uint8_t index, uint32_t data);
+    void WrDWord(uint8_t index, uint32_t data);
 
 /**
  * Read single byte register
@@ -165,7 +165,7 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error RdByte(uint8_t index, uint8_t *data);
+    void RdByte(uint8_t index, uint8_t *data);
 
 /**
  * Read word (2byte) register
@@ -175,7 +175,7 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error RdWord(uint8_t index, uint16_t *data);
+    void RdWord(uint8_t index, uint16_t *data);
 
 /**
  * Read dword (4byte) register
@@ -185,7 +185,7 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error RdDWord(uint8_t index, uint32_t *data);
+    void RdDWord(uint8_t index, uint32_t *data);
 
 /**
  * Threat safe Update (read/modify/write) single byte register
@@ -199,18 +199,13 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData);
+    void UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData);
 
-    Error UpdateBit(const uint8_t index, const uint8_t bitnumber, const bool value){
-      return UpdateByte(index,~(value ? 0 : Bitter(bitnumber)), value ? Bitter(bitnumber) : 0);
+    void UpdateBit(const uint8_t index, const uint8_t bitnumber, const bool value){
+       UpdateByte(index,~(value ? 0 : Bitter(bitnumber)), value ? Bitter(bitnumber) : 0);
     }
 
 /** @} end of VL53L0X_registerAccess_group */
-  private:
-    /** @returns an api error code for a non-zero return from an i2c function. At present all such return 0. */
-    static Error recode(int i2creturn) {
-      return i2creturn ? ERROR_CONTROL_INTERFACE : ERROR_NONE;
-    }
 
   };
 
@@ -239,42 +234,32 @@ namespace VL53L0X {
  * @return  VL53L0X_ERROR_NONE        Success
  * @return  "Other error code"    See ::VL53L0X_Error
  */
-    Error PollingDelay(); /* usually best implemented as a real function */
+    void PollingDelay(); /* usually best implemented as a real function */
 
-    /** RAII device to ensure that certain device registers are restored before leaving a chunk of code. It appears that the interface has many more values than can be indexed by one byte of address and so there is a page register, but most accesses presume page 0.
-     * Another instance appears to be an update disable to ensure that a block of many reads does not have content altered during reading. Having a snapshot rather than freeze-thaw would have been kind by the device engineers. */
-    class FrameEnder {
-      Physical &comm;
-      const RegSystem reg;
-      const uint8_t ender;
-      Error error;
-
-    public:
-      operator Error () const {
-        return error;
-      }
-
-      FrameEnder(Physical &comm, RegSystem reg, uint8_t starter, uint8_t ender) : comm(comm), reg(reg), ender(ender) {
-        error = comm.WrByte(reg, starter);
-      }
-
-      ~FrameEnder() {
-        //todo: debate whether this is conditional on constructor success. It appears to not be checked in much of the ST code.
-        error = comm.WrByte(reg, ender);
-        //but we have no means of reporting failure here, but if it fails here recovery is hopeless.
-        //that is why the error should be a thread_local and not returned everywhere.
-      }
-
-      /** @returns whether starter was successfully applied */
-      operator bool() const {
-        return error == ERROR_NONE;
-      }
-
-    };
-
-    FrameEnder autoCloser(RegSystem reg, uint8_t starter, uint8_t ender) {
-      return {comm, reg, starter, ender};
-    }
+//    /** RAII device to ensure that certain device registers are restored before leaving a chunk of code. It appears that the interface has many more values than can be indexed by one byte of address and so there is a page register, but most accesses presume page 0.
+//     * Another instance appears to be an update disable to ensure that a block of many reads does not have content altered during reading. Having a snapshot rather than freeze-thaw would have been kind by the device engineers. */
+//    class FrameEnder {
+//      Physical &comm;
+//      const RegSystem reg;
+//      const uint8_t ender;
+//
+//    public:
+//
+//      FrameEnder(Physical &comm, RegSystem reg, uint8_t starter, uint8_t ender) : comm(comm), reg(reg), ender(ender) {
+//         comm.WrByte(reg, starter);
+//      }
+//
+//      ~FrameEnder() {
+//        //todo: debate whether this is conditional on constructor success. It appears to not be checked in much of the ST code.
+//         comm.WrByte(reg, ender);
+//        //but we have no means of reporting failure here, but if it fails here recovery is hopeless.
+//        //that is why the error should be a thread_local and not returned everywhere.
+//      }
+//    };
+//
+//    FrameEnder autoCloser(RegSystem reg, uint8_t starter, uint8_t ender) {
+//      return {comm, reg, starter, ender};
+//    }
   };
 
 /**

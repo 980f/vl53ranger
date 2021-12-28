@@ -60,36 +60,40 @@ namespace VL53L0X {
       //do nothing here so that we can statically construct
     }
 
-    Erroneous<bool> GetSequenceStepEnable(SequenceStepId StepId); // GetSequenceStepEnable
+    bool GetSequenceStepEnable(SequenceStepId StepId); // GetSequenceStepEnable
 
     SemverLite GetProductRevision();
 
     /** VCSELPulsePeriodPCLK */
-    Erroneous<uint8_t> get_vcsel_pulse_period(VcselPeriod VcselPeriodType);
+    uint8_t get_vcsel_pulse_period(VcselPeriod VcselPeriodType);
 
     /**
      * todo: refactoring dropped a call to  perform_phase_calibration(&PhaseCalInt, false, true); which is in API, not CORE.
      * ... callers of this method should call that.
      * */
-    Error set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
+    bool set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
 
     enum InfoGroup {
       SpadStuff = Bitter(0)
       , IDStuff = Bitter(1)
       , PartUidEtc = Bitter(2)
+      , ALL = Mask<2,0>::places
     };
 
     Error get_info_from_device(uint8_t infoGroupBits);
 
-    Erroneous<uint32_t> get_sequence_step_timeout(SequenceStepId SequenceStepId);
+    uint32_t get_sequence_step_timeout(SequenceStepId SequenceStepId);
 
-    Error set_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t TimeOutMicroSecs);
+    bool set_sequence_step_timeout(SequenceStepId SequenceStepId, uint32_t TimeOutMicroSecs);
 
-    Erroneous<uint32_t> get_measurement_timing_budget_micro_seconds();
+    uint32_t get_measurement_timing_budget_micro_seconds();
 
-    Error set_measurement_timing_budget_micro_seconds(uint32_t MeasurementTimingBudgetMicroSeconds);
+    bool set_measurement_timing_budget_micro_seconds(uint32_t MeasurementTimingBudgetMicroSeconds);
 
-    Error load_tuning_settings(const uint8_t *pTuningSettingBuffer);
+    /** @returns inverse of index of byte causing early exit. 0 if no problems.
+     * a nonzero return should probably be responded to by a restart of the interface.
+     * */
+    unsigned int load_tuning_settings(const uint8_t *pTuningSettingBuffer);
 
     /** ?secondary return via reference to dmm as most if it is computed as a side effect of primary return.
      * */
@@ -97,7 +101,7 @@ namespace VL53L0X {
 
     FixPoint1616_t get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
-    Erroneous<FixPoint1616_t> get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
+    FixPoint1616_t get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
     /** RMD not const due to setting of darkMM */
     Erroneous<RangeStatus> get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData);
@@ -125,7 +129,7 @@ namespace VL53L0X {
  *  when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Erroneous<bool> GetLimitCheckEnable(CheckEnable LimitCheckId);
+    bool GetLimitCheckEnable(CheckEnable LimitCheckId);
 
 /**
  * @brief  Get a specific limit check value
@@ -147,22 +151,21 @@ namespace VL53L0X {
  *  when LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Erroneous<FixPoint<9, 7>> GetLimitCheckValue(CheckEnable LimitCheckId);
+    FixPoint<9, 7> GetLimitCheckValue(CheckEnable LimitCheckId);
 
-    /** deriving from ErrorAccumulator to use some early out macros */
-    class SysPopper : public ErrorAccumulator {
+    /** devolved into same code as FrameEnder, removed it in favor of this as being in a better file  */
+    class SysPopper {
     protected:
       Physical &comm;
       uint8_t index;
       uint8_t pop;
     public:
       SysPopper(Physical &comm, uint8_t index, uint8_t push, uint8_t pop) : comm(comm), index(index), pop(pop) {
-        (*this) |= comm.WrByte(index, push);
+        comm.WrByte(index, push);
       }
 
       ~SysPopper() {
-        //todo: not try if push fails?
-        (*this) |= comm.WrByte(index, pop);
+        comm.WrByte(index, pop);
       }
     };
 
@@ -172,33 +175,32 @@ namespace VL53L0X {
     }
 
     /** writes an object after first writing 1 to 0xFF , writing a 0 to FF when done, returnin accumulated error */
-    template<typename Intish> Error FFwrap(RegSystem index, Intish value) {
-      auto Error = push(0xFF, 0x01, 0x00);
-      Error |= comm.WriteMulti(index, reinterpret_cast<uint8_t *>(&value), sizeof(Intish));
-      return Error;
+    template<typename Intish> void FFwrap(RegSystem index, Intish value) {
+      push(0xFF, 0x01, 0x00);
+      comm.WriteMulti(index, reinterpret_cast<uint8_t *>(&value), sizeof(Intish));
     }
 
-    template<typename Intish> Erroneous<Intish> FFread(RegSystem index) {
+    template<typename Intish> Intish FFread(RegSystem index) {
       Intish value;
-      auto Error = push(0xFF, 0x01, 0x00);
-      Error |= comm.ReadMulti(index, reinterpret_cast<uint8_t *>(&value), sizeof(Intish));
-      return {value, Error};
+      push(0xFF, 0x01, 0x00);
+      comm.ReadMulti(index, reinterpret_cast<uint8_t *>(&value), sizeof(Intish));
+      return value;
     }
 
-    class FFPopper : public ErrorAccumulator {
+    class FFPopper  {
       Physical &comm;
       uint8_t index;
       uint8_t pop;
     public:
       FFPopper(Physical &comm, uint8_t index, uint8_t push, uint8_t pop) : comm(comm), index(index), pop(pop) {
         auto popper = SysPopper(comm, 0xFF, 0x01, 0x00);
-        (*this) |= comm.WrByte(index, push);
+        comm.WrByte(index, push);
       }
 
       ~FFPopper() {
         //todo: not try if push fails?
         auto popper = SysPopper(comm, 0xFF, 0x01, 0x00);
-        (*this) |= comm.WrByte(index, pop);
+        comm.WrByte(index, pop);
       }
     };
 
@@ -208,35 +210,34 @@ namespace VL53L0X {
     }
 
     /**
-     * Error |= comm.WrByte(0xFF, 0x06);
-      Error |= comm.UpdateBit(0x83, 2, true to start, false when done);
+     * comm.WrByte(0xFF, 0x06);
+      comm.UpdateBit(0x83, 2, true to start, false when done);
      * */
-    class YAPopper: public  ErrorAccumulator{
+    class YAPopper{
       Physical &comm;
     public:
       YAPopper(Physical &comm):comm(comm){
-        (*this) |= comm.WrByte(0xFF, 0x06);
-        (*this) |= comm.UpdateBit(0x83, 2, true);
+        comm.WrByte(0xFF, 0x06);
+        comm.UpdateBit(0x83, 2, true);
       }
       ~YAPopper(){
-        (*this) |= comm.WrByte(0xFF, 0x06);
-        (*this) |= comm.UpdateBit(0x83, 2, false);
+        comm.WrByte(0xFF, 0x06);
+        comm.UpdateBit(0x83, 2, false);
       }
     };
 
 
     class MagicDuo {
-      ErrorAccumulator Error;
       Physical &comm; //not a base as eventually we will pass in a reference to a baser class
     public:
-      MagicDuo(Physical &comm) : comm(comm), Error(ERROR_NONE) {
-        Error = comm.WrByte(0xFF, 0x01);
-        Error = comm.WrByte(0x00, 0x00);
+      MagicDuo(Physical &comm) : comm(comm) {
+        comm.WrByte(0xFF, 0x01);
+        comm.WrByte(0x00, 0x00);
       }
 
       ~MagicDuo() {
-        Error = comm.WrByte(0x00, 0x01);
-        Error = comm.WrByte(0xFF, 0x00);
+        comm.WrByte(0x00, 0x01);
+        comm.WrByte(0xFF, 0x00);
       }
     };
 
@@ -257,65 +258,66 @@ namespace VL53L0X {
 
     /** creating one of these saves sequence config, sets it, and on destruction restores what was saved.
      * Inheriting rather than containing ErrorAccumulator so that we can share some macros. */
-    class SeqConfigStacker : public ErrorAccumulator {
+    class SeqConfigStacker  {
       Core &core;
       uint8_t mycache;
       bool restore_it;
     public:
       SeqConfigStacker(Core &core, bool restore_config, uint8_t settit) : core(core) {
-        uint8_t mycache;//for seq value
+        mycache=core.get_SequenceConfig();
+        core.set_SequenceConfig(settit,false);//todo: probably should set andChace true
         restore_it = restore_config; //maydo: don't restore if we failed to set.
       }
 
       ~SeqConfigStacker() {
         if (restore_it) {
           /* restore the previous Sequence Config */
-          (*this) |= core.set_SequenceConfig(mycache, true);
+          core.set_SequenceConfig(mycache, true);
         }
       }
     };
 
   protected:  //common code fragments or what were file static but didn't actually have the 'static' like they should have.
 
-    /** gets value from device, @returns whether it worked OK.*/
-    template<unsigned whole, unsigned fract> bool fetch(Erroneous<FixPoint<whole, fract>> &item, RegSystem reg) {
-      item.error = comm.Read<typename FixPoint<whole, fract>::RawType>(reg, item.wrapped);
-      return item.isOk();
-    }
+
 
 /** gets value from device, @returns whether it worked OK.*/
-    template<typename Scalar> bool fetch(Erroneous<Scalar> &item, RegSystem reg) {
-      item.error = comm.Read<Scalar>(reg, item.wrapped);
-      return item.isOk();
+    template<typename Scalar> void fetch(Scalar &item, RegSystem reg) {
+      comm.Read<Scalar>(reg, item);
     }
 
-    Error setValidPhase(uint8_t high, uint8_t low=8);
+    /** gets value from device, @returns whether it worked OK.*/
+    template<unsigned whole, unsigned fract> void fetch(FixPoint<whole, fract> &item, RegSystem reg) {
+      fetch<typename FixPoint<whole, fract>::RawType>(reg, item.raw);
+    }
 
-    Error setPhasecalLimit(uint8_t value);
+    void setValidPhase(uint8_t high, uint8_t low=8);
+
+    void setPhasecalLimit(uint8_t value);
 
   protected: //some of this functionality was in api.cpp but used by core.cpp
-    Error device_read_strobe();
+    bool device_read_strobe();
     /** read up to 4 bytes from 0x90 after selecting which at 0x94
      * source for templates can be in the CPP if not used outside that module :) */
-    template<typename Int> Erroneous<Int> packed90(uint8_t which);
+    template<typename Int> Int packed90(uint8_t which);
 
     /** pulls a 24:8 from a 32:32 */
-    Erroneous<uint32_t> middleof64(unsigned int which);
+    uint32_t middleof64(unsigned int which);
 
     /** reads the sequence steps and breaks them out into a struct of bools. */
-    Erroneous<SchedulerSequenceSteps_t> get_sequence_step_enables();
+    SchedulerSequenceSteps_t get_sequence_step_enables();
 
     /** @returns an interesting computation that someone should document */
     uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
 
-    Error SetXTalkCompensationEnable(bool XTalkCompensationEnable);
+    void SetXTalkCompensationEnable(bool XTalkCompensationEnable);
 
-    Error set_ref_spad_map(SpadArray &refSpadArray);//writes to device
-    Error get_ref_spad_map(SpadArray &refSpadArray);//read from device
+    void set_ref_spad_map(SpadArray &refSpadArray);//writes to device
+    void get_ref_spad_map(SpadArray &refSpadArray);//read from device
     /** @returns the sequence config byte reading it from the device */
-    Erroneous<uint8_t> get_SequenceConfig();
+    uint8_t get_SequenceConfig();
     /** sets the sequence config byte, and if @param andCache is true copies the value to the DeviceParameters place where we often trust has the value */
-    Error set_SequenceConfig(uint8_t packed, bool andCache);
+    void set_SequenceConfig(uint8_t packed, bool andCache);
   };
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

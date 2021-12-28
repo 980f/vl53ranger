@@ -52,6 +52,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vl53l0x_types.h"
 #include "vl53l0x_spadarray.h"
 #include "bitmanipulators.h"
+#include "vl53l0x_error.h"
 
 namespace VL53L0X {
 
@@ -375,9 +376,9 @@ namespace VL53L0X {
         return 6;
         break;
       case SEQUENCESTEP_FINAL_RANGE:
-        return 7;
+        return 7;  //ick: this seems to overlap with wraparound enable
       default:
-        return ~0;
+        THROW(ERROR_INVALID_PARAMS);
     } // switch
   }
 
@@ -386,6 +387,9 @@ namespace VL53L0X {
  *	@{
  *	Defines the states of all the steps in the scheduler
  *	i.e. enabled/disabled.
+ *
+ *	this would be a lot easier to manage as bit fields
+ *
  */
   struct SchedulerSequenceSteps_t {
     bool TccOn = false;       /*!<Reports if Target Centre Check On  */

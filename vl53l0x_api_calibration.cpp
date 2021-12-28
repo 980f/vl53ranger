@@ -44,17 +44,15 @@ namespace VL53L0X {
   const int16_t cOffsetMin = -(cOffsetMask + 1);//most negative value
 
 
-  Erroneous<FixPoint1616_t> Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance ) {
+  bool Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance ) {
     if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
-      return ERROR_INVALID_PARAMS;
+      THROW( ERROR_INVALID_PARAMS);
     }
     /* Disable the XTalk compensation */
-    ErrorAccumulator Error = SetXTalkCompensationEnable(0);
-    ERROR_OUT;
+     SetXTalkCompensationEnable(0);
 
     /* Disable the RIT */
-    Error = SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
-    ERROR_OUT;
+     SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
 
     /* Perform 50 measurements and compute the averages */
     unsigned sum_ranging = 0;//bug: former use of 16 bit begs for integer overflow
@@ -63,12 +61,9 @@ namespace VL53L0X {
     uint32_t total_count = 0;//unsigned is probably adequate
     for (uint8_t xtalk_meas = 0; xtalk_meas < 50; xtalk_meas++) {//ick: buried constant
       RangingMeasurementData_t RangingMeasurementData;
-      Error = PerformSingleRangingMeasurement(RangingMeasurementData);
-
-      if (Error != ERROR_NONE) {
-        return total_count == 0 ? ERROR_RANGE_ERROR : Error.sum;//ick: could use some refinement why error is overridden if first measurement fails for any reason.
+      if(!PerformSingleRangingMeasurement(RangingMeasurementData)){
+        return false;
       }
-
       /* The range is valid when rangeError = 0 */
       if (RangingMeasurementData.rangeError == 0) {
         sum_ranging += RangingMeasurementData.RangeMilliMeter;
@@ -79,7 +74,7 @@ namespace VL53L0X {
     }
     /* no valid values found */
     if (total_count == 0) {
-      return ERROR_RANGE_ERROR;
+      return LOG_ERROR(ERROR_RANGE_ERROR);
     }
 
     /* FixPoint1616_t / uint16_t = FixPoint1616_t */
@@ -132,13 +127,9 @@ namespace VL53L0X {
     }
 
 //    pXTalkCompensationRateMegaCps = XTalkCompensationRateMegaCps;
-    ERROR_OUT;
-    /* Enable the XTalk compensation */
-    Error = SetXTalkCompensationEnable(1);
-    ERROR_OUT;
 
     /* Enable the XTalk compensation */
-    return SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
+    return SetXTalkCompensationEnable(true)&& SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
   } // VL53L0X_perform_xtalk_calibration
 
   Erroneous<int32_t> Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter) {
@@ -197,12 +188,11 @@ namespace VL53L0X {
     return ERROR_NONE;
   } // VL53L0X_perform_offset_calibration
 
-  Error Api::set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter) {
+  void Api::set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter) {
 //BUG:    const int32_t cMaxOffsetMicroMeter = 511000;//effectively 2044 rather than 2047 for max positive value.
     LOG_FUNCTION_START;
     /* The offset register is 10.2 format and units are mm
-     * therefore conversion is applied by a division of
-     * 250.  (1000/4)
+     * therefore conversion is applied by a division of 250.  (1000/4)
      */
     OffsetCalibrationDataMicroMeter /= 250; //divide by 1000 and multiply by 4
     if (OffsetCalibrationDataMicroMeter > cOffsetMax) {
@@ -210,29 +200,23 @@ namespace VL53L0X {
     } else if (OffsetCalibrationDataMicroMeter < cOffsetMin) {
       OffsetCalibrationDataMicroMeter = cOffsetMin;
     }
-
-    return comm.WrWord(REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, OffsetCalibrationDataMicroMeter & cOffsetMask);
+     comm.WrWord(REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, OffsetCalibrationDataMicroMeter & cOffsetMask);
   } // VL53L0X_set_offset_calibration_data_micro_meter
 
-  Erroneous<int32_t> Api::get_offset_calibration_data_micro_meter() {
-    Error Error = ERROR_NONE;
-    Erroneous<uint16_t> RangeOffsetRegister;
-    if (fetch(RangeOffsetRegister, REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM)) {
-//      int32_t fluffer=;//signed in 12 lsbs, need to sign extend
+  int32_t Api::get_offset_calibration_data_micro_meter() {
+    uint16_t RangeOffsetRegister;
+   fetch(RangeOffsetRegister, REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM);
       /* Apply 12 bit 2's compliment conversion */
-      bool isNegative = getBit<11>(RangeOffsetRegister.wrapped);
+      bool isNegative = getBit<11>(RangeOffsetRegister);
       if (isNegative) {
         RangeOffsetRegister |= -(1 << 12);
       }
       return RangeOffsetRegister * 250;
-    } else {
-      return {RangeOffsetRegister.error};
-    }
   } // VL53L0X_get_offset_calibration_data_micro_meter
 
   Error Api::apply_offset_adjustment() {
     /* if we run on this function we can read all the NVM info used by the API */
-    ErrorAccumulator Error = get_info_from_device(7);
+    ErrorAccumulator Error = get_info_from_device(InfoGroup::ALL);
     ERROR_OUT;
     /* Read back current device offset */
     Erroneous<int32_t> CurrentOffsetMicroMeters = GetOffsetCalibrationDataMicroMeter();
@@ -261,7 +245,7 @@ namespace VL53L0X {
 
 
 
-  Erroneous<SpadArray::Index> Api::enable_ref_spads(SpadCount &req, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset) {
+  SpadArray::Index Api::enable_ref_spads(SpadCount &req, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset) {
     /*
      * This function takes in a spad array which may or may not have SPADS
      * already enabled and appends from a given offset a requested number
@@ -272,48 +256,43 @@ namespace VL53L0X {
      * Checks are performed to ensure this.
      */
 
-    SpadArray::Index lastSpad(~0);//start invalid
+    const SpadArray::Index badSpad(~0);//sentinel return value
     SpadArray::Index currentSpad = offset;
     while (currentSpad.isValid()) {
       auto nextGoodSpad = get_next_good_spad(goodSpadArray, currentSpad);
       if (!nextGoodSpad.isValid()) {
-        return {ERROR_REF_SPAD_INIT};//seems excessive, we just went past the last
+        return badSpad;//seems excessive, we just went past the last
       }
       /* Confirm that the next good SPAD is non-aperture */
       if (nextGoodSpad.is_aperture() != req.isAperture) {
         /* if we can't get the required number of good aperture
          * spads from the current quadrant then this is an error
          */
-        return ERROR_REF_SPAD_INIT;
+        return badSpad;
       }
       spadArray.enable(nextGoodSpad);
       currentSpad = ++nextGoodSpad;//without the incr we would spin forever
     }
+     set_ref_spad_map(spadArray);
 
-    Error Error = set_ref_spad_map(spadArray);
-//ick: error ignored
     SpadArray checkSpadArray;
-    Error = get_ref_spad_map(checkSpadArray);
-    //ick:error ignored
+     get_ref_spad_map(checkSpadArray);
     /* Compare spad maps. If not equal report error. */
     if (spadArray != checkSpadArray) {
-      return ERROR_REF_SPAD_INIT;
+      return badSpad;
     }
-
     return currentSpad;
   } // enable_ref_spads
 
-  Erroneous<uint16_t> Api::perform_ref_signal_measurement() {
+  uint16_t Api::perform_ref_signal_measurement(uint16_t iffails) {
 /*This function performs a reference signal rate measurement.    */
-
-    SeqConfigStacker Error (*this,true,0xC0);
-    ERROR_OUT;
+    SeqConfigStacker Error (*this,true,Mask<7,6>::places);
 
     RangingMeasurementData_t rangingMeasurementData;
-    Error |= PerformSingleRangingMeasurement(rangingMeasurementData);
-    //ick: object ignored above, will fetch result from registers, that apparently isn't part of RMD_t
-    ERROR_OUT; //BUG: (fixed) on any error other than the first the  REG_SYSTEM_SEQUENCE_CONFIG is not restored!
-
+    if(!PerformSingleRangingMeasurement(rangingMeasurementData)){
+      //todo: log detail if the above does not do so
+      return iffails;
+    }
     return FFread<uint16_t>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
   } // perform_ref_signal_measurement
 
@@ -337,12 +316,12 @@ namespace VL53L0X {
     {
       SysPopper Error = push(0xFF, 0x01, 0);//bug: prior error handling could leave FF set to 1
       ERROR_OUT;
-      Error |= comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
+      comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
       ERROR_OUT;
-      Error |= comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);//ick: seems to be SpadArray::MaxCount
+      comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);//ick: seems to be SpadArray::MaxCount
       ERROR_OUT;
     }
-    auto Error = comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
+    auto comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
     ERROR_OUT;
     //followng icks have been fixed.
     //ick: lots of errors but we enable the ref spads anyway? If we shouldn't then we can apply ERROR_OUT above.
@@ -370,14 +349,14 @@ namespace VL53L0X {
     return VL53L0X_GETDEVICESPECIFICPARAMETER(ReferenceSpad);
   } // VL53L0X_get_reference_spads
 
-  Error Api::perform_single_ref_calibration(uint8_t vhv_init_byte) {
-    ErrorAccumulator Error = comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | vhv_init_byte);
-    ERROR_OUT;
-    Error |= measurement_poll_for_completion();
-    ERROR_OUT;
-    Error = ClearInterruptMask(0);
-    ERROR_OUT;
-    return comm.WrByte(REG_SYSRANGE_START, 0x00);
+  bool Api::perform_single_ref_calibration(uint8_t vhv_init_byte) {
+    push(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | vhv_init_byte,0);//980f: write the zero to _start regardless of measurement success
+    if (measurement_poll_for_completion()){
+      ClearInterruptMask(0);
+      comm.WrByte(REG_SYSRANGE_START, 0x00);
+      return true;
+    }
+    return false;
   } // VL53L0X_perform_single_ref_calibration
 
   const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::places;
@@ -385,10 +364,10 @@ namespace VL53L0X {
   Error Api::set_ref_calibration(CalibrationParameters p, bool setv, bool setp) {
     auto Error = FFpush(0, 0, 1);
     if (setv) {
-      Error |= comm.WrByte(0xCB, p.VhvSettings);
+      comm.WrByte(0xCB, p.VhvSettings);
     }
     if (setp) {
-      Error |= comm.UpdateByte(0xEE, ~phaseMask, p.PhaseCal & phaseMask);
+      comm.UpdateByte(0xEE, ~phaseMask, p.PhaseCal & phaseMask);
     }
     return Error.sum;
   }
@@ -397,10 +376,10 @@ namespace VL53L0X {
     CalibrationParameters p;
     auto Error = FFpush(0, 0, 1);
     if (getv) {
-      Error |= comm.RdByte(0xCB, &p.VhvSettings);
+      comm.RdByte(0xCB, &p.VhvSettings);
     }
     if (getp) {
-      Error |= comm.RdByte(0xEE, &p.PhaseCal);
+      comm.RdByte(0xEE, &p.PhaseCal);
     }
     p.PhaseCal &= phaseMask; // was 0xEF, ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
     return {p, Error.sum};
@@ -409,16 +388,13 @@ namespace VL53L0X {
   Erroneous<Api::CalibrationParameters> Api::perform_item_calibration(bool vElseP,  const bool get_data_enable, const bool restore_config) {
     /* store the value of the sequence config, this will be reset after the end of the function */
     SeqConfigStacker popper(*this, restore_config, Bitter(vElseP?0:1));
-    if (~popper) {
-      return {popper};
-    }
-    auto Error = perform_single_ref_calibration(vElseP?Bitter(6):0);
-    ERROR_OUT;
+
+    bool didit= perform_single_ref_calibration(vElseP?Bitter(6):0);
     /* Read one item from device, other value will be 0 */
-    if (get_data_enable) {
+    if (didit&&get_data_enable) {
       return get_ref_calibration(vElseP, !vElseP);
     }
-    return Error;
+    return didit;
   } // VL53L0X_perform_vhv_calibration
 
 

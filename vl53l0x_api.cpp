@@ -54,26 +54,23 @@ namespace VL53L0X {
 /* Group PAL General Functions */
 
 
-  Error Api::measurement_poll_for_completion() {
+  bool Api::measurement_poll_for_completion() {
     LOG_FUNCTION_START;
-
     for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {
-      Erroneous<bool> value;
-      value = GetMeasurementDataReady();
-      if (value.isOk() && value == 1) {//980f: reversed legacy order of testing, test valid before testing value.
-        return ERROR_NONE;
+      auto ready = GetMeasurementDataReady();
+      if (ready) {
+        return true;
       }
       PollingDelay();
     }
-    return ERROR_TIME_OUT;//was init to 'timeout'
+    return LOG_ERROR(ERROR_TIME_OUT);
   } // VL53L0X_measurement_poll_for_completion
 
 
-  Error Api::check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo) {
+  bool Api::check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo) {
     LOG_FUNCTION_START;
-    Error |= get_info_from_device(IDStuff);
 
-    if (~Error) {
+    if (get_info_from_device(IDStuff)) {
       if (VL53L0X_GETDEVICESPECIFICPARAMETER(ModuleId) == 0) {
         Revision = 0;
         COPYSTRING(pDeviceInfo.ProductId, "");
@@ -81,60 +78,52 @@ namespace VL53L0X {
         Revision = VL53L0X_GETDEVICESPECIFICPARAMETER(Revision);
         COPYSTRING(pDeviceInfo.ProductId, VL53L0X_GETDEVICESPECIFICPARAMETER(ProductId));
       }
+      return true;
     }
-    return Error;
+    return false;
   } // check_part_used
 
-  Error Api::get_device_info(DeviceInfo_t &pDeviceInfo) {
+  bool Api::get_device_info(DeviceInfo_t &pDeviceInfo) {
     uint8_t Revision;
-    ErrorAccumulator Error = check_part_used(Revision, pDeviceInfo);
-    ERROR_OUT;
-    if (Revision == 0) {
-      COPYSTRING(pDeviceInfo.Name, VL53L0X_STRING_DEVICE_INFO_NAME_TS0);
-    } else if ((Revision <= 34) && (Revision != 32)) {
-      COPYSTRING(pDeviceInfo.Name, VL53L0X_STRING_DEVICE_INFO_NAME_TS1);
-    } else if (Revision < 39) {
-      COPYSTRING(pDeviceInfo.Name, VL53L0X_STRING_DEVICE_INFO_NAME_TS2);
+    if (check_part_used(Revision, pDeviceInfo)) {
+      if (Revision == 0) {
+        COPYSTRING(pDeviceInfo.Name, VL53L0X_STRING_DEVICE_INFO_NAME_TS0);
+      } else if ((Revision <= 34) && (Revision != 32)) {
+        COPYSTRING(pDeviceInfo.Name, VL53L0X_STRING_DEVICE_INFO_NAME_TS1);
+      } else if (Revision < 39) {
+        COPYSTRING(pDeviceInfo.Name, VL53L0X_STRING_DEVICE_INFO_NAME_TS2);
+      } else {
+        COPYSTRING(pDeviceInfo.Name, VL53L0X_STRING_DEVICE_INFO_NAME_ES1);
+      }
+      COPYSTRING(pDeviceInfo.Type, VL53L0X_STRING_DEVICE_INFO_TYPE);
+
+      comm.RdByte(REG_IDENTIFICATION_MODEL_ID, &pDeviceInfo.ProductType);
+
+      //DUP: duplicate code.
+      pDeviceInfo.ProductRevision = GetProductRevision();
+      return true;
     } else {
-      COPYSTRING(pDeviceInfo.Name, VL53L0X_STRING_DEVICE_INFO_NAME_ES1);
+      return false;
     }
-    COPYSTRING(pDeviceInfo.Type, VL53L0X_STRING_DEVICE_INFO_TYPE);
-    Error = comm.RdByte(REG_IDENTIFICATION_MODEL_ID, &pDeviceInfo.ProductType);
-    ERROR_OUT;
-
-    //DUP: duplicate code.
-    uint8_t revision_id;
-    Error = comm.RdByte(REG_IDENTIFICATION_REVISION_ID, &revision_id);
-    pDeviceInfo.ProductRevision.major = 1;
-    pDeviceInfo.ProductRevision.minor = revision_id >> 4; //BUG: rev id set even if read fails.
-
-    return Error;
   } // get_device_info
 
   SemverLite Core::GetProductRevision() {
-
     LOG_FUNCTION_START;
-    Erroneous<uint8_t> revision_id;
-
+    uint8_t revision_id;
     fetch(revision_id, REG_IDENTIFICATION_REVISION_ID);
-
-    if (revision_id.isOk()) {
-      return {1, uint8_t(revision_id.wrapped >> 4)};
-    }
-
-    return {0, 0};//use a sentinal value instead of tedious error warpping.
+    return {1, static_cast<uint8_t>(revision_id >> 4)};
   } // GetProductRevision
 
-  Error Api::GetDeviceInfo(DeviceInfo_t &pVL53L0X_DeviceInfo) {
+  bool Api::GetDeviceInfo(DeviceInfo_t &pVL53L0X_DeviceInfo) {
     LOG_FUNCTION_START;
     return get_device_info(pVL53L0X_DeviceInfo);
   }
 
   Erroneous<DeviceError> Api::GetDeviceErrorStatus() {
     LOG_FUNCTION_START;
-    Erroneous<uint8_t> caster;
-    fetch(caster, REG_RESULT_RANGE_STATUS);
-    return {DeviceError((caster.wrapped & 0x78) >> 3), caster.error};
+    uint8_t rangeStatus;
+    fetch(rangeStatus, REG_RESULT_RANGE_STATUS);
+    return getBits<6, 3>(rangeStatus);
   } // GetDeviceErrorStatus
 
   const char *Api::GetDeviceErrorString(DeviceError ErrorCode) {
@@ -157,33 +146,30 @@ namespace VL53L0X {
     return PALDevDataGet(PalState);
   }
 
-  Error Api::SetPowerMode(PowerModes PowerMode) {
+  bool Api::SetPowerMode(PowerModes PowerMode) {
     LOG_FUNCTION_START;
 
     /* Only level1 of Power mode exists */
     if ((PowerMode != POWERMODE_STANDBY_LEVEL1) && (PowerMode != POWERMODE_IDLE_LEVEL1)) {
-      return LOG_ERROR(ERROR_MODE_NOT_SUPPORTED);
+      THROW(ERROR_MODE_NOT_SUPPORTED);
     }
 
     if (PowerMode == POWERMODE_STANDBY_LEVEL1) {
       /* set the standby level1 of power mode */
-      Error |= comm.WrByte(0x80, 0x00);
-      if (~Error) {
-        /* Set PAL State to standby */
-        PALDevDataSet(PalState, STATE_STANDBY);
-        PALDevDataSet(PowerMode, POWERMODE_STANDBY_LEVEL1);
-      }
+      comm.WrByte(0x80, 0x00);
+      /* Set PAL State to standby */
+      PALDevDataSet(PalState, STATE_STANDBY);
+      PALDevDataSet(PowerMode, POWERMODE_STANDBY_LEVEL1);
     } else { /* VL53L0X_POWERMODE_IDLE_LEVEL1 */
-      Error |= comm.WrByte(0x80, 0x00);
-      if (~Error) {
-        Error |= StaticInit();
-      }
-      if (~Error) {
+      comm.WrByte(0x80, 0x00);
+      if (StaticInit()) {
         PALDevDataSet(PowerMode, POWERMODE_IDLE_LEVEL1);
+      } else {
+        return false;
       }
     }
 
-    return ERROR_NONE;
+    return true;
   } // VL53L0X_SetPowerMode
 
   Erroneous<PowerModes> Api::GetPowerMode() {
@@ -210,19 +196,20 @@ namespace VL53L0X {
     return get_offset_calibration_data_micro_meter();
   }
 
-  Error Api::SetLinearityCorrectiveGain(int16_t LinearityCorrectiveGain) {
+  bool Api::SetLinearityCorrectiveGain(int16_t LinearityCorrectiveGain) {
     LOG_FUNCTION_START;
     if ((LinearityCorrectiveGain < 0) || (LinearityCorrectiveGain > 1000)) {
-      return ERROR_INVALID_PARAMS;
+      LOG_ERROR(ERROR_INVALID_PARAMS);
+      return false;
     }
     PALDevDataSet(LinearityCorrectiveGain, LinearityCorrectiveGain);
 
     if (LinearityCorrectiveGain != 1000) {
       /* Disable FW Xtalk */
-      return comm.Write(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, uint16_t(0));
+      comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, 0);
     }
 
-    return ERROR_NONE;
+    return true;
   } // VL53L0X_SetLinearityCorrectiveGain
 
   uint16_t Api::GetLinearityCorrectiveGain() {
@@ -240,7 +227,7 @@ namespace VL53L0X {
 /* Group PAL Init Functions */
   bool Api::SetDeviceAddress(uint8_t _8bitAddress) {
     LOG_FUNCTION_START;
-    Error |= comm.WrByte(REG_I2C_SLAVE_DEVICE_ADDRESS, _8bitAddress >> 1);
+    comm.WrByte(REG_I2C_SLAVE_DEVICE_ADDRESS, _8bitAddress >> 1);
     if (Error == ERROR_NONE) {
       comm.wirer.devAddr = _8bitAddress; // 7 bit addr
       return true;
@@ -255,17 +242,15 @@ namespace VL53L0X {
     /* by default the I2C is running at 1V8 if you want to change it you
      * need to include this define at compilation level. */
 #ifdef USE_I2C_2V8
-    Error |= comm.UpdateBit(REG_VHV_CONFIG_PAD_SCL_SDA__EXTSUP_HV, 0, true);//ick: former code had stupid value (clearing and setting the same bit) that worked only because of a fine hidden detail in UpdateByte
+    comm.UpdateBit(REG_VHV_CONFIG_PAD_SCL_SDA__EXTSUP_HV, 0, true);//ick: former code had stupid value (clearing and setting the same bit) that worked only because of a fine hidden detail in UpdateByte
 #endif
 
     /* Set I2C standard mode */
-    if (~Error) {
-      Error |= comm.WrByte(0x88, 0x00);
-    }
+    comm.WrByte(0x88, 0x00);
 
     /* read WHO_AM_I */
     uint8_t b;
-    Error |= comm.RdByte(0xC0, &b);
+    comm.RdByte(0xC0, &b);
     // Serial.print("WHOAMI: 0x"); Serial.println(b, HEX);
 
     /* read WHO_AM_I */
@@ -313,7 +298,7 @@ namespace VL53L0X {
 
     {
       auto magic = magicWrapper();
-      Error |= comm.RdByte(REG_SYSRANGE_stopper, &PALDevDataGet(StopVariable));
+      comm.RdByte(REG_SYSRANGE_stopper, &PALDevDataGet(StopVariable));
     }
     ERROR_OUT;
     /* Enable all check */
@@ -387,54 +372,57 @@ namespace VL53L0X {
     return ERROR_NONE;
   }
 
-  Error Api::StaticInit() {
+  bool Api::StaticInit() {
     LOG_FUNCTION_START;
 
-    Error |= get_info_from_device(InfoGroup::SpadStuff);
+    if (!get_info_from_device(InfoGroup::SpadStuff)) {
+      return false;
+    }
 
     /* set the ref spad from NVM */
     SpadCount ref = VL53L0X_GETDEVICESPECIFICPARAMETER(ReferenceSpad);
 
-    /* NVM value invalid
-     * two known types, 1 and 0, '1' has a max 32 spads, '0' has a max of 12
-     * */
+    /* check NVM value: two known types, 1 and 0, '1' has a max 32 spads, '0' has a max of 12 */
     if (ref.quantity > (ref.isAperture ? 32 : 12)) {//if true then invalid settings so compute correct ones
-      Error |= perform_ref_spad_management(ref);
+      if (!perform_ref_spad_management(ref)) {
+        return false;
+      }
     } else {
-      Error |= set_reference_spads(ref);
+      if (!set_reference_spads(ref)) {
+        return false;
+      }
     }
-    ERROR_OUT;
 
-    Error |= load_tuning_settings(GetTuningSettingBuffer());
-    ERROR_OUT;
+    if (!load_tuning_settings(GetTuningSettingBuffer())) {
+      return false;
+    }
     /* Set interrupt config to new sample ready */
-    Error |= SetGpioConfig(0, {DEVICEMODE_SINGLE_RANGING, GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
-    ERROR_OUT;
+    if (!SetGpioConfig(0, {DEVICEMODE_SINGLE_RANGING, GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW})) {
+      return false;
+    }
     Erroneous<FixPoint<4, 12>> fix412 = FFread<FixPoint<4, 12>>(RegSystem(0x84));
-    ERROR_OUT;
+
     VL53L0X_SETDEVICESPECIFICPARAMETER(OscFrequencyMHz, fix412.wrapped);//conversion from 412 to 1616 is inferred by compiler
 
 
-    /* After static init, some device parameters may be changed,
-     * so update them */
-    Erroneous<DeviceParameters_t> CurrentParameters = GetDeviceParameters();
-    ERROR_ON(CurrentParameters)
+    /* After static init, some device parameters may be changed, so update them */
+    auto CurrentParameters = GetDeviceParameters();
 
-    Erroneous<bool> fe = GetFractionEnable();
-    ERROR_ON(fe);
+    auto fe = GetFractionEnable();
     PALDevDataSet(RangeFractionalEnable, fe);
     PALDevDataSet(CurrentParameters, CurrentParameters);
 
     /* read the sequence config and save it */
     auto sse = get_SequenceConfig();
-    ERROR_ON(sse)
     PALDevDataSet(SequenceConfig, sse.wrapped);
 
     /* Disable MSRC and TCC by default */
-    Error |= SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
-    ERROR_OUT;
-    Error |= SetSequenceStepEnable(SEQUENCESTEP_MSRC, false);
-    ERROR_OUT;
+    if (!SetSequenceStepEnable(SEQUENCESTEP_TCC, false)) {
+      return false;
+    }
+    if (!SetSequenceStepEnable(SEQUENCESTEP_MSRC, false)) {
+      return false;
+    }
     /* Set PAL State to standby */
     PALDevDataSet(PalState, STATE_IDLE);
 
@@ -457,14 +445,14 @@ namespace VL53L0X {
     LOG_FUNCTION_START;
 //todo: error handling here is about as worthless as elsewhere
     /* Set reset bit */
-    Error |= comm.WrByte(REG_SOFT_RESET_GO2_SOFT_RESET_N, 0x00);
+    comm.WrByte(REG_SOFT_RESET_GO2_SOFT_RESET_N, 0x00);
 
     /* Wait for some time */
     if (!~Error) {
       Error |= waitOnResetIndicator(true);//ick: former code could hang on comm error, this quits
     }
     /* Release reset */
-    Error |= comm.WrByte(REG_SOFT_RESET_GO2_SOFT_RESET_N, 0x01);//ick: ignores error
+    comm.WrByte(REG_SOFT_RESET_GO2_SOFT_RESET_N, 0x01);//ick: ignores error
 
     /* Wait until correct boot-up of the device */
     if (!~Error) {
@@ -534,7 +522,7 @@ namespace VL53L0X {
   Error Api::SetRangeFractionEnable(bool Enable) {
     LOG_FUNCTION_START;
     Error(" %u", Enable);
-    Error |= comm.WrByte(REG_SYSTEM_RANGE_CONFIG, Enable);
+    comm.WrByte(REG_SYSTEM_RANGE_CONFIG, Enable);
     if (Error == ERROR_NONE) {
       PALDevDataSet(RangeFractionalEnable, Enable);
     }
@@ -556,9 +544,8 @@ namespace VL53L0X {
     return get_measurement_timing_budget_micro_seconds();
   }
 
-  Error Api::SetVcselPulsePeriod(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK) {
-    //todo: depending upon success of following call then call perform_phase_calibration
-
+  bool Api::SetVcselPulsePeriod(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK) {
+    //todo:0 depending upon success of following call then call perform_phase_calibration
     return set_vcsel_pulse_period(VcselPeriodType, VCSELPulsePeriodPCLK);
   }
 
@@ -567,33 +554,26 @@ namespace VL53L0X {
     return get_vcsel_pulse_period(VcselPeriodType);
   }
 
-  Error Api::SetSequenceStepEnable(SequenceStepId SequenceStepId, bool SequenceStepEnabled) {
+  void Api::SetSequenceStepEnable(SequenceStepId SequenceStepId, bool SequenceStepEnabled) {
     LOG_FUNCTION_START;
     unsigned bitnum = bitFor(SequenceStepId);
-    if (bitnum == ~0) {
-      return ERROR_INVALID_PARAMS;
-    }
     auto SequenceConfig = get_SequenceConfig();
-    if (SequenceConfig.isOk()) {
-      uint8_t SequenceConfigNew = SequenceConfig;
-      setBit(bitnum, SequenceConfigNew, SequenceStepEnabled);
-      if (SequenceStepId == SEQUENCESTEP_DSS) {//legacy weirdness, set bit 5 in tandem wtih bit for DSS
-        setBit<5>(SequenceConfigNew, SequenceStepEnabled);
-      }
-
-      if (SequenceConfigNew != SequenceConfig) {
-        /* Apply New Setting */
-        Error |= comm.WrByte(REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfigNew);
-        if (Error == ERROR_NONE) {
-          PALDevDataSet(SequenceConfig, SequenceConfigNew);
-          /* Recalculate timing budget */
-          uint32_t MeasurementTimingBudgetMicroSeconds = VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds);
-          SetMeasurementTimingBudgetMicroSeconds(MeasurementTimingBudgetMicroSeconds);
-        }
-      }
+    uint8_t SequenceConfigNew = SequenceConfig;
+    setBit(bitnum, SequenceConfigNew, SequenceStepEnabled);
+    if (SequenceStepId == SEQUENCESTEP_DSS) {//legacy weirdness, set bit 5 in tandem wtih bit for DSS
+      setBit<5>(SequenceConfigNew, SequenceStepEnabled);
     }
 
-    return Error;
+    if (SequenceConfigNew != SequenceConfig) {
+      /* Apply New Setting */
+      comm.WrByte(REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfigNew);
+      PALDevDataSet(SequenceConfig, SequenceConfigNew);
+      /* Recalculate timing budget */
+      PALDevDataSet(SequenceConfig, SequenceConfigNew);
+      uint32_t MeasurementTimingBudgetMicroSeconds = VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds);
+      SetMeasurementTimingBudgetMicroSeconds(MeasurementTimingBudgetMicroSeconds);
+      //todo: check above. IDE scrambled.
+    }
   } // VL53L0X_SetSequenceStepEnable
 
   SequenceStepId Api::GetNumberOfSequenceSteps() {
@@ -604,7 +584,7 @@ namespace VL53L0X {
     return sequence_steps_info(SequenceStepId);
   } // GetSequenceStepsInfo
 
-  Error Api::SetSequenceStepTimeout(SequenceStepId SequenceStepId, FixPoint1616_t TimeOutMilliSecs) {
+  bool Api::SetSequenceStepTimeout(SequenceStepId SequenceStepId, FixPoint1616_t TimeOutMilliSecs) {
     LOG_FUNCTION_START;
     /* Read back the current value in case we need to revert back to this.  */
     auto OldTimeOutMicroSeconds = get_sequence_step_timeout(SequenceStepId);
@@ -628,7 +608,7 @@ namespace VL53L0X {
     return Error;
   } // VL53L0X_SetSequenceStepTimeout
 
-  Erroneous<FixPoint1616_t> Api::GetSequenceStepTimeout(SequenceStepId SequenceStepId) {
+  FixPoint1616_t Api::GetSequenceStepTimeout(SequenceStepId SequenceStepId) {
     LOG_FUNCTION_START;
 
     auto TimeoutMicroSeconds = get_sequence_step_timeout(SequenceStepId);
@@ -639,31 +619,26 @@ namespace VL53L0X {
     }
   } // GetSequenceStepTimeout
 
-  Error Api::SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds) {
+  void Api::SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds) {
     LOG_FUNCTION_START;
     uint16_t osc_calibrate_val;
-    Error |= comm.RdWord(REG_OSC_CALIBRATE_VAL, &osc_calibrate_val);
-    ERROR_OUT;
+    comm.RdWord(REG_OSC_CALIBRATE_VAL, &osc_calibrate_val);
+
     uint32_t IMPeriodMilliSeconds = (osc_calibrate_val != 0) ? InterMeasurementPeriodMilliSeconds * osc_calibrate_val : InterMeasurementPeriodMilliSeconds;
-    Error |= comm.WrDWord(REG_SYSTEM_INTERMEASUREMENT_PERIOD, IMPeriodMilliSeconds);
-    ERROR_OUT;
-    return Error;
+    comm.WrDWord(REG_SYSTEM_INTERMEASUREMENT_PERIOD, IMPeriodMilliSeconds);
   } // VL53L0X_SetInterMeasurementPeriodMilliSeconds
 
-  Erroneous<uint32_t> Api::GetInterMeasurementPeriodMilliSeconds() {
+  uint32_t Api::GetInterMeasurementPeriodMilliSeconds() {
     LOG_FUNCTION_START;
-    Erroneous<uint16_t> osc_calibrate_val;
-    if (fetch(osc_calibrate_val, REG_OSC_CALIBRATE_VAL)) {
-      Erroneous<uint32_t> IMPeriodMilliSeconds;
-      if (fetch(IMPeriodMilliSeconds, REG_SYSTEM_INTERMEASUREMENT_PERIOD)) {
-        auto ratio = roundedDivide(IMPeriodMilliSeconds.wrapped, osc_calibrate_val);
-        if (ratio != 0) {//presuming due to div by zero
-          VL53L0X_SETPARAMETERFIELD(InterMeasurementPeriodMilliSeconds, ratio);
-        }
-        return ratio;
-      }
+    uint16_t osc_calibrate_val;
+    fetch(osc_calibrate_val, REG_OSC_CALIBRATE_VAL);
+    uint32_t IMPeriodMilliSeconds;
+    fetch(IMPeriodMilliSeconds, REG_SYSTEM_INTERMEASUREMENT_PERIOD);
+    auto ratio = roundedDivide(IMPeriodMilliSeconds, osc_calibrate_val);
+    if (ratio != 0) {//presuming due to div by zero
+      VL53L0X_SETPARAMETERFIELD(InterMeasurementPeriodMilliSeconds, ratio);
     }
-    return {osc_calibrate_val.error};
+    return ratio;
   } // GetInterMeasurementPeriodMilliSeconds
 
 
@@ -672,38 +647,31 @@ namespace VL53L0X {
     return VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
   } // GetXTalkCompensationEnable
 
-  Error Api::SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps) {
+  bool Api::SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps) {
     LOG_FUNCTION_START;
-    bool xtcEnable = GetXTalkCompensationEnable();
-    uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
-
-    if (!xtcEnable) { /* disabled write only internal value */
-      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
-    } else {
+    if (GetXTalkCompensationEnable()) {
+      uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
       FixPoint<3, 13> data = (LinearityCorrectiveGain == 1000) ? XTalkCompensationRateMegaCps : FixPoint1616_t(0);
-      Error |= comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, data);
-      if (Error == ERROR_NONE) {
-        VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
-      }
+      comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, data);
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
+    } else { /* disabled write only internal value */
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
     }
-    return Error;
+    return true;
   } // VL53L0X_SetXTalkCompensationRateMegaCps
 
   Erroneous<FixPoint1616_t> Api::GetXTalkCompensationRateMegaCps() {
     LOG_FUNCTION_START;
-    Erroneous<FixPoint<3, 13>> Value;
-    if (fetch(Value, REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS)) {
-      if (Value.wrapped.raw == 0) {
-        /* the Xtalk is disabled, return value from memory */
-        VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, false);
-      } else {
-        VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, true);
-        VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, Value.wrapped);
-      }
-      return VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
+    FixPoint<3, 13> Value;
+    fetch(Value.raw, REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS);
+    if (Value.raw == 0) {
+      /* the Xtalk is disabled, return value from memory */
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, false);
     } else {
-      return {Value.error};
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, true);
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, Value);
     }
+    return VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
   } // GetXTalkCompensationRateMegaCps
 
   Error Api::SetRefCalibration(CalibrationParameters p) {
@@ -728,17 +696,16 @@ namespace VL53L0X {
     return limit_check_info(LimitCheckId);
   }
 
-  Erroneous<bool> Api::GetLimitCheckStatus(CheckEnable LimitCheckId) {
+  bool Api::GetLimitCheckStatus(CheckEnable LimitCheckId) {
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
-      return {false, LOG_ERROR(ERROR_INVALID_PARAMS)};
-    } else {
-      return Data.CurrentParameters.LimitChecksStatus[LimitCheckId];
+      THROW(ERROR_INVALID_PARAMS);
     }
+    return Data.CurrentParameters.LimitChecksStatus[LimitCheckId];
   } // GetLimitCheckStatus
 
-  Error Api::SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable) {
+  bool Api::SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable) {
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
-      return LOG_ERROR(ERROR_INVALID_PARAMS);
+      THROW(ERROR_INVALID_PARAMS);
     }
 
     LOG_FUNCTION_START;
@@ -749,50 +716,36 @@ namespace VL53L0X {
 
     switch (LimitCheckId) {
       case CHECKENABLE_SIGMA_FINAL_RANGE:
+      case CHECKENABLE_SIGNAL_REF_CLIP:
+      case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
         /* internal computation: */
-        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, CHECKENABLE_SIGMA_FINAL_RANGE, LimitCheckEnable);
+        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, LimitCheckEnable);
         break;
 
       case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
-        Error |= comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, TempFix1616);
-        break;
-
-      case CHECKENABLE_SIGNAL_REF_CLIP:
-        /* internal computation: */
-        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, CHECKENABLE_SIGNAL_REF_CLIP, LimitCheckEnable);
-        break;
-
-      case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
-        /* internal computation: */
-        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, CHECKENABLE_RANGE_IGNORE_THRESHOLD, LimitCheckEnable);
+        comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, TempFix1616);
         break;
 
       case CHECKENABLE_SIGNAL_RATE_MSRC:
-        Error |= comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), LimitCheckDisable ? Bitter(1) : 0);//BUG:clear lsb set bit 1
+        comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), LimitCheckDisable ? Bitter(1) : 0);//BUG:clear lsb set bit 1
         break;
 
       case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-        Error |= comm.UpdateBit(REG_MSRC_CONFIG_CONTROL, 4, LimitCheckDisable);
+        comm.UpdateBit(REG_MSRC_CONFIG_CONTROL, 4, LimitCheckDisable);
         break;
 
       default:
-        return ERROR_INVALID_PARAMS;
+        THROW(ERROR_INVALID_PARAMS);
     } // switch
 
-
-    if (Error == ERROR_NONE) {
-      VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, LimitCheckEnable);
-    }
-    return Error;
+    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, LimitCheckEnable);
+    return true;
   } // VL53L0X_SetLimitCheckEnable
 
 
-  Error Api::SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue) {
+  void Api::SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue) {
     LOG_FUNCTION_START;
-    auto Temp8 = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId);
-    if (Temp8 == 0) { /* disabled write only internal value */
-      VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId, LimitCheckValue);
-    } else {
+    if (VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId)) {
       switch (LimitCheckId) {
         case CHECKENABLE_SIGMA_FINAL_RANGE:
         case CHECKENABLE_SIGNAL_REF_CLIP:
@@ -800,21 +753,17 @@ namespace VL53L0X {
           //these three don't go to the device
           break;
         case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
-          Error |= comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
+          comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
           break;
         case CHECKENABLE_SIGNAL_RATE_MSRC:
         case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-          Error |= comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
+          comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
           break;
         default:
-          return ERROR_INVALID_PARAMS;
+          THROW (ERROR_INVALID_PARAMS);
       } // switch
-
-      if (Error == ERROR_NONE) {
-        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId, LimitCheckValue);
-      }
     }
-    return Error;
+    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId, LimitCheckValue);
   } // VL53L0X_SetLimitCheckValue
 
 
@@ -850,14 +799,12 @@ namespace VL53L0X {
 /*
  * WRAPAROUND Check
  */
-  Error Api::SetWrapAroundCheckEnable(bool WrapAroundCheckEnable) {
+  void Api::SetWrapAroundCheckEnable(bool WrapAroundCheckEnable) {
     LOG_FUNCTION_START;
     bool WrapAroundCheckEnableInt = WrapAroundCheckEnable != 0;//in case someone somehow circumvented compiler checks
-    Error |= comm.UpdateBit(REG_SYSTEM_SEQUENCE_CONFIG, 7, WrapAroundCheckEnableInt);
-    ERROR_OUT;
+    comm.UpdateBit(REG_SYSTEM_SEQUENCE_CONFIG, 7, WrapAroundCheckEnableInt);
     setBit<7>(Data.SequenceConfig, WrapAroundCheckEnableInt);
     VL53L0X_SETPARAMETERFIELD(WrapAroundCheckEnable, WrapAroundCheckEnableInt);
-    return ERROR_NONE;
   } // VL53L0X_SetWrapAroundCheckEnable
 
   Erroneous<bool> Api::GetWrapAroundCheckEnable() {
@@ -926,12 +873,12 @@ namespace VL53L0X {
   } // VL53L0X_PerformSingleMeasurement
 
 
-  Erroneous<Api::CalibrationParameters> Api::PerformRefCalibration() {
+  Api::CalibrationParameters Api::PerformRefCalibration() {
     LOG_FUNCTION_START;
     return perform_ref_calibration(true);
   }
 
-  Erroneous<FixPoint1616_t> Api::PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance) {
+  bool Api::PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance) {
     LOG_FUNCTION_START;
     return perform_xtalk_calibration(XTalkCalDistance);
   }
@@ -941,129 +888,105 @@ namespace VL53L0X {
     return perform_offset_calibration(CalDistanceMilliMeter);
   }
 
-  Error Api::CheckAndLoadInterruptSettings(bool StartNotStopFlag) {
-    ErrorAccumulator Error = ERROR_NONE;
-
+  bool Api::CheckAndLoadInterruptSettings(bool StartNotStopFlag) {
     uint8_t InterruptConfig = VL53L0X_GETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality);
 
     if ((InterruptConfig == GPIOFUNCTIONALITY_THRESHOLD_CROSSED_LOW) ||
         (InterruptConfig == GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH) ||
         (InterruptConfig == GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT)) {
-      RangeWindow Threshold;
-      Error = GetInterruptThresholds(DEVICEMODE_CONTINUOUS_RANGING, Threshold);
-      ERROR_OUT;
+      RangeWindow Threshold = GetInterruptThresholds(DEVICEMODE_CONTINUOUS_RANGING);
       FixPoint1616_t BigEough(255.0F);//was 255 * 65536 which is the same as 255.0
       if ((Threshold.Low > BigEough) || (Threshold.High > BigEough)) {
         if (StartNotStopFlag) {
-          Error = load_tuning_settings(InterruptThresholdSettings);
+          load_tuning_settings(InterruptThresholdSettings);//todo: check error
         } else {
-          Error |= comm.WrByte(0xFF, 0x04);
-          Error |= comm.WrByte(0x70, 0x00);
-          Error |= comm.WrByte(0xFF, 0x00);
-          Error |= comm.WrByte(0x80, 0x00);
+          comm.WrByte(0xFF, 0x04);
+          comm.WrByte(0x70, 0x00);
+          comm.WrByte(0xFF, 0x00);
+          comm.WrByte(0x80, 0x00);
         }
       }
     }
 
-    return Error;
+    return true;
   } // VL53L0X_CheckAndLoadInterruptSettings
 
-  Error Api::StartMeasurement() {
+  bool Api::StartMeasurement() {
     LOG_FUNCTION_START;
 
     DeviceModes DeviceMode = GetDeviceMode();
-
     {
       auto popper = magicWrapper();
-      Error |= comm.WrByte(REG_SYSRANGE_stopper, PALDevDataGet(StopVariable));
+      comm.WrByte(REG_SYSRANGE_stopper, PALDevDataGet(StopVariable));
     }
-    ERROR_OUT;
     switch (DeviceMode) {
       case DEVICEMODE_SINGLE_RANGING:
-        Error |= comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | REG_SYSRANGE_MODE_SINGLESHOT);
-        if (Error == ERROR_NONE) {
-          /* Wait until start bit has been cleared */
-          for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {
-            Erroneous<uint8_t> flags;
-            fetch(flags, REG_SYSRANGE_START);
-            ERROR_ON(flags);
-            if (getBit<0>(flags.wrapped) == 0) {
-              return ERROR_NONE;
-            }
+        comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | REG_SYSRANGE_MODE_SINGLESHOT);
+        /* Wait until start bit has been cleared */
+        for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {
+          Erroneous<uint8_t> flags;
+          fetch(flags, REG_SYSRANGE_START);
+          if (getBit<0>(flags.wrapped) == 0) {
+            return true;
           }
-          return ERROR_TIME_OUT;
         }
-        break;
+        return LOG_ERROR(ERROR_TIME_OUT);
       case DEVICEMODE_CONTINUOUS_RANGING: /* Back-to-back mode */
         /* Check if need to apply interrupt settings */
-        Error |= Api::CheckAndLoadInterruptSettings(1);
-        Error |= comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_BACKTOBACK);
-        if (Error == ERROR_NONE) {
+        if (Api::CheckAndLoadInterruptSettings(1)) {
+          comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_BACKTOBACK);
           /* Set PAL State to Running */
           PALDevDataSet(PalState, STATE_RUNNING);
+          return true;
         }
         break;
       case DEVICEMODE_CONTINUOUS_TIMED_RANGING:   /* Continuous mode
          * Check if need to apply interrupt settings*/
-        Error |= Api::CheckAndLoadInterruptSettings(1);
-        Error |= comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_TIMED);
-        if (Error == ERROR_NONE) {
+        if (Api::CheckAndLoadInterruptSettings(1)) {
+          comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_TIMED);
           /* Set PAL State to Running */
           PALDevDataSet(PalState, STATE_RUNNING);
+          return true;
         }
         break;
       default:
         /* Selected mode not supported */
-        return ERROR_MODE_NOT_SUPPORTED;
+        return false;
     } // switch
 
-
-    return Error;
+    return false;
   } // VL53L0X_StartMeasurement
 
-  Error Api::StopMeasurement() {
+  bool Api::StopMeasurement() {
     LOG_FUNCTION_START;
 
-    Error |= comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_SINGLESHOT);
+    comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_SINGLESHOT);
     {
       auto popper = MagicDuo(comm);
-      Error |= comm.WrByte(REG_SYSRANGE_stopper, 0x00);
+      comm.WrByte(REG_SYSRANGE_stopper, 0x00);
     }
 
-    ERROR_OUT;
     /* Set PAL State to Idle */
     PALDevDataSet(PalState, STATE_IDLE);
     /* Check if need to apply interrupt settings */
-    Error |= CheckAndLoadInterruptSettings(0);
-    return Error;
+    return CheckAndLoadInterruptSettings(0);
   } // VL53L0X_StopMeasurement
 
 
-  Erroneous<bool> Api::GetMeasurementDataReady() {
+  bool Api::GetMeasurementDataReady() {
     LOG_FUNCTION_START;
     uint8_t InterruptConfig = VL53L0X_GETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality);
 
     if (InterruptConfig == GPIOFUNCTIONALITY_NEW_MEASURE_READY) {
-      Erroneous<uint8_t> mask = GetInterruptMaskStatus();
-      if (mask.isOk()) {
-        return mask == GPIOFUNCTIONALITY_NEW_MEASURE_READY;
-      } else {
-        return {mask.error};
-      }
+      auto mask = GetInterruptMaskStatus();
+      return mask == GPIOFUNCTIONALITY_NEW_MEASURE_READY;//todo: see if magic bits should be masked here
     } else {
-      Erroneous<uint8_t> SysRangeStatusRegister;
+      uint8_t SysRangeStatusRegister;
       fetch(SysRangeStatusRegister, REG_RESULT_RANGE_STATUS);
-      if (SysRangeStatusRegister.isOk()) {
-        return getBit<0>(SysRangeStatusRegister.wrapped);
-      } else {
-        return {false, SysRangeStatusRegister.error};
-      }
+      return getBit<0>(SysRangeStatusRegister);
     }
   } // GetMeasurementDataReady
 
-  Error Api::WaitDeviceReadyForNewMeasurement(unsigned MaxLoop) {
-    VL53L0X_NYI
-  }
 
   Error Api::GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START;
@@ -1075,8 +998,7 @@ namespace VL53L0X {
      */
 
     uint8_t localBuffer[12];
-    Error |= comm.ReadMulti(0x14, localBuffer, 12);
-    ERROR_OUT;
+    comm.ReadMulti(0x14, localBuffer, 12);
 
     pRangingMeasurementData.ZoneId = 0;    /* Only one zone */
     pRangingMeasurementData.TimeStamp = 0; /* Not Implemented */
@@ -1146,26 +1068,23 @@ namespace VL53L0X {
     return PALDevDataGet(LastSignalRefMcps);
   }
 
-  Error Api::PerformSingleRangingMeasurement(RangingMeasurementData_t &pRangingMeasurementData) {
+  bool Api::PerformSingleRangingMeasurement(RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START;
     /* This function will do a complete single ranging
      * Here we fix the mode! */
-    Error |= SetDeviceMode(DEVICEMODE_SINGLE_RANGING);
-    ERROR_OUT;
-    Error |= PerformSingleMeasurement();
-    ERROR_OUT;
-    Error |= GetRangingMeasurementData(pRangingMeasurementData);
-    ERROR_OUT;
-    Error |= ClearInterruptMask(0);
-
-    return Error;
+    SetDeviceMode(DEVICEMODE_SINGLE_RANGING);
+    if (PerformSingleMeasurement()) {
+      GetRangingMeasurementData(pRangingMeasurementData);
+      return ClearInterruptMask(0);
+    }
+    return false;
   } // VL53L0X_PerformSingleRangingMeasurement
 
-  Error Api::SetNumberOfROIZones(uint8_t NumberOfROIZones) {
+  bool Api::SetNumberOfROIZones(uint8_t NumberOfROIZones) {
     if (NumberOfROIZones != 1) {
       return LOG_ERROR(ERROR_INVALID_PARAMS);
     }
-    return ERROR_NONE;
+    return true;
   } // VL53L0X_SetNumberOfROIZones
 
   unsigned Api::GetNumberOfROIZones() {
@@ -1190,35 +1109,35 @@ namespace VL53L0X {
         return comm.WrByte(REG_GPIO_HV_MUX_ACTIVE_HIGH, (gpioConfig.polarity == INTERRUPTPOLARITY_LOW) ? Bitter(4) : 1);//ick: elsewhere does an update
       case DEVICEMODE_GPIO_OSC:
 
-        Error |= comm.WrByte(0xff, 0x01);
-        Error |= comm.WrByte(0x00, 0x00);
-        Error |= comm.WrByte(0xff, 0x00);
+        comm.WrByte(0xff, 0x01);
+        comm.WrByte(0x00, 0x00);
+        comm.WrByte(0xff, 0x00);
 
-        Error |= comm.WrByte(0x80, 0x01);
-        Error |= comm.WrByte(0x85, 0x02);
+        comm.WrByte(0x80, 0x01);
+        comm.WrByte(0x85, 0x02);
 
-        Error |= comm.WrByte(0xff, 0x04);
-        Error |= comm.WrByte(0xcd, 0x00);
-        Error |= comm.WrByte(0xcc, 0x11);
+        comm.WrByte(0xff, 0x04);
+        comm.WrByte(0xcd, 0x00);
+        comm.WrByte(0xcc, 0x11);
 
-        Error |= comm.WrByte(0xff, 0x07);
-        Error |= comm.WrByte(0xbe, 0x00);
+        comm.WrByte(0xff, 0x07);
+        comm.WrByte(0xbe, 0x00);
 
-        Error |= comm.WrByte(0xff, 0x06);
-        Error |= comm.WrByte(0xcc, 0x09);
+        comm.WrByte(0xff, 0x06);
+        comm.WrByte(0xcc, 0x09);
 
-        Error |= comm.WrByte(0xff, 0x00);
-        Error |= comm.WrByte(0xff, 0x01);
-        Error |= comm.WrByte(0x00, 0x00);
+        comm.WrByte(0xff, 0x00);
+        comm.WrByte(0xff, 0x01);
+        comm.WrByte(0x00, 0x00);
         break;
       default:
         if (!valid(gpioConfig.function)) {
           return ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED;
         } // switch
 
-        Error |= comm.WrByte(REG_SYSTEM_INTERRUPT_CONFIG_GPIO, gpioConfig.function);
+        comm.WrByte(REG_SYSTEM_INTERRUPT_CONFIG_GPIO, gpioConfig.function);
         ERROR_OUT;
-        Error |= comm.UpdateBit(REG_GPIO_HV_MUX_ACTIVE_HIGH, 4, gpioConfig.polarity == INTERRUPTPOLARITY_HIGH);
+        comm.UpdateBit(REG_GPIO_HV_MUX_ACTIVE_HIGH, 4, gpioConfig.polarity == INTERRUPTPOLARITY_HIGH);
         ERROR_OUT;
         VL53L0X_SETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality, gpioConfig.function);
         ERROR_OUT;
@@ -1258,109 +1177,105 @@ namespace VL53L0X {
   } // GetGpioConfig
 
 
-  Error Api::set_threshold(RegSystem index, FixPoint1616_t ThresholdLow) {
+  void Api::set_threshold(RegSystem index, FixPoint1616_t ThresholdLow) {
     /* no dependency on DeviceMode for Ewok
    * Need to divide by 2 because the FW will apply a x2*/
     uint16_t Threshold16 = ThresholdLow.scaled(17) & Mask<11, 0>::shifted;
-    return comm.WrWord(index, Threshold16);
+    comm.WrWord(index, Threshold16);
   }
 
-  Erroneous<FixPoint1616_t> Api::get_threshold(RegSystem index) {
+  FixPoint1616_t Api::get_threshold(RegSystem index) {
     uint16_t Threshold12;
-    ErrorAccumulator Error = comm.RdWord(REG_SYSTEM_THRESH_LOW, &Threshold12);
-    ERROR_OUT;
+    comm.RdWord(REG_SYSTEM_THRESH_LOW, &Threshold12);
     /* Need to multiply by 2 because the FW will apply a x2 */
     return FixPoint1616_t(getBits<11, 0>(Threshold12) << 17, 1);
   }
 
-  Error Api::SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold) {
+  void Api::SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold) {
     LOG_FUNCTION_START;
     /* no dependency on DeviceMode for Ewok
      * Need to divide by 2 because the FW will apply a x2*/
-    Error |= set_threshold(REG_SYSTEM_THRESH_LOW, Threshold.Low);
-    ERROR_OUT;
-    return set_threshold(REG_SYSTEM_THRESH_HIGH, Threshold.High);
+    set_threshold(REG_SYSTEM_THRESH_LOW, Threshold.Low);
+    set_threshold(REG_SYSTEM_THRESH_HIGH, Threshold.High);
   } // VL53L0X_SetInterruptThresholds
 
-  Error Api::GetInterruptThresholds(DeviceModes DeviceMode, RangeWindow &pThreshold) {
+  Api::RangeWindow Api::GetInterruptThresholds(DeviceModes DeviceMode) {
     LOG_FUNCTION_START;
     /* no dependency on DeviceMode for Ewok */
-    pThreshold.Low = get_threshold(REG_SYSTEM_THRESH_LOW);//todo: restore checking errors
+    RangeWindow pThreshold;
+    pThreshold.Low = get_threshold(REG_SYSTEM_THRESH_LOW);
     pThreshold.High = get_threshold(REG_SYSTEM_THRESH_HIGH);
-    return Error;
+    return pThreshold;
   } // GetInterruptThresholds
 
-  Erroneous<uint8_t> Api::GetStopCompletedStatus() {
+  uint8_t Api::GetStopCompletedStatus() {
     LOG_FUNCTION_START;
 
-    Erroneous<uint8_t> Byte;
+    uint8_t Byte;
     {//must close before going onto writing 0x91
-      auto pager = autoCloser(Private_Pager, 1, 0);
+      auto pager = push(Private_Pager, 1, 0);
       fetch(Byte, Private_04);
     }
-
-    if (Byte.isOk() && Byte == 0) {
+    if (Byte == 0) {
       auto magic = magicWrapper();
-      comm.WrByte(REG_SYSRANGE_stopper, PALDevDataGet(StopVariable));//ick: error ignored
+      comm.WrByte(REG_SYSRANGE_stopper, PALDevDataGet(StopVariable));
     }
-
     return Byte;
   } // GetStopCompletedStatus
 
 /* Group PAL Interrupt Functions */
-  Error Api::ClearInterruptMask(uint32_t InterruptMask) {
+  bool Api::ClearInterruptMask(uint32_t InterruptMask) {
     LOG_FUNCTION_START;
     /* clear bit 0 range interrupt, bit 1 error interrupt */
     for (unsigned LoopCount = 3; LoopCount-- > 0;) {
-      Error |= comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 1);
-      Error |= comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 0);
+      comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 1);
+      comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 0);
       uint8_t Byte;
-      Error |= comm.RdByte(REG_RESULT_INTERRUPT_STATUS, &Byte);
-      ERROR_OUT;
+      comm.RdByte(REG_RESULT_INTERRUPT_STATUS, &Byte);
+
       if (getBits<2, 0>(Byte) == 0) { //ick: elsewhere bits 4,3 are also looked at.
-        return ERROR_NONE;
+        return true;
       }
     }
-    return ERROR_INTERRUPT_NOT_CLEARED;
+    return false;
   } // ClearInterruptMask
 
-  Erroneous<uint8_t> Api::GetInterruptMaskStatus() {
+  uint8_t Api::GetInterruptMaskStatus() {
     LOG_FUNCTION_START;
-    Erroneous<uint8_t> mask;
-
+    uint8_t mask;
     fetch(mask, REG_RESULT_INTERRUPT_STATUS);
-    EXIT_ON(mask)
-    if (getBits<4, 3>(mask.wrapped)) {//if either bit? what are each of them?
-      return ERROR_RANGE_ERROR;
-    }
-    mask.wrapped &= Mask<2, 0>::places;
+//todo: this must be duplicated at each caller's site
+//    if (getBits<4, 3>(mask.wrapped)) {//if either bit? what are each of them?
+//      return ERROR_RANGE_ERROR;
+//    }
+//    mask &= Mask<2, 0>::places;
     return mask;
   } // GetInterruptMaskStatus
 
-  Error Api::EnableInterruptMask(uint32_t InterruptMask) {
-    VL53L0X_NYI
+  bool Api::EnableInterruptMask(uint32_t InterruptMask) {
+    VL53L0X_NYI(false);
   }
 
 /* End Group PAL Interrupt Functions */
 
 /* Group SPAD functions */
 
-  Error Api::SetSpadAmbientDamperThreshold(uint16_t SpadAmbientDamperThreshold) {
+  void Api::SetSpadAmbientDamperThreshold(uint16_t SpadAmbientDamperThreshold) {
     LOG_FUNCTION_START;
-    return FFwrap(RegSystem(0x40), SpadAmbientDamperThreshold);
+    FFwrap(RegSystem(0x40), SpadAmbientDamperThreshold);
   } // VL53L0X_SetSpadAmbientDamperThreshold
 
-  Erroneous<uint16_t> Api::GetSpadAmbientDamperThreshold() {
+  uint16_t Api::GetSpadAmbientDamperThreshold() {
     LOG_FUNCTION_START;
     return FFread<uint16_t>(RegSystem(0x40));
   } // GetSpadAmbientDamperThreshold
 
-  Error Api::SetSpadAmbientDamperFactor(uint16_t SpadAmbientDamperFactor) {
+  void Api::SetSpadAmbientDamperFactor(uint16_t SpadAmbientDamperFactor) {
     LOG_FUNCTION_START;
-    return FFwrap(RegSystem(0x42), uint8_t(SpadAmbientDamperFactor));
+    FFwrap(RegSystem(0x42), uint8_t(SpadAmbientDamperFactor));
   } // VL53L0X_SetSpadAmbientDamperFactor
 
-  Erroneous<uint8_t> Api::GetSpadAmbientDamperFactor() {
+  uint8_t Api::GetSpadAmbientDamperFactor() {
     LOG_FUNCTION_START;
     return FFread<uint8_t>(RegSystem(0x42));
   } // GetSpadAmbientDamperFactor
@@ -1370,8 +1285,8 @@ namespace VL53L0X {
 /*****************************************************************************
 * Internal functions
 *****************************************************************************/
-
-  Error Api::perform_ref_spad_management(SpadCount &ref) {
+//todo: nonblocking version
+  bool Api::perform_ref_spad_management(SpadCount &ref) {
 
     /*
      * The reference SPAD initialization procedure determines the minimum
@@ -1407,17 +1322,13 @@ namespace VL53L0X {
     Data.SpadData.RefSpadEnables.clear();
 
     {
-      SysPopper Error = push(0xFF, 0x01, 0x00);
-      Error |= comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
-      ERROR_OUT;
-      Error |= comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
-      ERROR_OUT;
+      SysPopper ffer = push(0xFF, 0x01, 0x00);
+      comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
+      comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
     }
 
-    ErrorAccumulator Error = comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
-    ERROR_OUT;
-    Error = comm.WrByte(REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
-    ERROR_OUT;
+    comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
+    comm.WrByte(REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
     /* Perform ref calibration */
     auto p = perform_ref_calibration(false);//ick: PhaseCal value then ignored. ditto for VhvSettings
     if (!p.isOk()) {
@@ -1431,10 +1342,15 @@ namespace VL53L0X {
     sc.quantity = minimumSpadCount;
 
     auto lastSpadIndex = enable_ref_spads(sc, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
-    ERROR_ON(lastSpadIndex);
-    currentSpadIndex = lastSpadIndex.wrapped;
-    Erroneous<uint16_t> peakSignalRateRef = perform_ref_signal_measurement();
-    ERROR_OUT;
+    if (!lastSpadIndex.isValid()) {
+      return false;
+    }
+    currentSpadIndex = lastSpadIndex;
+
+    auto peakSignalRateRef = perform_ref_signal_measurement(0);
+    if (peakSignalRateRef == 0) {//todo: learn if 0 is acceptible here.
+      return false;
+    }
 
     if (peakSignalRateRef > targetRefRate) { /* Signal rate measurement too high, switch to APERTURE SPADs */
       Data.SpadData.RefSpadEnables.clear();
@@ -1449,48 +1365,40 @@ namespace VL53L0X {
 
       lastSpadIndex = enable_ref_spads(sc, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
 
-      if (Error == ERROR_NONE) {
+      if (lastSpadIndex.isValid()) {
         currentSpadIndex = lastSpadIndex;
-        peakSignalRateRef = perform_ref_signal_measurement();
-
-        if ((Error == ERROR_NONE) &&
-            (peakSignalRateRef > targetRefRate)) {
-          /* Signal rate still too high after
-           * setting the minimum number of
-           * APERTURE spads. Can do no more
-           * therefore set the min number of
-           * aperture spads as the result.
-           */
+        peakSignalRateRef = perform_ref_signal_measurement(0);
+        if (peakSignalRateRef == 0) {
+          return false;
+        }
+        if (peakSignalRateRef > targetRefRate) {
+          /* Signal rate still too high after setting the minimum number of APERTURE spads.
+           * Can do no more therefore set the min number of aperture spads as the result. */
           sc.isAperture = true;
           sc.quantity = minimumSpadCount;
         }
       }
     } else {
       ref.isAperture = false;//but we ERROR_OUT so why this lingering assign? changed to ref object instead of internal one
-      ERROR_OUT;
+      return false;//todo: check original source
     }
     if (peakSignalRateRef < targetRefRate) {
-/* At this point, the minimum number of either aperture
- * or non-aperture spads have been set. Proceed to add
- * spads and perform measurements until the target
- * reference is reached.
- */
+/* At this point, the minimum number of either aperture or non-aperture spads have been set.
+ * Proceed to add spads and perform measurements until the target reference is reached. */
 //      sc.isAperture = needAptSpads;
       sc.quantity = minimumSpadCount;//perhaps superfluous
 
       SpadArray lastSpadArray = Data.SpadData.RefSpadEnables;
 
-      uint32_t lastSignalRateDiff = abs(peakSignalRateRef.wrapped - targetRefRate);
-      uint8_t complete = 0;
+      uint32_t lastSignalRateDiff = abs(peakSignalRateRef - targetRefRate);
+      bool complete = false;
       while (!complete) {
         SpadArray::Index nextGoodSpad = get_next_good_spad(Data.SpadData.RefGoodSpadMap, currentSpadIndex);
         if (!nextGoodSpad.isValid()) {
           return ERROR_REF_SPAD_INIT;
         }
         ++sc.quantity;
-/* Cannot combine Aperture and Non-Aperture spads, so
- * ensure the current spad is of the correct type.
- */
+/* Cannot combine Aperture and Non-Aperture spads, so ensure the current spad is of the correct type. */
         if ((startSelect + nextGoodSpad).is_aperture() != sc.isAperture) {
           return ERROR_REF_SPAD_INIT;
         }
@@ -1498,22 +1406,21 @@ namespace VL53L0X {
         currentSpadIndex = nextGoodSpad;
         Data.SpadData.RefSpadEnables.enable(currentSpadIndex);
         ++currentSpadIndex;//post ++ not coded
-/* Proceed to apply the additional spad and
- * perform measurement. */
-        Error = set_ref_spad_map(Data.SpadData.RefSpadEnables);
-
-        ERROR_OUT;
-        peakSignalRateRef = perform_ref_signal_measurement();
-        ERROR_ON(peakSignalRateRef);
-        uint32_t signalRateDiff = abs(peakSignalRateRef.wrapped - targetRefRate);
+/* Proceed to apply the additional spad and perform measurement. */
+        set_ref_spad_map(Data.SpadData.RefSpadEnables);
+        peakSignalRateRef = perform_ref_signal_measurement(0);
+        if (peakSignalRateRef == 0) {
+          return false;
+        }
+        uint32_t signalRateDiff = abs(peakSignalRateRef - targetRefRate);
 
         if (peakSignalRateRef > targetRefRate) { /* Select the spad map that provides the measurement closest to the target rate, either above or below it. */
           if (signalRateDiff > lastSignalRateDiff) { /* Previous spad map produced a closer measurement, so choose this. */
-            Error = set_ref_spad_map(lastSpadArray);
+            set_ref_spad_map(lastSpadArray);
             Data.SpadData.RefSpadEnables = lastSpadArray;
             --sc.quantity;
           }
-          complete = 1;
+          complete = true;
         } else { /* Continue to add spads */
           lastSignalRateDiff = signalRateDiff;
           lastSpadArray = Data.SpadData.RefSpadEnables;
@@ -1521,13 +1428,11 @@ namespace VL53L0X {
       } /* while */
     }
 
-    ERROR_OUT;
-
-    VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, 1);
+    VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, true);
     VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, sc);
 
     ref = sc;
-    return ERROR_NONE;
+    return true;
   }
 
   Erroneous<DeviceParameters_t> Api::GetDeviceParameters() {
@@ -1539,14 +1444,10 @@ namespace VL53L0X {
       wad.DeviceMode = DeviceMode;
     }
 
-    Erroneous<uint32_t> arf = GetInterMeasurementPeriodMilliSeconds();
-//todo:    EXIT_ON(arf)
-    wad.InterMeasurementPeriodMilliSeconds = arf;
+    wad.InterMeasurementPeriodMilliSeconds = GetInterMeasurementPeriodMilliSeconds();
 
     wad.XTalkCompensationEnable = false;//ick: why don't we use the actual enable?
-    auto arf2 = GetXTalkCompensationRateMegaCps();
-    ERROR_OUT;
-    wad.XTalkCompensationRateMegaCps = arf2;
+    wad.XTalkCompensationRateMegaCps = GetXTalkCompensationRateMegaCps();
 
     Erroneous<decltype(wad.RangeOffsetMicroMeters)> romm = GetOffsetCalibrationDataMicroMeter();
     if (!romm.isOk()) {
@@ -1571,14 +1472,9 @@ namespace VL53L0X {
       }
     }
     auto wcenable = GetWrapAroundCheckEnable();
-    if (~wcenable) {
-      return {wcenable.error};
-    }
+
     wad.WrapAroundCheckEnable = wcenable;
     auto timbudget = GetMeasurementTimingBudgetMicroSeconds();
-    if (~timbudget) {
-      return {timbudget.error};
-    }
     wad.MeasurementTimingBudgetMicroSeconds = timbudget;
     return ERROR_NONE;
   }

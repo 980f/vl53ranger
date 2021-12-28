@@ -56,8 +56,8 @@ template<unsigned msbit, unsigned lsbit> struct Mask {
   //by checking msbit> lsbit we don't need to test lsbit.
   //by using unsigned we don't need to check for negatives
   enum {
-    width = msbit - lsbit + 1    //check: needs to be 1 when msbit==lsbit
-    , places = Bitter(msbit + 1) - Bitter(lsbit)
+    places = Bitter(msbit + 1) - Bitter(lsbit) // suitable for field insertion mask
+    ,width = msbit - lsbit + 1    //check: needs to be 1 when msbit==lsbit
     , shifted = (1 << width) - 1  //checkL should be 1 == 1<<0 when msbit==lsbit, width =1 1<<1 = 2, -1 = 1
   };
 };

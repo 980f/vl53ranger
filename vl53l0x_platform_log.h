@@ -55,7 +55,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #if VL53L0X_LOG_ENABLE
 
-class PerformanceTracer :public  VL53L0X::ErrorAccumulator {
+class PerformanceTracer {
   const char *location;
   uint32_t starttime;
   //placeholders until we get the logging output defined:
@@ -65,7 +65,7 @@ class PerformanceTracer :public  VL53L0X::ErrorAccumulator {
 //  bool enabled;
 public:
   /** records location and emits start message to log */
-  PerformanceTracer(const char *location) : VL53L0X::ErrorAccumulator(VL53L0X::ERROR_NONE),location(location), starttime(logclock()) {
+  PerformanceTracer(const char *location) :location(location), starttime(logclock()) {
     if(enabled){
       printf("START %s at %ud", location, starttime);
     }
@@ -73,19 +73,19 @@ public:
   //to mate to old system which allowed an additional bit of info on start messages:
   void operator()(const char *format, ...) {
     if(*format && enabled) {
-      printf(format);//todo: vprintf with passed along ... args. There are only two cases and we should just log those separately)
+      printf(format);//todo:- vprintf with passed along ... args. There are only two cases and we should just log those separately)
     }
   }
   /** use location and emits start message to log */
   ~PerformanceTracer() {
-    printf("END %s after %ud, error=%d", location, logclock() - starttime, sum);//todo: compiletime option for error string now that api_strings supports it
+    printf("END %s after %ud", location, logclock() - starttime);
   }
 
-  static VL53L0X::Error logError(const char *location,VL53L0X::Error error, bool always= false){
+  static bool logError(const char *location,VL53L0X::Error error, bool always= false){
     if(error!=VL53L0X::ERROR_NONE || always) {
-      printf("ERROR from %s at %ud code=%d", location, logclock(), error);
+      printf("ERROR from %s at %ud code=%d", location, logclock(), error);//todo:1 appened text form of error
     }
-    return error;
+    return error!=VL53L0X::ERROR_NONE;
   }
 
 };

@@ -15,7 +15,7 @@ namespace VL53L0X{
         \a VL53L0X_SetOffsetCalibrationData */
     , ERROR_MIN_CLIPPED /*!< Warning parameter passed was clipped to min before to be applied */
     , ERROR_UNDEFINED /*!< Unqualified error */
-    , ERROR_INVALID_PARAMS  /*!< Parameter passed is invalid or out of range */
+    , ERROR_INVALID_PARAMS  /*!< Parameter passed is invalid or out of range todo: split into illegal and out of range */
     , ERROR_NOT_SUPPORTED  /*!< Function is not supported in current mode or configuration */
     , ERROR_RANGE_ERROR  /*!< Device report a ranging error interrupt status */
     , ERROR_TIME_OUT  /*!< Aborted due to time out */
@@ -33,62 +33,61 @@ namespace VL53L0X{
     , ERROR_NOT_IMPLEMENTED = 99  /*!< Tells requested functionality has not been implemented yet or not compatible with the device */
   };
 
-  /** C++ is too strict for the legacy weirdness Error |= Error to compile, so:*/
-  struct ErrorAccumulator {
-    Error sum;
+//  /** C++ is too strict for the legacy weirdness Error |= Error to compile, so:*/
+//  struct ErrorAccumulator {
+//    Error sum;
+//
+//    ErrorAccumulator(Error first = ERROR_NONE) : sum(first) {
+//    }
+//
+//    /** ST's code did this with the raw values, which would have produced garbage if any of the calls actually produced an error, except when all the calls can only produce the I2C failure code */
+//    ErrorAccumulator &operator|=(Error other) {
+//      if (other != ERROR_NONE) {
+//        sum = other;
+//      }
+//      return *this;
+//    }
+//
+//    ErrorAccumulator &operator=(Error other) {
+//      sum = other;
+//      return *this;
+//    }
+//
+//    operator Error() const {
+//      return sum;
+//    }
+//
+//    /** @returns whether there is an error, made to match Erroneous usage */
+//    bool operator~() const {
+//      return sum != ERROR_NONE;
+//    }
+//  };
 
-    ErrorAccumulator(Error first = ERROR_NONE) : sum(first) {
-    }
-
-    /** ST's code did this with the raw values, which would have produced garbage if any of the calls actually produced an error, except when all the calls can only produce the I2C failure code */
-    ErrorAccumulator &operator|=(Error other) {
-      if (other != ERROR_NONE) {
-        sum = other;
-      }
-      return *this;
-    }
-
-    ErrorAccumulator &operator=(Error other) {
-      sum = other;
-      return *this;
-    }
-
-    operator Error() const {
-      return sum;
-    }
-
-    /** @returns whether there is an error, made to match Erroneous usage */
-    bool operator~() const {
-      return sum != ERROR_NONE;
-    }
-  };
-
-  /** base class for returning values from a device, which operation might fail.
- * frequently such errors are ignored, tacking them onto the results of the failed operation makes after the fact reporting cheaper for those who care.*/
+  /** base class for returning values from a device, which operation might fail.*/
   template<typename Wrapped> class Erroneous {
   public:
     Wrapped wrapped;
-    ErrorAccumulator error;
+    bool error;
 
-    Erroneous(Wrapped wrapped, Error error = ERROR_NONE) : wrapped(wrapped), error(error) {
+    Erroneous(Wrapped wrapped, bool error = false) : wrapped(wrapped), error(error) {
     }
 
-    Erroneous(Error error = ERROR_NONE) : wrapped(), error(error) {
+    Erroneous(bool error = false) : wrapped(), error(error) {
     }
 
     /** @returns whether value is GOOD. If not you can inspect Error for what went wrong */
     bool isOk() const {
-      return error == 0;
+      return error == false;
     }
 
     /** @returns "value not present" which is determined by the error not being 'none'
      * syntactic sugar: rarely used monadic function for interesting boolean fact.*/
     bool operator~() const {
-      return ~error;
+      return error;
     }
 
     void operator|=(Error other) {
-      error |= other;
+      error |= other!=ERROR_NONE;//todo: this is sloppy
     }
 
     /** this should allow transparent access as the type */
@@ -110,5 +109,7 @@ namespace VL53L0X{
 #define EXIT_ON(erroneous)     if(~erroneous){  return erroneous; }
 #define ERROR_ON(erroneous)     if(~erroneous){  return erroneous.error; }
 
+//tempt while editing
+#define THROW(err)
 /** @} VL53L0X_define_Error_group */
 }
