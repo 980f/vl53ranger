@@ -63,53 +63,53 @@ namespace VL53L0X{
 //    }
 //  };
 
-  /** base class for returning values from a device, which operation might fail.*/
-  template<typename Wrapped> class Erroneous {
-  public:
-    Wrapped wrapped;
-    bool error;
+//  /** base class for returning values from a device, which operation might fail.*/
+//  template<typename Wrapped> class Erroneous {
+//  public:
+//    Wrapped wrapped;
+//    bool error;
+//
+//    Erroneous(Wrapped wrapped, bool error = false) : wrapped(wrapped), error(error) {
+//    }
+//
+//    Erroneous(bool error = false) : wrapped(), error(error) {
+//    }
+//
+//    /** @returns whether value is GOOD. If not you can inspect Error for what went wrong */
+//    bool isOk() const {
+//      return error == false;
+//    }
+//
+//    /** @returns "value not present" which is determined by the error not being 'none'
+//     * syntactic sugar: rarely used monadic function for interesting boolean fact.*/
+//    bool operator~() const {
+//      return error;
+//    }
+//
+//    void operator|=(Error other) {
+//      error |= other!=ERROR_NONE;//todo: this is sloppy
+//    }
+//
+//    /** this should allow transparent access as the type */
+//    operator Wrapped &() {
+//      return wrapped;
+//    }
+//
+//    operator Wrapped *() {
+//      return &wrapped;
+//    }
+//  };
 
-    Erroneous(Wrapped wrapped, bool error = false) : wrapped(wrapped), error(error) {
-    }
+///** ERROR_OUT is useful for when there will be no common exit code on an error that terminates a sequence of steps other than returning the first such error.
+// * To use it name the VL53L0X_Error member Error (instead of Error), which also allows for if(!Error) which is more readable than if(Error != VL53L0X_ERROR_NONE)
+// *
+// * Error is now an object with an operator~ which is true when there is an error.
+// * */
+//#define ERROR_OUT if(~Error) return {Error}
+//#define EXIT_ON(erroneous)     if(~erroneous){  return erroneous; }
+//#define ERROR_ON(erroneous)     if(~erroneous){  return erroneous.error; }
 
-    Erroneous(bool error = false) : wrapped(), error(error) {
-    }
-
-    /** @returns whether value is GOOD. If not you can inspect Error for what went wrong */
-    bool isOk() const {
-      return error == false;
-    }
-
-    /** @returns "value not present" which is determined by the error not being 'none'
-     * syntactic sugar: rarely used monadic function for interesting boolean fact.*/
-    bool operator~() const {
-      return error;
-    }
-
-    void operator|=(Error other) {
-      error |= other!=ERROR_NONE;//todo: this is sloppy
-    }
-
-    /** this should allow transparent access as the type */
-    operator Wrapped &() {
-      return wrapped;
-    }
-
-    operator Wrapped *() {
-      return &wrapped;
-    }
-  };
-
-/** ERROR_OUT is useful for when there will be no common exit code on an error that terminates a sequence of steps other than returning the first such error.
- * To use it name the VL53L0X_Error member Error (instead of Error), which also allows for if(!Error) which is more readable than if(Error != VL53L0X_ERROR_NONE)
- *
- * Error is now an object with an operator~ which is true when there is an error.
- * */
-#define ERROR_OUT if(~Error) return {Error}
-#define EXIT_ON(erroneous)     if(~erroneous){  return erroneous; }
-#define ERROR_ON(erroneous)     if(~erroneous){  return erroneous.error; }
-
-//tempt while editing
+//temp while editing
 #define THROW(err)
 /** @} VL53L0X_define_Error_group */
 }

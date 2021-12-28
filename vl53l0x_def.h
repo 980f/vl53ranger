@@ -177,7 +177,7 @@ namespace VL53L0X {
     bool LimitChecksStatus[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Error of the check linked to last measurement. */
     FixPoint<9,7> LimitChecksValue[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
 
-    uint8_t WrapAroundCheckEnable; /*!< Tells if Wrap Around Check shall be enable or not */
+    bool WrapAroundCheckEnable; /*!< Tells if Wrap Around Check shall be enable or not */
   };
 
 /** @defgroup VL53L0X_define_State_group Defines the current status of the
@@ -379,6 +379,7 @@ namespace VL53L0X {
         return 7;  //ick: this seems to overlap with wraparound enable
       default:
         THROW(ERROR_INVALID_PARAMS);
+        return ~0;//todo: deal with lack of access to throw
     } // switch
   }
 

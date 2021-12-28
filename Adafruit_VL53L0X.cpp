@@ -112,7 +112,7 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
     if (debug) {
       Serial.println(F("VL53L0X: StaticInit"));
     }
-    Error = MyDevice.StaticInit(); // Device Initialization
+    Error = MyDevice.StaticInit()?ERROR_NONE:ERROR_UNDEFINED /*actual failure code should be somewhere in device */; // Device Initialization
   }
 
   if (Error == ERROR_NONE) {
@@ -124,9 +124,9 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
 
     if (debug) {
       Serial.print(F("refSpadCount = "));
-      Serial.print(info.wrapped.quantity);
+      Serial.print(info.quantity);
       Serial.print(F(", isApertureSpads = "));
-      Serial.println(info.wrapped.isAperture);
+      Serial.println(info.isAperture);
     }
   }
 
@@ -134,8 +134,12 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
     if (debug) {
       Serial.println(F("VL53L0X: PerformRefCalibration"));
     }
-    Erroneous<Api::CalibrationParameters> calp = MyDevice.PerformRefCalibration(); // Device Initialization
-    Error =calp.error;
+    if(MyDevice.PerformRefCalibration()){
+      auto calp=MyDevice. get_ref_calibration(true,true);
+      //todo: show values to someone?
+    } else {
+      Error =ERROR_TIME_OUT;//todo: get real error from device
+    }
   }
 
   if (Error == ERROR_NONE) {
@@ -144,7 +148,9 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
       Serial.println(F("VL53L0X: SetDeviceMode"));
     }
 
-    Error = MyDevice.SetDeviceMode(DEVICEMODE_SINGLE_RANGING); // Setup in single ranging mode
+    if(!MyDevice.SetDeviceMode(DEVICEMODE_SINGLE_RANGING)) {  // Setup in single ranging mode
+      //todo: print failed to set mode
+    }
   }
 
   // call off to the config function to do the last part of configuration.
@@ -375,13 +381,16 @@ boolean Adafruit_VL53L0X::startRange() {
   /* This function will do a complete single ranging
    * Here we fix the mode! */
   // first lets set the device in SINGLE_Ranging mode
-  Error = MyDevice.SetDeviceMode(DEVICEMODE_SINGLE_RANGING);
-
-  if (Error == ERROR_NONE) {
-    // Lets start up the measurement
-    Error = MyDevice.StartMeasurement();
+  if(!MyDevice.SetDeviceMode(DEVICEMODE_SINGLE_RANGING)){
+    return false;
   }
-  return Error == ERROR_NONE;
+
+    // Lets start up the measurement
+    if(!MyDevice.StartMeasurement()){
+      return false;
+    }
+
+  return true;
 } // Adafruit_VL53L0X::startRange
 
 /**************************************************************************/
@@ -392,8 +401,7 @@ boolean Adafruit_VL53L0X::startRange() {
 /**************************************************************************/
 
 boolean Adafruit_VL53L0X::isRangeComplete() {
-  Erroneous<bool> mready = MyDevice.GetMeasurementDataReady();
-  return mready.isOk() && mready;//or could trust that when status is bad the mready value has been coerced false.
+  return MyDevice.GetMeasurementDataReady();//or could trust that when status is bad the mready value has been coerced false.
 }
 
 /**************************************************************************/
@@ -550,7 +558,7 @@ uint8_t Adafruit_VL53L0X::getVcselPulsePeriod(VcselPeriod VcselPeriodType) {
  */
 /**************************************************************************/
 boolean Adafruit_VL53L0X::setLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable) {
-  Error = MyDevice.SetLimitCheckEnable(LimitCheckId, LimitCheckEnable);
+  MyDevice.SetLimitCheckEnable(LimitCheckId, LimitCheckEnable);
   return Error == ERROR_NONE;
 }
 
@@ -563,9 +571,9 @@ boolean Adafruit_VL53L0X::setLimitCheckEnable(CheckEnable LimitCheckId, bool Lim
  */
 /**************************************************************************/
 bool Adafruit_VL53L0X::getLimitCheckEnable(CheckEnable LimitCheckId) {
-  Erroneous<bool> cur_limit = MyDevice.GetLimitCheckEnable(LimitCheckId);
-  Error = cur_limit.error;
-  return cur_limit.wrapped;
+  auto cur_limit = MyDevice.GetLimitCheckEnable(LimitCheckId);
+  Error = VL53L0X::ERROR_NONE;
+  return cur_limit;
 }
 
 /**************************************************************************/
@@ -580,7 +588,7 @@ bool Adafruit_VL53L0X::getLimitCheckEnable(CheckEnable LimitCheckId) {
 /**************************************************************************/
 
 boolean Adafruit_VL53L0X::setLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9,7> LimitCheckValue) {
-  Error = MyDevice.SetLimitCheckValue(LimitCheckId, LimitCheckValue);
+   MyDevice.SetLimitCheckValue(LimitCheckId, LimitCheckValue);
   return Error == ERROR_NONE;
 }
 
@@ -594,7 +602,7 @@ boolean Adafruit_VL53L0X::setLimitCheckValue(CheckEnable LimitCheckId, FixPoint<
 /**************************************************************************/
 FixPoint<9,7> Adafruit_VL53L0X::getLimitCheckValue(CheckEnable LimitCheckId) {
   auto LimitCheckValue = MyDevice.GetLimitCheckValue(LimitCheckId);
-  Error=LimitCheckValue.error;
+  Error=VL53L0X::ERROR_NONE;
   return LimitCheckValue;
 }
 

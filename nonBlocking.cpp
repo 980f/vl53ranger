@@ -27,10 +27,7 @@ void NonBlocking::inLoop() {
     }
   }
   if (waitOnMeasurementComplete) {
-    Erroneous<bool> value;
-    value = GetMeasurementDataReady();
-    if (value.isOk()) {
-      if (value == 1) {
+      if (GetMeasurementDataReady()) {
         waitOnMeasurementComplete = 0;
         doMeasurementComplete(true);
       } else {
@@ -39,25 +36,18 @@ void NonBlocking::inLoop() {
           doMeasurementComplete(false);
         }
       }
-    } else {
-      //todo: decide if we stop on communications error, not sure if st code did/
-    }
   }
   //No else here so that the meas complete action can invoke a waitOnStop and get a quick check
   if (waitOnStop) {
-    auto StopCompleted = GetStopCompletedStatus();
-    if (StopCompleted.isOk()) {
-      if (StopCompleted == 0x00) {
+    if (GetStopCompletedStatus() == 0x00) {
         auto climask = ClearInterruptMask(GPIOFUNCTIONALITY_NEW_MEASURE_READY);//copied from adafruit copy of st advice
+        //todo: deal with climask false.
         onStopComplete(true);
       } else {
         if (--waitOnStop == 0) {
           onStopComplete(false);
         }
       }
-    } else {
-      //todo: handle comm error.
-    }
   }
   //todo: if action request act on it:
 }

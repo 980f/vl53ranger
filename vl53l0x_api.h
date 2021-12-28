@@ -109,7 +109,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Erroneous<DeviceError> GetDeviceErrorStatus();
+    DeviceError GetDeviceErrorStatus();
 
 /**
  * @brief Human readable Range Error string for a given rangeError
@@ -200,7 +200,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Erroneous<PowerModes> GetPowerMode( );
+    PowerModes GetPowerMode( );
 
 /**
  * Set or over-hide part to part calibration offset
@@ -213,7 +213,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                  Success
  * @return  "Other error code"                 See ::Error
  */
-    Error SetOffsetCalibrationDataMicroMeter(int32_t OffsetCalibrationDataMicroMeter);
+    void SetOffsetCalibrationDataMicroMeter(int32_t OffsetCalibrationDataMicroMeter);
 
 /**
  * @brief Get part to part calibration offset
@@ -230,7 +230,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                  Success
  * @return  "Other error code"                 See ::Error
  */
-    Erroneous<int32_t> GetOffsetCalibrationDataMicroMeter( );
+    int32_t GetOffsetCalibrationDataMicroMeter( );
 
 /**
  * Set the linearity corrective gain
@@ -308,7 +308,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Erroneous<FixPoint1616_t> GetTotalSignalRate( );
+    FixPoint1616_t GetTotalSignalRate( );
 
 /** @} general_group */
 
@@ -358,7 +358,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error DataInit();
+    void DataInit();
 
 /**
  * @brief Set the tuning settings pointer
@@ -377,7 +377,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error SetTuningSettingBuffer(Tunings pTuningSettingBuffer, bool UseInternalTuningSettings);
+    bool SetTuningSettingBuffer(Tunings pTuningSettingBuffer, bool UseInternalTuningSettings);
 
 /**
  * @brief Get the tuning settings pointer and the internal external switch value.
@@ -431,7 +431,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error ResetDevice();
+    bool ResetDevice();
 
 /** @} init_group */
 
@@ -453,7 +453,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Error SetDeviceParameters(const DeviceParameters_t &pDeviceParameters);
+    void SetDeviceParameters(const DeviceParameters_t &pDeviceParameters);
 
 /**
  * @brief  Retrieve current device parameters
@@ -468,7 +468,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE     Success
  * @return  "Other error code"    See ::Error
  */
-    Erroneous<DeviceParameters_t> GetDeviceParameters( );
+    DeviceParameters_t GetDeviceParameters( );
 
 /**
  * @brief  Set a new device mode
@@ -493,7 +493,7 @@ namespace VL53L0X {
  * @return  ERROR_MODE_NOT_SUPPORTED This error occurs when DeviceMode
  * is not in the supported list
  */
-    Error SetDeviceMode(DeviceModes DeviceMode);
+    bool SetDeviceMode(DeviceModes DeviceMode);
 
 /**
  * @brief  Get current new device mode
@@ -533,7 +533,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE               Success
  * @return  "Other error code"              See ::Error
  */
-    Error SetRangeFractionEnable(bool Enable);
+    void SetRangeFractionEnable(bool Enable);
 
 /**
  * @brief  Gets the fraction enable parameter indicating the resolution of
@@ -553,7 +553,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                   Success
  * @return  "Other error code"                  See ::Error
  */
-    Erroneous<bool> GetFractionEnable();
+    bool GetFractionEnable();
 
 /**
  * @brief  Set a new Histogram mode
@@ -645,7 +645,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE                      Success
  * @return  "Other error code"                     See ::Error
  */
-    Erroneous<uint32_t> GetMeasurementTimingBudgetMicroSeconds( );
+    uint32_t GetMeasurementTimingBudgetMicroSeconds( );
 
 /**
  * @brief Gets the VCSEL pulse period.
@@ -663,7 +663,7 @@ namespace VL53L0X {
  *                                       supported.
  * @return  "Other error code"           See ::Error
  */
-    Erroneous<uint8_t> GetVcselPulsePeriod(VcselPeriod VcselPeriodType);
+    uint8_t GetVcselPulsePeriod(VcselPeriod VcselPeriodType);
 
 /**
  * @brief Sets the VCSEL pulse period.
@@ -896,7 +896,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE              Success
  * @return  "Other error code"             See ::Error
  */
-    Erroneous<FixPoint1616_t> GetXTalkCompensationRateMegaCps( );
+    FixPoint1616_t GetXTalkCompensationRateMegaCps( );
 
     struct CalibrationParameters{
       uint8_t VhvSettings=0; //zero init for when we are only using one field
@@ -917,7 +917,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE              Success
  * @return  "Other error code"             See ::Error
  */
-    Error SetRefCalibration(CalibrationParameters refParams);
+    void SetRefCalibration(CalibrationParameters refParams);
 
 /**
  * @brief Get Reference Calibration Parameters
@@ -933,7 +933,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE              Success
  * @return  "Other error code"             See ::Error
  */
-    Erroneous<CalibrationParameters> GetRefCalibration();
+    CalibrationParameters GetRefCalibration();
 
 /**
  * @brief  Get the number of the check limit managed by a given Device
@@ -1064,7 +1064,7 @@ namespace VL53L0X {
  * LimitCheckId value is out of range.
  * @return  "Other error code"            See ::Error
  */
-    Erroneous <FixPoint1616_t> GetLimitCheckCurrent(CheckEnable LimitCheckId);
+    FixPoint1616_t GetLimitCheckCurrent(CheckEnable LimitCheckId);
 
 /**
  * @brief  Enable (or disable) Wrap around Check
@@ -1093,7 +1093,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE       Success
  * @return  "Other error code"      See ::Error
  */
-    Erroneous<bool> GetWrapAroundCheckEnable();
+    bool GetWrapAroundCheckEnable();
 
 /**
  * @brief   Set Dmax Calibration Parameters for a given device
@@ -1107,7 +1107,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE      Success
  * @return  "Other error code"     See ::Error
  */
-    Error SetDmaxCalParameters(const DevData_t::DmaxCal &p);
+    bool SetDmaxCalParameters(const DevData_t::DmaxCal &p);
 
 /**
  * @brief  Get Dmax Calibration Parameters for a given device
@@ -1150,7 +1150,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    Error PerformSingleMeasurement();
+    bool PerformSingleMeasurement();
 
 /**
  * @brief Perform Reference Calibration
@@ -1172,7 +1172,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE    Success
  * @return  "Other error code"   See ::Error
  */
-    CalibrationParameters PerformRefCalibration();
+    bool PerformRefCalibration();
 
 /**
  * @brief Perform XTalk Measurement
@@ -1251,14 +1251,12 @@ namespace VL53L0X {
  * @note This function does not change the device mode.
  *
  * @param   Dev                  Device Handle
- * @param   CalDistanceMilliMeter     Calibration distance value used for the
- * offset compensation.
- * @param   pOffsetMicroMeter  Pointer to
- *
- * @return  ERROR_NONE with new Offset value computed by the function.  on Success
- * @return  "Other error code"   See ::Error
+ * @param   CalDistanceMilliMeter     Calibration distance value used for the offset compensation.
+
+ * @return  whether process completed.
+ * if so then the value of interest will be in VL53L0X_GETPARAMETERFIELD(RangeOffsetMicroMeters)
  */
-    Erroneous <int32_t> PerformOffsetCalibration(FixPoint1616_t CalDistanceMilliMeter);
+    bool PerformOffsetCalibration(FixPoint1616_t CalDistanceMilliMeter);
 
 /**
  * @brief Start device measurement
@@ -1374,7 +1372,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE        Success
  * @return  "Other error code"       See ::Error
  */
-    Error GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData);
+    bool GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData);
 
 /**
  * @brief Retrieve the measurements from device for a given setup
@@ -1522,7 +1520,7 @@ namespace VL53L0X {
  *                             GPIOFUNCTIONALITY_NEW_MEASURE_READY
  * @return  "Other error code"    See ::Error
  */
-    Error SetGpioConfig(uint8_t Pin, GpioConfiguration gpioConfig);
+    bool SetGpioConfig(uint8_t Pin, GpioConfiguration gpioConfig);
 
 /**
  * @brief Get current configuration for GPIO pin for a given device
@@ -1549,7 +1547,7 @@ namespace VL53L0X {
  *                      GPIOFUNCTIONALITY_NEW_MEASURE_READY
  * @return  "Other error code"    See ::Error
  */
-    Erroneous<GpioConfiguration> GetGpioConfig(uint8_t Pin=0);
+    GpioConfiguration GetGpioConfig(uint8_t Pin=0);
 
     struct RangeWindow {
       FixPoint1616_t Low;
@@ -1752,7 +1750,7 @@ namespace VL53L0X {
  * @return  ERROR_REF_SPAD_INIT   Error in the Ref Spad procedure.
  * @return  "Other error code"           See ::Error
  */
-    Erroneous<SpadCount> PerformRefSpadManagement();
+    SpadCount PerformRefSpadManagement();
 
 /**
  * @brief Applies Reference SPAD configuration
@@ -1796,7 +1794,7 @@ namespace VL53L0X {
  *                                       spad configuration.
  * @return  "Other error code"           See ::Error
  */
-    Erroneous<SpadCount> GetReferenceSpads();//todo: restore from st's code
+    SpadCount GetReferenceSpads();//todo: restore from st's code
 
 /** @} SPADfunctions_group */
 
@@ -1811,25 +1809,25 @@ namespace VL53L0X {
   private: //calibration.h was high level actions hidden from direct use in api
 
 
-    Erroneous <int32_t> perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter);
+    bool perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter);
 
     void set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
     int32_t get_offset_calibration_data_micro_meter();
 
-    Error apply_offset_adjustment();
+    bool apply_offset_adjustment();
 
-    Error set_reference_spads(SpadCount ref);
+    bool set_reference_spads(SpadCount ref);
 
-    Erroneous<SpadCount> get_reference_spads();
+    SpadCount get_reference_spads();
 
-    Erroneous <uint8_t> perform_phase_calibration( bool get_data_enable,  bool restore_config);
-    Erroneous<Api::CalibrationParameters> perform_ref_calibration( bool get_data_enable);
+    bool perform_phase_calibration(bool restore_config);
+    bool perform_ref_calibration();
 
-    Error set_ref_calibration(CalibrationParameters p, bool setv, bool setp) ;
-
-    Erroneous<CalibrationParameters> get_ref_calibration( bool vhv_enable, bool phase_enable);
-
-    Error waitOnResetIndicator( bool disappear);
+    void set_ref_calibration(CalibrationParameters p, bool setv, bool setp) ;
+  public:
+    CalibrationParameters get_ref_calibration(bool vhv_enable, bool phase_enable);
+  protected:
+    bool waitOnResetIndicator(bool disappear);
 
     static const SpadArray::Index startSelect;// was 0xB4 but is not a bit pattern, rather it is a decimal number
 
@@ -1837,16 +1835,16 @@ namespace VL53L0X {
 
     SpadArray::Index get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr);
 
-    Error initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
+    void initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
     SpadArray::Index enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset);
 
     bool CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
     bool perform_single_ref_calibration(uint8_t vhv_init_byte);
 
 
-    Erroneous <uint8_t> perform_vhv_calibration(const bool get_data_enable, const bool restore_config);
+    bool perform_vhv_calibration(bool restore_config);
     /** @returns Cal parameters after running a calibration of one type or the other. Only one param will be meaningful */
-    Erroneous <CalibrationParameters> perform_item_calibration(bool vElseP, const bool get_data_enable, const bool restore_config);
+    bool perform_item_calibration(bool vElseP, const bool restore_config);
 
     /** @returns the rate if measurmeent succeeds else @param iffails (not sure what makes a good sentinal, 0 or ~0 ) */
     uint16_t perform_ref_signal_measurement(uint16_t iffails);

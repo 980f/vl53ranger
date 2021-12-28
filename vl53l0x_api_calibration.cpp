@@ -132,29 +132,24 @@ namespace VL53L0X {
     return SetXTalkCompensationEnable(true)&& SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
   } // VL53L0X_perform_xtalk_calibration
 
-  Erroneous<int32_t> Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter) {
+  bool Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter) {
     if (CalDistanceMilliMeter.raw <= 0) {//ick,unsigned numbers are never negative, todo: need a maximum check here.
-      return ERROR_INVALID_PARAMS;
+      return LOG_ERROR(ERROR_INVALID_PARAMS);
     }
-    ErrorAccumulator Error = SetOffsetCalibrationDataMicroMeter(0);
-    ERROR_OUT;
+     SetOffsetCalibrationDataMicroMeter(0);
     /* Get the value of the TCC */
     bool SequenceStepWasEnabled = GetSequenceStepEnable(SEQUENCESTEP_TCC);
-    ERROR_OUT;
     /* Disable the TCC */
-    Error = SetSequenceStepEnable(SEQUENCESTEP_TCC, 0);
-    ERROR_OUT;
+     SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
     /* Disable the RIT */
-    Error = SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
-    ERROR_OUT;
+     SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
     /* Perform 50 measurements and compute the averages */
     uint16_t sum_ranging = 0;
     uint32_t total_count = 0;
     for (int meas = 0; meas < 50; meas++) {
       RangingMeasurementData_t RangingMeasurementData;
-      Error = PerformSingleRangingMeasurement(RangingMeasurementData);
-      if (Error != ERROR_NONE) {
-        break;
+      if(!PerformSingleRangingMeasurement(RangingMeasurementData)){
+        return false;//quits on any measurement failing
       }
       /* The range is valid when rangeError = 0 */
       if (RangingMeasurementData.rangeError == 0) {
@@ -164,7 +159,7 @@ namespace VL53L0X {
     }
     /* no valid values found */
     if (total_count == 0) {
-      return ERROR_RANGE_ERROR;
+      return LOG_ERROR(ERROR_RANGE_ERROR);
     }
     /* FixPoint1616_t / uint16_t = FixPoint1616_t */
     FixPoint1616_t StoredMeanRange(sum_ranging, total_count);
@@ -178,14 +173,13 @@ namespace VL53L0X {
 
     /* Apply the calculated offset */
     VL53L0X_SETPARAMETERFIELD(RangeOffsetMicroMeters, OffsetMicroMeter);
-    Error = SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);
-    ERROR_OUT;
+     SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);
 
     /* Restore the TCC */
     if (SequenceStepWasEnabled) {
-      return SetSequenceStepEnable(SEQUENCESTEP_TCC, 1);
+       SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
     }
-    return ERROR_NONE;
+    return true;
   } // VL53L0X_perform_offset_calibration
 
   void Api::set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter) {
@@ -214,24 +208,23 @@ namespace VL53L0X {
       return RangeOffsetRegister * 250;
   } // VL53L0X_get_offset_calibration_data_micro_meter
 
-  Error Api::apply_offset_adjustment() {
+  bool Api::apply_offset_adjustment() {
     /* if we run on this function we can read all the NVM info used by the API */
-    ErrorAccumulator Error = get_info_from_device(InfoGroup::ALL);
-    ERROR_OUT;
+    if(!get_info_from_device(InfoGroup::ALL)){
+      return false;
+    }
     /* Read back current device offset */
-    Erroneous<int32_t> CurrentOffsetMicroMeters = GetOffsetCalibrationDataMicroMeter();
-    ERROR_ON(CurrentOffsetMicroMeters);
+    auto CurrentOffsetMicroMeters = GetOffsetCalibrationDataMicroMeter();
     /* Apply Offset Adjustment derived from 400mm measurements */
     /* Store initial device offset */
     PALDevDataSet(Part2PartOffsetNVMMicroMeter, CurrentOffsetMicroMeters);
     int32_t CorrectedOffsetMicroMeters = CurrentOffsetMicroMeters + (int32_t) PALDevDataGet(Part2PartOffsetAdjustmentNVMMicroMeter);
 
-    Error = SetOffsetCalibrationDataMicroMeter(CorrectedOffsetMicroMeters);
-    ERROR_OUT;
+     SetOffsetCalibrationDataMicroMeter(CorrectedOffsetMicroMeters);
+
     /* store current, adjusted offset */
     VL53L0X_SETPARAMETERFIELD(RangeOffsetMicroMeters, CorrectedOffsetMicroMeters);
-
-    return ERROR_NONE;
+    return true;
   } // VL53L0X_apply_offset_adjustment
 
   SpadArray::Index Api::get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr) {
@@ -286,7 +279,7 @@ namespace VL53L0X {
 
   uint16_t Api::perform_ref_signal_measurement(uint16_t iffails) {
 /*This function performs a reference signal rate measurement.    */
-    SeqConfigStacker Error (*this,true,Mask<7,6>::places);
+    SeqConfigStacker popper (*this,true,Mask<7,6>::places);
 
     RangingMeasurementData_t rangingMeasurementData;
     if(!PerformSingleRangingMeasurement(rangingMeasurementData)){
@@ -297,7 +290,7 @@ namespace VL53L0X {
   } // perform_ref_signal_measurement
 
 
-  Error Api::set_reference_spads(SpadCount ref) {
+  bool Api::set_reference_spads(SpadCount ref) {
     //this clearing moved here as it executed regardless of error in the I2C writes
     Data.SpadData.RefSpadEnables.clear();
 
@@ -314,34 +307,26 @@ namespace VL53L0X {
      * The good spad map will be applied.
      */
     {
-      SysPopper Error = push(0xFF, 0x01, 0);//bug: prior error handling could leave FF set to 1
-      ERROR_OUT;
+      SysPopper popper = push(0xFF, 0x01, 0);//bug: prior error handling could leave FF set to 1
       comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
-      ERROR_OUT;
       comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);//ick: seems to be SpadArray::MaxCount
-      ERROR_OUT;
     }
-    auto comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
-    ERROR_OUT;
-    //followng icks have been fixed.
-    //ick: lots of errors but we enable the ref spads anyway? If we shouldn't then we can apply ERROR_OUT above.
-    //ick: we lose all the errors in the above if we proceed.
+     comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
 
     auto ignoredvalue = enable_ref_spads(ref, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
-    ERROR_ON(ignoredvalue);
+    if(!ignoredvalue.isValid()){
+      return false;
+    }
     VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, true);
     VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, ref);
-    return ERROR_NONE;
+    return true;
   } // VL53L0X_set_reference_spads
 
-  Erroneous<SpadCount> Api::get_reference_spads() {
+  SpadCount Api::get_reference_spads() {
     if (!VL53L0X_GETDEVICESPECIFICPARAMETER(RefSpadsInitialised)) {
       /* obtain spad info from device.*/
       SpadArray refSpads;
-      Error ref = get_ref_spad_map(refSpads);
-      if (~ref) {
-        return ref;//failed
-      }
+      get_ref_spad_map(refSpads);
       /* count enabled spads within spad map array and determine if Aperture or Non-Aperture.  */
       VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, refSpads.count_enabled());
       VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, true);
@@ -361,7 +346,7 @@ namespace VL53L0X {
 
   const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::places;
 
-  Error Api::set_ref_calibration(CalibrationParameters p, bool setv, bool setp) {
+  void Api::set_ref_calibration(CalibrationParameters p, bool setv, bool setp) {
     auto Error = FFpush(0, 0, 1);
     if (setv) {
       comm.WrByte(0xCB, p.VhvSettings);
@@ -369,10 +354,9 @@ namespace VL53L0X {
     if (setp) {
       comm.UpdateByte(0xEE, ~phaseMask, p.PhaseCal & phaseMask);
     }
-    return Error.sum;
   }
 
-  Erroneous<Api::CalibrationParameters> Api::get_ref_calibration(bool getv, bool getp) {
+  Api::CalibrationParameters Api::get_ref_calibration(bool getv, bool getp) {
     CalibrationParameters p;
     auto Error = FFpush(0, 0, 1);
     if (getv) {
@@ -382,47 +366,28 @@ namespace VL53L0X {
       comm.RdByte(0xEE, &p.PhaseCal);
     }
     p.PhaseCal &= phaseMask; // was 0xEF, ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
-    return {p, Error.sum};
+    return p;
   }
 
-  Erroneous<Api::CalibrationParameters> Api::perform_item_calibration(bool vElseP,  const bool get_data_enable, const bool restore_config) {
+  bool Api::perform_item_calibration(bool vElseP, const bool restore_config) {
     /* store the value of the sequence config, this will be reset after the end of the function */
     SeqConfigStacker popper(*this, restore_config, Bitter(vElseP?0:1));
+    return perform_single_ref_calibration(vElseP?Bitter(6):0);
 
-    bool didit= perform_single_ref_calibration(vElseP?Bitter(6):0);
-    /* Read one item from device, other value will be 0 */
-    if (didit&&get_data_enable) {
-      return get_ref_calibration(vElseP, !vElseP);
-    }
-    return didit;
   } // VL53L0X_perform_vhv_calibration
 
 
-  Erroneous<uint8_t > Api::perform_vhv_calibration( bool get_data_enable,  bool restore_config) {
-    auto cp= perform_item_calibration( true,get_data_enable,restore_config);
-      return {cp.wrapped.VhvSettings,cp.error};
+  bool Api::perform_vhv_calibration(bool restore_config) {
+    return  perform_item_calibration(true, restore_config);
   } // VL53L0X_perform_vhv_calibration
 
-  Erroneous<uint8_t> Api::perform_phase_calibration( bool get_data_enable,  bool restore_config) {
-    auto cp= perform_item_calibration( false,get_data_enable,restore_config);
-    return {cp.wrapped.PhaseCal,cp.error};
+  bool Api::perform_phase_calibration(bool restore_config) {
+    return perform_item_calibration(false, restore_config);
   } // VL53L0X_perform_phase_calibration
 
-  Erroneous<Api::CalibrationParameters> Api::perform_ref_calibration(bool get_data_enable) {
-    Erroneous<uint8_t> newvhv = perform_vhv_calibration(get_data_enable, false);
-    if (newvhv.isOk()) {
-      Erroneous<uint8_t> newphaser = perform_phase_calibration(get_data_enable, false);
-      if (newphaser.isOk()) {
-        CalibrationParameters p;
-        p.PhaseCal = newphaser;
-        p.VhvSettings = newvhv;
-        return p;
-      } else {
-        return {newphaser.error};
-      }
-    } else {
-      return {newvhv.error};
-    }
+  bool Api::perform_ref_calibration() {
+    //todo: sholdn't we push seq config here?
+    return perform_vhv_calibration(false)&&perform_phase_calibration(false);
   } // VL53L0X_perform_ref_calibration
 
 }

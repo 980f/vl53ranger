@@ -80,7 +80,7 @@ namespace VL53L0X {
       , ALL = Mask<2,0>::places
     };
 
-    Error get_info_from_device(uint8_t infoGroupBits);
+    bool get_info_from_device(uint8_t infoGroupBits);
 
     uint32_t get_sequence_step_timeout(SequenceStepId SequenceStepId);
 
@@ -97,14 +97,14 @@ namespace VL53L0X {
 
     /** ?secondary return via reference to dmm as most if it is computed as a side effect of primary return.
      * */
-    Erroneous<FixPoint1616_t> calc_sigma_estimate(const RangingMeasurementData_t &pRangingMeasurementData, uint32_t &dmm);
+    FixPoint1616_t calc_sigma_estimate(const RangingMeasurementData_t &pRangingMeasurementData, uint32_t &dmm);
 
     FixPoint1616_t get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
     FixPoint1616_t get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
     /** RMD not const due to setting of darkMM */
-    Erroneous<RangeStatus> get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData);
+    RangeStatus get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData);
 
     /**
  * @brief  Get specific limit check enable state

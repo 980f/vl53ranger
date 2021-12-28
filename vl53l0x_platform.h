@@ -125,9 +125,6 @@ namespace VL53L0X {
       ReadMulti(index, reinterpret_cast<uint8_t *>(data), sizeof(Scalar) * (swapendians ? -1 : 1));
     }
 
-/** update paired value and 'Error' of reading that value.
- * This is a macro as we aren't ready to make Erroneous<> pervasive quite yet. */
-#define Fetch( erroneousThing, regcode)  comm.Read( regcode, erroneousThing);
 
     /**
  * Write single byte register
