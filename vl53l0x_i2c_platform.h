@@ -34,6 +34,7 @@ class ArduinoWirer : public Arg { //inheriting as a cheap way to not have to edi
 public:
   ArduinoWirer(Arg &&arg):Arg(std::forward<Arg>(arg)){}
 
+  jmp_buf ComException;
   /** one can change the device address, needed for when more than one is on the same i2c link.
    * you will also have to control a pin and that is getting well out of the scope of this layer */
   uint8_t changedAddress(uint8_t  newAddress);

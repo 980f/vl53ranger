@@ -60,6 +60,16 @@ namespace VL53L0X {
       //do nothing here so that we can statically construct
     }
 
+    struct FakeTrace {
+      const char *location="";
+      unsigned line=0;
+
+    } theTrace;
+    void throwException(const char *location,unsigned line,Error error){
+      theTrace={location,line};
+      longjmp(comm.wirer.ComException, error); // NOLINT(cert-err52-cpp)   exceptions not allowed on our platform
+    }
+
     bool GetSequenceStepEnable(SequenceStepId StepId); // GetSequenceStepEnable
 
     SemverLite GetProductRevision();

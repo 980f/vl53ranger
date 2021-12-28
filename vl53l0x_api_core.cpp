@@ -50,19 +50,20 @@ namespace VL53L0X {
   const uint32_t FinalRangeOverheadMicroSeconds = 550;
   const uint32_t cMinTimingBudgetMicroSeconds = 20000;
 
-  void reverse_bytes(uint8_t *data, uint32_t size) {
-    uint8_t tempData;
-    uint32_t mirrorIndex;
-    uint32_t middle = size / 2;
-    uint32_t index;
-
-    for (index = 0; index < middle; index++) {
-      mirrorIndex = size - index - 1;
-      tempData = data[index];
-      data[index] = data[mirrorIndex];
-      data[mirrorIndex] = tempData;
-    }
-  } // VL53L0X_reverse_bytes
+  //deprecated via reversing capability of i2c layer
+//  void reverse_bytes(uint8_t *data, uint32_t size) {
+//    uint8_t tempData;
+//    uint32_t mirrorIndex;
+//    uint32_t middle = size / 2;
+//    uint32_t index;
+//
+//    for (index = 0; index < middle; index++) {
+//      mirrorIndex = size - index - 1;
+//      tempData = data[index];
+//      data[index] = data[mirrorIndex];
+//      data[mirrorIndex] = tempData;
+//    }
+//  } // VL53L0X_reverse_bytes
 
 
   uint8_t decode_vcsel_period(uint8_t vcsel_period_reg) {
@@ -198,16 +199,16 @@ namespace VL53L0X {
 
           if (getBit<0>(needs)) {
             auto packed = packed90<uint32_t>(0x6b);
-              ReferenceSpad.quantity = getBits<14, 8>(packed.wrapped);
-              ReferenceSpad.isAperture = getBit<15>(packed.wrapped);
+              ReferenceSpad.quantity = getBits<14, 8>(packed);
+              ReferenceSpad.isAperture = getBit<15>(packed);
             packed = packed90<uint32_t>(0x24);
-              NvmRefGoodSpadMap[0] = getByte<3>(packed.wrapped);
-              NvmRefGoodSpadMap[1] = getByte<2>(packed.wrapped);
-              NvmRefGoodSpadMap[2] = getByte<1>(packed.wrapped);
-              NvmRefGoodSpadMap[3] = getByte<0>(packed.wrapped);
+              NvmRefGoodSpadMap[0] = getByte<3>(packed);
+              NvmRefGoodSpadMap[1] = getByte<2>(packed);
+              NvmRefGoodSpadMap[2] = getByte<1>(packed);
+              NvmRefGoodSpadMap[3] = getByte<0>(packed);
             packed = packed90<uint32_t>(0x25);
-              NvmRefGoodSpadMap[4] = getByte<3>(packed.wrapped);
-              NvmRefGoodSpadMap[5] = getByte<2>(packed.wrapped);
+              NvmRefGoodSpadMap[4] = getByte<3>(packed);
+              NvmRefGoodSpadMap[5] = getByte<2>(packed);
 
           }
 
@@ -608,7 +609,7 @@ namespace VL53L0X {
       auto FinalRangeTimeoutMicroSeconds = get_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE);
       measurementTimingBudgetMicroSeconds += (FinalRangeTimeoutMicroSeconds + FinalRangeOverheadMicroSeconds);
     }
-    VL53L0X_SETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds, *measurementTimingBudgetMicroSeconds);
+    VL53L0X_SETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds, measurementTimingBudgetMicroSeconds);
     return measurementTimingBudgetMicroSeconds;
   } // VL53L0X_get_measurement_timing_budget_micro_seconds
 

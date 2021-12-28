@@ -15,41 +15,60 @@ using namespace VL53L0X; //# this file exists to manage entities from this names
 
 void NonBlocking::inLoop() {
   //setjmp here!
-  if (waitOnStart) {
-    uint8_t flags;
-    fetch(flags, REG_SYSRANGE_START);
-    if (getBit<0>(flags) == 0) {
-      waitOnStart = 0;
-    } else {
-      if (--waitOnStart == 0) {
-        //toodo: abandon pending process and measurements
-      }
-    }
-  }
-  if (waitOnMeasurementComplete) {
-      if (GetMeasurementDataReady()) {
-        waitOnMeasurementComplete = 0;
-        doMeasurementComplete(true);
-      } else {
-        if (--waitOnMeasurementComplete == 0) {
-          //todo: log timeout error
-          doMeasurementComplete(false);
+  auto error =setjmp(comm.wirer.ComException);
+  switch(error) {
+    case ERROR_NONE:
+      if (waitOnStart) {
+        uint8_t flags;
+        fetch(flags, REG_SYSRANGE_START);
+        if (getBit<0>(flags) == 0) {
+          waitOnStart = 0;
+        } else {
+          if (--waitOnStart == 0) {
+            //toodo: abandon pending process and measurements
+          }
         }
       }
-  }
-  //No else here so that the meas complete action can invoke a waitOnStop and get a quick check
-  if (waitOnStop) {
-    if (GetStopCompletedStatus() == 0x00) {
-        auto climask = ClearInterruptMask(GPIOFUNCTIONALITY_NEW_MEASURE_READY);//copied from adafruit copy of st advice
-        //todo: deal with climask false.
-        onStopComplete(true);
-      } else {
-        if (--waitOnStop == 0) {
-          onStopComplete(false);
+      if (waitOnMeasurementComplete) {
+        if (GetMeasurementDataReady()) {
+          waitOnMeasurementComplete = 0;
+          doMeasurementComplete(true);
+        } else {
+          if (--waitOnMeasurementComplete == 0) {
+            //todo: log timeout error
+            doMeasurementComplete(false);
+          }
         }
       }
+      //No else here so that the meas complete action can invoke a waitOnStop and get a quick check
+      if (waitOnStop) {
+        if (GetStopCompletedStatus() == 0x00) {
+          auto climask = ClearInterruptMask(GPIOFUNCTIONALITY_NEW_MEASURE_READY);//copied from adafruit copy of st advice
+          //todo: deal with climask false.
+          onStopComplete(true);
+        } else {
+          if (--waitOnStop == 0) {
+            onStopComplete(false);
+          }
+        }
+      }
+      //todo: if action request act on it:
+      break;
+    case ERROR_MODE_NOT_SUPPORTED:
+    case ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED:
+    case ERROR_GPIO_NOT_EXISTING:
+    case ERROR_INVALID_PARAMS:
+      //todo: developer errors
+      break;
+    case ERROR_CONTROL_INTERFACE: //todo: suberrors
+      //todo: device must be detected and fully reinit
+      break;
+      break;
+    default:
+      //todo: any stored exit routines that apply
+      //todo: debug print the error code.
+      break;
   }
-  //todo: if action request act on it:
 }
 
 void NonBlocking::onStopComplete(bool b) {
@@ -126,9 +145,9 @@ bool NonBlocking::AveragingProcess::begin() {
 }
 
 bool NonBlocking::AveragingProcess::onMeasurement() {
-  if (dev.theRangingMeasurementData.rangeError == VL53L0X::Range_Valid) {
-    sum_ranging += dev.theRangingMeasurementData.RangeMilliMeter;
-    sum_signalRate += dev.theRangingMeasurementData.SignalRateRtnMegaCps;
+  if (nb.theRangingMeasurementData.rangeError == VL53L0X::Range_Valid) {
+    sum_ranging += nb.theRangingMeasurementData.RangeMilliMeter;
+    sum_signalRate += nb.theRangingMeasurementData.SignalRateRtnMegaCps;
     ++total_count;
     alsoSum();
     if (--measurementRemaining > 0) {
@@ -136,7 +155,7 @@ bool NonBlocking::AveragingProcess::onMeasurement() {
     }
     /* no valid values found */
     if (total_count == 0) {//ick: really should be a larger number, like 90% success rate
-      dev.logError(VL53L0X::ERROR_RANGE_ERROR, __FUNCTION__);
+      nb.logError(VL53L0X::ERROR_RANGE_ERROR, __FUNCTION__);
       return false;
     }
     finish();
@@ -150,17 +169,17 @@ bool NonBlocking::AveragingProcess::onMeasurement() {
 bool NonBlocking::XtalkProcess::begin() {
   if (AveragingProcess::begin()) {
 /* Disable the XTalk compensation */
-    dev.SetXTalkCompensationEnable(false);
+    nb.SetXTalkCompensationEnable(false);
     /* Disable the RIT */
-    dev.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
-    dev.startMeasurement(forXtalk);
+    nb.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
+    nb.startMeasurement(forXtalk);
     return true;
   }
   return false;
 }
 
 void NonBlocking::XtalkProcess::alsoSum() {
-  sum_spads += dev.theRangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
+  sum_spads += nb.theRangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
 }
 
 bool NonBlocking::XtalkProcess::finish() {
@@ -199,16 +218,19 @@ bool NonBlocking::XtalkProcess::finish() {
   }
 
   /* Enable the XTalk compensation */
-  dev.SetXTalkCompensationEnable(true);
+  nb.SetXTalkCompensationEnable(true);
 
   /* Enable the XTalk compensation */
-  dev.SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
+  nb.SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
 
-  dev.logError(VL53L0X::ERROR_NONE, "Xtalk Process");
+  nb.logError(VL53L0X::ERROR_NONE, "Xtalk Process");
   return false;
 }
 
 NonBlocking::XtalkProcess::XtalkProcess(NonBlocking &dev) : AveragingProcess(dev) {
+}
+
+void NonBlocking::XtalkProcess::startNext() {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -218,11 +240,11 @@ NonBlocking::OffsetProcess::OffsetProcess(NonBlocking &dev) : AveragingProcess(d
 bool NonBlocking::OffsetProcess::begin() {
   if (AveragingProcess::begin()) {
     /* Get the value of the TCC */
-    SequenceStepWasEnabled = dev.GetSequenceStepEnable(SEQUENCESTEP_TCC);
+    SequenceStepWasEnabled = nb.GetSequenceStepEnable(SEQUENCESTEP_TCC);
     /* Disable the TCC */
-    dev.SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
+    nb.SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
     /* Disable the RIT */
-    dev.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);//ick: why don't we save and restore this?
+    nb.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);//ick: why don't we save and restore this?
     //todo: actually fire off first measurement
     return true;
   } else {
@@ -239,16 +261,12 @@ bool NonBlocking::OffsetProcess::finish() {
   int32_t OffsetMicroMeter = (CalDistanceMilliMeter.rounded() - StoredMeanRange.rounded()) * 1000;
 
   /* Apply the calculated offset */
-  dev.Data.CurrentParameters.RangeOffsetMicroMeters = OffsetMicroMeter;//record
-  auto ok = dev.SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);//send to device
-  if (~ok) {
-    dev.logError(ok, "Offset Measurement failed on send to device");
-  } else {
-    dev.logError(VL53L0X::ERROR_NONE, __FUNCTION__);
-  }
+  nb.Data.CurrentParameters.RangeOffsetMicroMeters = OffsetMicroMeter;//record
+  nb.SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);//send to device
+//  nb.logError(VL53L0X::ERROR_NONE, __FUNCTION__);
   /* Restore the TCC */
   if (SequenceStepWasEnabled) {
-    return dev.SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
+     nb.SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
   }
   return false;//done
 }
@@ -259,30 +277,27 @@ const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::pla
 
 void NonBlocking::CalProcess::startNext() {
   uint8_t magic = lastStep ? 0 : Bitter(6);
-  dev.set_SequenceConfig(magic, false);//todo: debate the false here, it may have been a bug in the original code.
-  dev.comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | magic);
+  nb.set_SequenceConfig(magic, false);//todo: debate the false here, it may have been a bug in the original code.
+  nb.comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | magic);
 }
 
 bool NonBlocking::CalProcess::begin() {
-  mycache = dev.PALDevDataGet(SequenceConfig);//in case we keep the PAL updated at all times, unlike what might have been a bug in the past
+  MeasurementProcess::begin();
   lastStep = false;
   startNext();
   return true;
 }
 
-bool NonBlocking::CalProcess::onMeasurement(const RangingMeasurementData_t &RangingMeasurementData) {
+bool NonBlocking::CalProcess::onMeasurement() {
   if (lastStep) {
     /* if measurement ok */{
-      dev.FFpush(0, 0, 1);
-      dev.comm.RdByte(0xCB, &p.VhvSettings);
-      dev.comm.RdByte(0xEE, &p.PhaseCal);
+      nb.FFpush(0, 0, 1);
+      nb.comm.RdByte(0xCB, &p.VhvSettings);
+      nb.comm.RdByte(0xEE, &p.PhaseCal);
       p.PhaseCal &= phaseMask; // was 0xEF, ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
     }
     /* restore the previous Sequence Config */
-    auto ok = dev.set_SequenceConfig(mycache, true);
-    if (~ok) {
-      dev.logError(ok, "failed to restore sequence config at end of Cal Process");
-    }
+    nb.set_SequenceConfig(seqConfigCache, true);
     return false;
   } else {
     //vhv done
@@ -292,27 +307,28 @@ bool NonBlocking::CalProcess::onMeasurement(const RangingMeasurementData_t &Rang
   }
 }
 
-NonBlocking::CalProcess::CalProcess(NonBlocking &dev) : dev(dev) {
+NonBlocking::CalProcess::CalProcess(NonBlocking &dev) : MeasurementProcess(dev) {
   //no actions.
 }
 
-bool NonBlocking::RefSignalProcess::onMeasurement(const RangingMeasurementData_t &RangingMeasurementData) {
+bool NonBlocking::RefSignalProcess::onMeasurement() {
   // if measurement ok:
-  rate = dev.FFread<uint16_t>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
-
-  /* restore the previous Sequence Config */
-  auto ok = dev.set_SequenceConfig(mycache, true);
-  if (~ok) {
-    dev.logError(ok, "failed to restore sequence config at end of Ref Rate Process");
-  }
+  rate = nb.FFread<uint16_t>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
+  done();
   return false;
 }
 
 bool NonBlocking::RefSignalProcess::begin() {
-  mycache = dev.PALDevDataGet(SequenceConfig);//in case we keep the PAL updated at all times, unlike what might have been a bug in the past
   return true;
 }
 
 void NonBlocking::RefSignalProcess::startNext() {
-  dev.set_SequenceConfig(0xC0, false);
+  nb.set_SequenceConfig(0xC0, false);
+}
+
+NonBlocking::RefSignalProcess::RefSignalProcess(NonBlocking &dev) :MeasurementProcess(dev){
+}
+
+
+NonBlocking::MeasurementProcess::MeasurementProcess(NonBlocking &dev) : nb(dev) {
 }

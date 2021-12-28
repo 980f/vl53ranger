@@ -18,16 +18,19 @@ public:
     errorLocation=location;
     return false;
   }
-
-#define ON_ERROR(c)   return logError( c , __FUNCTION__ );
+//
+//#define ON_ERROR(c)   return logError( c , __FUNCTION__ );
 
   NonBlocking(uint8_t i2c_addr = VL53L0X_I2C_ADDR>>1, TwoWire &i2c = Wire) : Api({i2c,i2c_addr,400})
   ,theXtalkProcess(*this)
-  , theOffsetProcess(*this){
+  , theOffsetProcess(*this)
+  , theCalProcess(*this)
+  , theRefSignalProcess(*this)
+  {
     //do no real actions so that we can statically construct
   }
 
-  enum MeasurementAction {
+  enum MeasurementAction : uint8_t {
     Abandoned = 0   //for state machine reset.
     , forRange  //normal use, when not in continuous mode
 //    , forVHV     //special seqconfig
@@ -76,14 +79,36 @@ public:
 
 protected:
 
+  class MeasurementProcess {
+    friend class NonBlocking;
+  protected:
+    NonBlocking &nb;
+
+    uint8_t seqConfigCache;//for seq value
+  public:
+    MeasurementProcess(NonBlocking &dev);
+  protected:
+    /** overrides must call this, it caches seq config*/
+    virtual bool begin(){
+      seqConfigCache = nb.PALDevDataGet(SequenceConfig);//in case we keep the PAL updated at all times, unlike what might have been a bug in the past
+      return true;
+    }
+    virtual void startNext()=0;
+    bool onMeasurement();
+    void done(){
+      /* restore the previous Sequence Config */
+      //perhaps conditional on match of Get(SequenceConfig)
+      nb.set_SequenceConfig(seqConfigCache, true);
+    }
+  };
+
   /** common base for Xtalk and Offset process
    *
     * Perform 50 measurements and compute the averages
     */
-  class AveragingProcess {
+  class AveragingProcess :public MeasurementProcess{
     friend class NonBlocking;
-  protected:
-    NonBlocking &dev;
+
   public:
     FixPoint1616_t CalDistanceMilliMeter;
   protected:
@@ -94,16 +119,20 @@ protected:
     //measurement count
     unsigned measurementRemaining = 0;
   protected:
-    explicit AveragingProcess(NonBlocking &dev):dev(dev){}
-    virtual bool begin();
-    virtual void startNext()=0;
-
-    /** @returns whether to continue the process. if not then dev.lastError details why  */
-    virtual void alsoSum(){}
-
+    explicit AveragingProcess(NonBlocking &dev):MeasurementProcess(dev){}
+    /** overrides must call this */
+    bool begin() override;
+    /** begin and onmeasurement will call this, it must start a measurement */
+    void startNext() override =0;
+    /** implements receiving measurement,  calls averaging stuff then finish of last measurement */
     bool onMeasurement();
+    /** @returns whether to continue the process. if not then nb.lastError details why  */
+    virtual void alsoSum(){}
     /** overrides called when last measurement has been summed into dataset */
-    virtual bool finish()=0;
+    virtual bool finish(){
+      done();
+      return true;
+    };
 
   } ;
 
@@ -114,16 +143,15 @@ protected:
    * .theXtalkProcess.CalDistanceMilliMeter= your value for that;
    * .requestMeasurement(forXtalk) */
   class XtalkProcess:public AveragingProcess {
-  public:
-    FixPoint1616_t CalDistanceMilliMeter;
   private:
+    //additional sum
     unsigned sum_spads = 0;//... which we will tolerate only on processors whose natural int is 16 bits
   public:
     explicit XtalkProcess(NonBlocking &dev);
-    bool begin();
-    void startNext();
-    void alsoSum();
-    bool finish();
+    bool begin() override;
+    void startNext() override;
+    void alsoSum() override;
+    bool finish() override;
   } theXtalkProcess;
 
   /** makes a bunch of measurements then sets offset.
@@ -137,45 +165,42 @@ protected:
   private:
     bool SequenceStepWasEnabled=false;
   public:
-    bool begin();
-    /** @returns whether to continue the process. if not then dev.lastError details why  */
-    bool finish();
-    void startNext();
+    bool begin() override;
+    /** @returns whether to continue the process. if not then nb.lastError details why  */
+    bool finish() override;
+    void startNext() override;
   } theOffsetProcess;
 
 
-  class CalProcess{
+  /** a pair of measurements which leave behind results accessible for curiousity's sake*/
+  class CalProcess: public MeasurementProcess{
   public:
     explicit CalProcess(NonBlocking &dev);
   private:
-    NonBlocking &dev;
     bool lastStep= false;//which of two measurements
-    uint8_t mycache;//for seq value
 
   public:
-    bool restore_config;
+    /** the result of the process */
     CalibrationParameters p;
   public:
     bool begin();
-    /** @returns whether to continue the process. if not then dev.lastError details why  */
-    bool onMeasurement(const VL53L0X::RangingMeasurementData_t &RangingMeasurementData);
+    /** @returns whether to continue the process. if not then nb.lastError details why  */
+    bool onMeasurement();
     void startNext();
   } theCalProcess;
 
   /** single measurement from which a reference signal rate is extracted*/
-  class RefSignalProcess {
+  class RefSignalProcess:public MeasurementProcess {
   public:
     explicit RefSignalProcess(NonBlocking &dev);
   private:
-    NonBlocking &dev;
-    uint8_t mycache;//for seq value
   public:
-
     uint16_t rate;//the output of the process
-    bool begin();
-    /** @returns whether to continue the process. if not then dev.lastError details why  */
-    bool onMeasurement(const VL53L0X::RangingMeasurementData_t &RangingMeasurementData);
-    void startNext();
+  public:
+    bool begin() override;
+    /** @returns whether to continue the process. if not then nb.lastError details why  */
+    bool onMeasurement();
+    void startNext() override;
 
   }theRefSignalProcess;
 
@@ -185,10 +210,12 @@ protected:
 
 public: //for debug, read only outside of this class.
   MeasurementAction measurementInProgress=Abandoned;
+  //each process typically has 3 states:
   unsigned waitOnStart=0;
   unsigned waitOnMeasurementComplete = 0;
   unsigned waitOnStop = 0;
   bool startMeasurement(MeasurementAction action);
 };
+
 
 #endif //VL53_NONBLOCKING_H

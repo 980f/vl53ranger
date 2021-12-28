@@ -5,8 +5,11 @@
 #include "vl53l0x_i2c_platform.h"
 #include "vl53l0x_platform_log.h"
 #include <Wire.h>
+#include <Arduino.h>
 
 //#define I2C_DEBUG
+
+#define THROW(error)  longjmp(ComException, error)
 
 uint8_t ArduinoWirer::changedAddress(uint8_t newAddress) {
   uint8_t was = devAddr;
@@ -23,14 +26,18 @@ public:
   }
 
   ~I2cFramer() {
-    parent.i2c.endTransmission();//#NB: this here is what takes all the time when sending.
+    auto errcode=parent.i2c.endTransmission();//#NB: this here is what takes all the time when sending.
+    if(errcode!=0){
+//      THROW(VL53L0X::ERROR_CONTROL_INTERFACE);
+      longjmp(parent.ComException,VL53L0X::ERROR_CONTROL_INTERFACE+errcode);
+    }
   }
 };
 
 bool ArduinoWirer::write_multi(uint8_t index, const uint8_t *pdata, int count) {
   I2cFramer frameit(*this);//begins transmission and arranges to end it regardless of how we exit this method.
   if (i2c.write(index) != 1) {
-    return false;
+    THROW(VL53L0X::ERROR_CONTROL_INTERFACE);
   }
 #ifdef I2C_DEBUG
   Serial.print("\tWriting ");
@@ -44,12 +51,12 @@ bool ArduinoWirer::write_multi(uint8_t index, const uint8_t *pdata, int count) {
     pdata += count;//past end
     while (count-- > 0) {
       if (i2c.write(pdata[count]) != 1) {
-        return false;
+        THROW(VL53L0X::ERROR_CONTROL_INTERFACE);
       }
     }
   } else {
     if (i2c.write(pdata, count) != count) {
-      return false;
+      THROW(VL53L0X::ERROR_CONTROL_INTERFACE);
     }
   }
 #ifdef I2C_DEBUG
@@ -75,7 +82,7 @@ bool ArduinoWirer::read_multi(uint8_t index, uint8_t *pdata, int count) {
   i2c.endTransmission();
   auto didit = i2c.requestFrom(devAddr, count);
   if (didit != count) {
-    return false;
+    THROW(VL53L0X::ERROR_CONTROL_INTERFACE);
   }
 #ifdef I2C_DEBUG
   Serial.print("\tReading ");
@@ -115,6 +122,7 @@ void ArduinoWirer::i2c_init() {
 }
 
 uint32_t PerformanceTracer::logclock() {
+
   return micros();//most actions time are sub millisecond
 }
 

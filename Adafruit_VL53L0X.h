@@ -124,7 +124,7 @@ public:
 private:
   VL53L0X::Api MyDevice;
   VL53L0X::DeviceInfo_t DeviceInfo;
-  uint8_t _rangeStatus;
+  VL53L0X::RangeStatus _rangeStatus;
 }; // class Adafruit_VL53L0X
 
 #endif // ifndef ADAFRUIT_VL53L0X_H

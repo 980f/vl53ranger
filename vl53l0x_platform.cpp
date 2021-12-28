@@ -96,10 +96,15 @@ namespace VL53L0X {
 //  return Error_NONE;
 //}
 
+#ifdef THROW
+#warning "THROW redefined for platform.cpp Physical access"
+#undef THROW
+#endif
+#define THROW(error) longjmp(wirer.ComException,error)
 
   void Physical::WriteMulti(uint8_t index, const uint8_t *pdata, int count) {
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
-      THROW (ERROR_INVALID_PARAMS);//BUG: formerly went ahead and asked for invalid transfer
+      THROW(ERROR_INVALID_PARAMS);//BUG: formerly went ahead and asked for invalid transfer
     }
     wirer.write_multi( index, pdata, count);
   }

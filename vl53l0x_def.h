@@ -378,7 +378,7 @@ namespace VL53L0X {
       case SEQUENCESTEP_FINAL_RANGE:
         return 7;  //ick: this seems to overlap with wraparound enable
       default:
-        THROW(ERROR_INVALID_PARAMS);
+//no route        THROW(ERROR_INVALID_PARAMS);
         return ~0;//todo: deal with lack of access to throw
     } // switch
   }

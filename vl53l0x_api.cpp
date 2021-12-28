@@ -38,6 +38,8 @@
 
 #include "log_api.h"
 
+#define THROW(error) throwException(__FUNCTION__,__LINE__,error)
+
 #ifdef VL53L0X_LOG_ENABLE
 #define trace_print(level, ...)   trace_print_module_function(TRACE_MODULE_API, level, TRACE_FUNCTION_NONE, ## __VA_ARGS__)
 #endif
@@ -52,8 +54,6 @@ namespace VL53L0X {
   const Version_t Api::PalSpecVersion {VL53L0X_SPECIFICATION_VER_REVISION, VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR, VL53L0X_SPECIFICATION_VER_SUB};
 
 /* Group PAL General Functions */
-
-
   bool Api::measurement_poll_for_completion() {
     LOG_FUNCTION_START;
     for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {

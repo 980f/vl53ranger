@@ -60,6 +60,7 @@ namespace VL53L0X {
     static const Version_t PalSpecVersion;
 
 
+
 /** @defgroup cut11_group VL53L0X cut1.1 Function Definition
  *  @brief    VL53L0X cut1.1 Function Definition
  *  @{
