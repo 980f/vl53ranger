@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>errorManagement</title>
+    <meta name="author" content="Andy Heilveil (github/980f)">
+  </head>
+  <body>
+    <p>VL53L0X</p>
+    <p>Error management</p>
+    <br>
+    The defined errors:<br>
+    <br>
+    <table cellspacing="2" cellpadding="2" border="1">
+      <tbody>
+        <tr>
+          <td>ERROR_NONE</td>
+          <td>0</td>
+          <td>not an error</td>
+          <td>resolution</td>
+        </tr>
+        <tr>
+          <td>ERROR_CALIBRATION_WARNING</td>
+          <td><br>
+          </td>
+          <td>no instances</td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>ERROR_MIN_CLIPPED</td>
+          <td>parameter</td>
+          <td>no instances</td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>ERROR_UNDEFINED</td>
+          <td><br>
+          </td>
+          <td>none</td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>ERROR_INVALID_PARAMS</td>
+          <td>parameter<br>
+            (human error)</td>
+          <td>many argument checks</td>
+          <td>compile time errors via rigorous type checking. Someone has to cast around the types and gets what they deserve if we throw.<br>
+            A boolean for each instance, clearable <em>en masse</em> allows for easy postmortem analysis.<br>
+            Set bit and return 'failed'.</td>
+        </tr>
+        <tr>
+          <td>ERROR_NOT_SUPPORTED</td>
+          <td>&nbsp;</td>
+          <td>adafruit version check</td>
+          <td>feature not needed, should be warning at best</td>
+        </tr>
+        <tr>
+          <td>ERROR_RANGE_ERROR</td>
+          <td>hw</td>
+          <td>*cal total_count 0 at end of 50 or any error during iteration<br>
+            GetInterruptMaskStatus either of two undocumented bits set</td>
+          <td>ones from calibration are now in background processes<br>
+            <br>
+            GIMS ones: seems to mean that the bits being waiting on will never be set so the loop needs to break. <br>
+            <br>
+            A sentinel value can take care of this, or simply let the bits persist back to the user where they should test them all, not just the one of interest.</td>
+        </tr>
+        <tr>
+          <td>ERROR_TIME_OUT</td>
+          <td>hw </td>
+          <td>
+            <ul>
+              <li>adafruit::stopRangeContinuous</li>
+              <li>slowpoll measurement_poll_for_completion </li>
+              <li>fastpoll StartMeasurement(single)</li>
+              <li>fastpoll device_read_strobe packed90 reads</li>
+            </ul>
+          </td>
+          <td>need more realistic timeouts to see if can be done blocking without penalty<br>
+            else waiting is moved to state machines and they can notify on state transition failure.</td>
+        </tr>
+        <tr>
+          <td>ERROR_MODE_NOT_SUPPORTED</td>
+          <td>&nbsp;parameter</td>
+          <td> SetPowerMode half the enums are invalid<br>
+            SetDeviceMode only 5 valid enums<br>
+            StartMeasurement only 3 valid enums </td>
+          <td>better type definitions should catch these at compile time.<br>
+            only internal/expert code might want to type cast when splitting a hardware value into fields.</td>
+        </tr>
+        <tr>
+          <td>ERROR_BUFFER_TOO_SMALL</td>
+          <td>&nbsp;</td>
+          <td>no instances</td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>ERROR_GPIO_NOT_EXISTING</td>
+          <td>&nbsp;parameter</td>
+          <td>SetGpioConfig<br>
+            GetGpioConfig<br>
+          </td>
+          <td>make a gpio object and hide possibility of user entering an invalid value.</td>
+        </tr>
+        <tr>
+          <td>ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED</td>
+          <td>&nbsp;</td>
+          <td>SetGpioConfig parameter<br>
+            GetGpioConfig bad value in hardware </td>
+          <td>see 'not existing'</td>
+        </tr>
+        <tr>
+          <td>ERROR_INTERRUPT_NOT_CLEARED</td>
+          <td>&nbsp;hw</td>
+          <td>ClearInterruptMask<br>
+          </td>
+          <td>THROW <br>
+            reinit needed</td>
+        </tr>
+        <tr>
+          <td><br>
+          </td>
+          <td><br>
+          </td>
+          <td><br>
+          </td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>ERROR_CONTROL_INTERFACE</td>
+          <td>20<br>
+            most likely parameter error as in wrong size for a register read. </td>
+          <td>Actual or suspected I2C error<br>
+            Read: fewer bytes received <br>
+            Write: buffer overflow<br>
+            theoretically:<br>
+            <div id="wikitext">
+              <meta http-equiv="content-type" content="text/html; charset=utf-8">
+              <ul>
+                <li>0:success </li>
+                <li>1:data too long to fit in transmit buffer </li>
+                <li>2:received NACK on transmit of address </li>
+                <li>3:received NACK on transmit of data </li>
+                <li>4:other error </li>
+              </ul>
+            </div>
+            <br>
+          </td>
+          <td>log detail THROW <br>
+            reinit needed</td>
+        </tr>
+        <tr>
+          <td>ERROR_INVALID_COMMAND</td>
+          <td>30</td>
+          <td>none<br>
+          </td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>ERROR_DIVISION_BY_ZERO</td>
+          <td>40</td>
+          <td>none<br>
+          </td>
+          <td><br>
+          </td>
+        </tr>
+        <tr>
+          <td>ERROR_REF_SPAD_INIT</td>
+          <td>50<br>
+          </td>
+          <td>perform_ref_spad_management<br>
+            enable_ref_spads<br>
+            -all are variants of bits not being found.<br>
+          </td>
+          <td>these are process responses, <br>
+            record greater detail in a status variable and return 'failed'.</td>
+        </tr>
+        <tr>
+          <td>ERROR_NOT_IMPLEMENTED</td>
+          <td>99<br>
+            human error</td>
+          <td>at function entry<br>
+          </td>
+          <td>THROW<br>
+            source code is bad. This is not totally unreasonable if the source dynamically adjust for different sensors attached in which case it has to know to not attempt such operations and has failed seriously if it has.<br>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <br>
+    <br>
+    <br>
+    <hr><br>
+    The majority of instances of testing for errors is after I2C comm.<br>
+    <br>
+    The device disappearing can be detected and recorded.<br>
+    The device can be probed via 0 byte writes when it has not been found present.<br>
+    Xmit overflow is a developer error and no local recovery is reasonable.<br>
+    Recv under flow is a developer error or hideous noise.<br>
+    <br>
+    <br>
+    separate counters for each I2C error code would be cute.<br>
+    <br>
+    <hr><br>
+    <br>
+    Since we are not going to enable exceptions but rather do a longjmp we need to:<br>
+    <ol>
+      <li>verify that no new's or mallocs of any kind occur.</li>
+      <ol>
+        <li>since the code was received as C not C++we should not have added new's and we can grep for ?alloc</li>
+      </ol>
+      <li>that all RAII 'pop' operations are unnecessary if we throw.</li>
+    </ol>
+    As such we can only THROW for communications errors or errors for which complete reinit of the device is the remedy.<br>
+    <br>
+    <br>
+    <br>
+  </body>
+</html>
