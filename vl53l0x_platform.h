@@ -1,4 +1,5 @@
 /*******************************************************************************
+ * // Copyright 2021 by Andy Heilveil (github/980f) starting with but heavily modifying work
  *  Copyright 2015, STMicroelectronics International N.V.
  *  All rights reserved.
  *
@@ -130,8 +131,6 @@ namespace VL53L0X {
  * Write single byte register
  * @param   index     The register index
  * @param   data      8 bit register data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
  */
     void WrByte(uint8_t index, uint8_t data);
 
@@ -139,8 +138,6 @@ namespace VL53L0X {
  * Write word register
  * @param   index     The register index
  * @param   data      16 bit register data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
  */
     void WrWord(uint8_t index, uint16_t data);
 
@@ -149,8 +146,6 @@ namespace VL53L0X {
  * @param   Dev       Device Handle
  * @param   index     The register index
  * @param   data      32 bit register data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
  */
     void WrDWord(uint8_t index, uint32_t data);
 
@@ -159,8 +154,6 @@ namespace VL53L0X {
  * @param   Dev       Device Handle
  * @param   index     The register index
  * @param   data      pointer to 8 bit data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
  */
     void RdByte(uint8_t index, uint8_t *data);
 
@@ -169,8 +162,6 @@ namespace VL53L0X {
  * @param   Dev       Device Handle
  * @param   index     The register index
  * @param   data      pointer to 16 bit data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
  */
     void RdWord(uint8_t index, uint16_t *data);
 
@@ -179,22 +170,20 @@ namespace VL53L0X {
  * @param   Dev       Device Handle
  * @param   index     The register index
  * @param   data      pointer to 32 bit data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
  */
     void RdDWord(uint8_t index, uint32_t *data);
 
 /**
- * Threat safe Update (read/modify/write) single byte register
+ * Allows for thread safe Update (read/modify/write) of single byte register if I2C service properly blocks for repeated starts
  *
  * Final_reg = (Initial_reg & and_data) |or_data
  *
+ * todo:  mask and value to get rid of ~'s
+ *
  * @param   Dev        Device Handle
  * @param   index      The register index
- * @param   AndData    8 bit and data
- * @param   OrData     8 bit or data
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
+ * @param   AndData    clear register where bits here are zero
+ * @param   OrData     set register where bits here are one
  */
     void UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData);
 
@@ -221,50 +210,18 @@ namespace VL53L0X {
  *
  * 980f: this sounds like it should be called 'yield()', allow other tasks to run.
  *
- * A typical multi-thread or RTOs implementation is to sleep the task for some
- * 5ms (with 100Hz max rate faster polling is not needed) if nothing specific is
- * need you can define it as an empty/void macro
+ * A typical multi-thread or RTOs implementation is to sleep the task for some 5ms (with 100Hz max rate faster polling is not needed)
+ * if nothing specific is need you can define it as an empty/void macro
  * @code
  * #define VL53L0X_PollingDelay(...) (void)0
  * @endcode
  * @param Dev       Device Handle
- * @return  VL53L0X_ERROR_NONE        Success
- * @return  "Other error code"    See ::VL53L0X_Error
  */
     void PollingDelay(); /* usually best implemented as a real function */
 
-//    /** RAII device to ensure that certain device registers are restored before leaving a chunk of code. It appears that the interface has many more values than can be indexed by one byte of address and so there is a page register, but most accesses presume page 0.
-//     * Another instance appears to be an update disable to ensure that a block of many reads does not have content altered during reading. Having a snapshot rather than freeze-thaw would have been kind by the device engineers. */
-//    class FrameEnder {
-//      Physical &comm;
-//      const RegSystem reg;
-//      const uint8_t ender;
-//
-//    public:
-//
-//      FrameEnder(Physical &comm, RegSystem reg, uint8_t starter, uint8_t ender) : comm(comm), reg(reg), ender(ender) {
-//         comm.WrByte(reg, starter);
-//      }
-//
-//      ~FrameEnder() {
-//        //todo: debate whether this is conditional on constructor success. It appears to not be checked in much of the ST code.
-//         comm.WrByte(reg, ender);
-//        //but we have no means of reporting failure here, but if it fails here recovery is hopeless.
-//        //that is why the error should be a thread_local and not returned everywhere.
-//      }
-//    };
-//
-//    FrameEnder autoCloser(RegSystem reg, uint8_t starter, uint8_t ender) {
-//      return {comm, reg, starter, ender};
-//    }
   };
 
-/**
- * @brief   Declare the device Handle as a pointer of the structure @a
- * VL53L0X_Dev_t.
- *
- */
-//  typedef VL53L0X_Dev_t *VL53L0X_DEV;
+
 
 /**
  * @def PALDevDataGet

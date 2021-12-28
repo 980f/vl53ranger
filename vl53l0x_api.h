@@ -839,19 +839,7 @@ namespace VL53L0X {
  */
     uint32_t GetInterMeasurementPeriodMilliSeconds();
 
-/**
- * @brief Enable/Disable Cross talk compensation feature
- *
- * @note This function is not Implemented.
- * Enable/Disable Cross Talk by set to zero the Cross Talk value
- * by using @a SetXTalkCompensationRateMegaCps().
- *
- * @param   Dev                       Device Handle
- * @param   XTalkCompensationEnable   Cross talk compensation
- *  to be set 0=disabled else = enabled
- * @return  ERROR_NOT_IMPLEMENTED   Not implemented
- */
-    Error SetXTalkCompensationEnable(bool XTalkCompensationEnable);
+
 
 /**
  * @brief Get Cross talk compensation rate
@@ -1826,7 +1814,7 @@ namespace VL53L0X {
 
     void set_ref_calibration(CalibrationParameters p, bool setv, bool setp) ;
   public:
-    CalibrationParameters get_ref_calibration(bool vhv_enable, bool phase_enable);
+    Api::CalibrationParameters get_ref_calibration();
   protected:
     bool waitOnResetIndicator(bool disappear);
 
@@ -1834,18 +1822,20 @@ namespace VL53L0X {
 
     static const unsigned minimumSpadCount = 3;
 
-    SpadArray::Index get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr);
-
     void initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
     SpadArray::Index enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset);
 
     bool CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
-    bool perform_single_ref_calibration(uint8_t vhv_init_byte);
 
+    /** the factoring and rework relies upon registers CB and EE not being affected by the cal procedure for the other.
+     * if that is not the case then their values will have to be captured between the acquisitions which trigger their updates.
+     *
+     * */
+    bool perform_single_ref_calibration(uint8_t vhv_init_byte);
 
     bool perform_vhv_calibration(bool restore_config);
     /** @returns Cal parameters after running a calibration of one type or the other. Only one param will be meaningful */
-    bool perform_item_calibration(bool vElseP, const bool restore_config);
+    bool perform_item_calibration(bool vElseP, bool restore_config);
 
     /** @returns the rate if measurmeent succeeds else @param iffails (not sure what makes a good sentinal, 0 or ~0 ) */
     uint16_t perform_ref_signal_measurement(uint16_t iffails);

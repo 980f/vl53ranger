@@ -62,13 +62,13 @@ namespace VL53L0X {
   };
 
   static const Enumified RANGESTATUS_table[] = {
-    {0, VL53L0X_STRING_RANGESTATUS_RANGEVALID},
-    {1, VL53L0X_STRING_RANGESTATUS_SIGMA},
-    {2, VL53L0X_STRING_RANGESTATUS_SIGNAL},
-    {3, VL53L0X_STRING_RANGESTATUS_MINRANGE},
-    {4, VL53L0X_STRING_RANGESTATUS_PHASE},
-    {5, VL53L0X_STRING_RANGESTATUS_HW},
-    {0, 0}
+    {RangeStatus::Range_Valid, VL53L0X_STRING_RANGESTATUS_RANGEVALID},
+    {RangeStatus::Sigma_Fail, VL53L0X_STRING_RANGESTATUS_SIGMA},
+    {RangeStatus::Signal_Fail, VL53L0X_STRING_RANGESTATUS_SIGNAL},
+    {RangeStatus::Min_range, VL53L0X_STRING_RANGESTATUS_MINRANGE},
+    {RangeStatus::Phase_fail, VL53L0X_STRING_RANGESTATUS_PHASE},
+    {RangeStatus::HW_fail, VL53L0X_STRING_RANGESTATUS_HW},
+    {0, nullptr}
   };
 
   static const Enumified PalERROR_table[] = {
@@ -91,7 +91,7 @@ namespace VL53L0X {
     {ERROR_REF_SPAD_INIT,                    VL53L0X_STRING_ERROR_REF_SPAD_INIT},
     {ERROR_NOT_IMPLEMENTED,                  VL53L0X_STRING_ERROR_NOT_IMPLEMENTED},
 
-    {0, 0}
+    {0, nullptr}
   };
 
   static const Enumified STATE_table[] = {
@@ -155,7 +155,7 @@ namespace VL53L0X {
   }
 
   const char *pal_error_string(const Error &PalErrorCode) {
-    return scanTable(RANGESTATUS_table, PalErrorCode, VL53L0X_STRING_UNKNOW_ERROR_CODE);
+    return scanTable(PalERROR_table, PalErrorCode, VL53L0X_STRING_UNKNOW_ERROR_CODE);
   }
 
   const char *pal_state_string(const State &PalStateCode) {

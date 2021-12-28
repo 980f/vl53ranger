@@ -37,23 +37,19 @@ namespace VL53L0X {
 
   const SpadArray::Index Api::startSelect(180);// was 0xB4 but is not a bit pattern, rather it is a decimal number
 
-
   //offset field is 12 bits and signed.
-  const int16_t cOffsetMask = (1 << 12) - 1; //bit field 11=>0
+  const int16_t cOffsetMask = Mask<11, 0>::places; //bit field 11=>0
   const int16_t cOffsetMax = cOffsetMask >> 1;//max positive value of 12 bits
   const int16_t cOffsetMin = -(cOffsetMask + 1);//most negative value
 
-
-  bool Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance ) {
+  bool Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance) {
     if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
-      THROW( ERROR_INVALID_PARAMS);
+      THROW(ERROR_INVALID_PARAMS);
     }
     /* Disable the XTalk compensation */
-     SetXTalkCompensationEnable(0);
-
+    SetXTalkCompensationEnable(false);
     /* Disable the RIT */
-     SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
-
+    SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
     /* Perform 50 measurements and compute the averages */
     unsigned sum_ranging = 0;//bug: former use of 16 bit begs for integer overflow
     unsigned sum_spads = 0;//... which we will tolerate only on processors whose natural int is 16 bits
@@ -61,7 +57,7 @@ namespace VL53L0X {
     uint32_t total_count = 0;//unsigned is probably adequate
     for (uint8_t xtalk_meas = 0; xtalk_meas < 50; xtalk_meas++) {//ick: buried constant
       RangingMeasurementData_t RangingMeasurementData;
-      if(!PerformSingleRangingMeasurement(RangingMeasurementData)){
+      if (!PerformSingleRangingMeasurement(RangingMeasurementData)) {
         return false;
       }
       /* The range is valid when rangeError = 0 */
@@ -83,15 +79,10 @@ namespace VL53L0X {
     FixPoint1616_t xTalkStoredMeanRtnSpads(sum_spads, total_count);
 
     /* Round Mean Spads to Whole Number.
-     * Typically the calculated mean SPAD count is a whole number
-     * or very close to a whole
-     * number, therefore any truncation will not result in a
-     * significant loss in accuracy.
-     * Also, for a grey target at a typical distance of around
-     * 400mm, around 220 SPADs will
-     * be enabled, therefore, any truncation will result in a loss
-     * of accuracy of less than
-     * 0.5%.
+     * Typically the calculated mean SPAD count is a whole number or very close to a whole number,
+     * therefore any truncation will not result in a significant loss in accuracy.
+     * Also, for a grey target at a typical distance of around 400mm, around 220 SPADs will be enabled, therefore,
+     * any truncation will result in a loss of accuracy of less than 0.5%.
      */
     uint32_t xTalkStoredMeanRtnSpadsAsInt = roundedScale(xTalkStoredMeanRtnSpads, 16);
 
@@ -104,22 +95,15 @@ namespace VL53L0X {
     if (xTalkStoredMeanRtnSpadsAsInt == 0 || xTalkCalDistanceAsInt == 0 || xTalkStoredMeanRange >= XTalkCalDistance) {
       XTalkCompensationRateMegaCps = 0.0F;
     } else {
-      /* Round Cal Distance to Whole Number.
-       *  Note that the cal distance is in mm, therefore no
-       *  resolution is lost.*/
+      /* Round Cal Distance to Whole Number.  Note that the cal distance is in mm, therefore no resolution is lost.*/
       xTalkCalDistanceAsInt = roundedScale(XTalkCalDistance, 16);
 
-      /* Apply division by mean spad count early in the
-       * calculation to keep the numbers small.
-       * This ensures we can maintain a 32bit calculation.
-       * Fixed1616 / int := Fixed1616 */
+      /* Apply division by mean spad count early in the calculation to keep the numbers small.
+       * This ensures we can maintain a 32bit calculation.  Fixed1616 / int := Fixed1616 */
       uint32_t signalXTalkTotalPerSpad = (xTalkStoredMeanSignalRate) / xTalkStoredMeanRtnSpadsAsInt;//ick: round divide
 
-      /* Complete the calculation for total Signal XTalk per
-       * SPAD
-       * Fixed1616 * (Fixed1616 - Fixed1616/int) :=
-       * (2^16 * Fixed1616)
-       */
+      /* Complete the calculation for total Signal XTalk per SPAD
+       * Fixed1616 * (Fixed1616 - Fixed1616/int) := (2^16 * Fixed1616)   */
       signalXTalkTotalPerSpad *= (Unity.raw - (xTalkStoredMeanRange / xTalkCalDistanceAsInt));//ick: round divide
 
       /* Round from 2^16 * Fixed1616, to Fixed1616. */
@@ -129,26 +113,28 @@ namespace VL53L0X {
 //    pXTalkCompensationRateMegaCps = XTalkCompensationRateMegaCps;
 
     /* Enable the XTalk compensation */
-    return SetXTalkCompensationEnable(true)&& SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
+    SetXTalkCompensationEnable(true);
+    SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
+    return true;
   } // VL53L0X_perform_xtalk_calibration
 
   bool Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter) {
     if (CalDistanceMilliMeter.raw <= 0) {//ick,unsigned numbers are never negative, todo: need a maximum check here.
       return LOG_ERROR(ERROR_INVALID_PARAMS);
     }
-     SetOffsetCalibrationDataMicroMeter(0);
+    SetOffsetCalibrationDataMicroMeter(0);
     /* Get the value of the TCC */
     bool SequenceStepWasEnabled = GetSequenceStepEnable(SEQUENCESTEP_TCC);
     /* Disable the TCC */
-     SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
+    SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
     /* Disable the RIT */
-     SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
+    SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
     /* Perform 50 measurements and compute the averages */
     uint16_t sum_ranging = 0;
     uint32_t total_count = 0;
     for (int meas = 0; meas < 50; meas++) {
       RangingMeasurementData_t RangingMeasurementData;
-      if(!PerformSingleRangingMeasurement(RangingMeasurementData)){
+      if (!PerformSingleRangingMeasurement(RangingMeasurementData)) {
         return false;//quits on any measurement failing
       }
       /* The range is valid when rangeError = 0 */
@@ -173,11 +159,11 @@ namespace VL53L0X {
 
     /* Apply the calculated offset */
     VL53L0X_SETPARAMETERFIELD(RangeOffsetMicroMeters, OffsetMicroMeter);
-     SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);
+    SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);
 
     /* Restore the TCC */
     if (SequenceStepWasEnabled) {
-       SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
+      SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
     }
     return true;
   } // VL53L0X_perform_offset_calibration
@@ -194,23 +180,22 @@ namespace VL53L0X {
     } else if (OffsetCalibrationDataMicroMeter < cOffsetMin) {
       OffsetCalibrationDataMicroMeter = cOffsetMin;
     }
-     comm.WrWord(REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, OffsetCalibrationDataMicroMeter & cOffsetMask);
+    comm.WrWord(REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM, OffsetCalibrationDataMicroMeter & cOffsetMask);//ick: should msbs be preserved?
   } // VL53L0X_set_offset_calibration_data_micro_meter
 
   int32_t Api::get_offset_calibration_data_micro_meter() {
     uint16_t RangeOffsetRegister;
-   fetch(RangeOffsetRegister, REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM);
-      /* Apply 12 bit 2's compliment conversion */
-      bool isNegative = getBit<11>(RangeOffsetRegister);
-      if (isNegative) {
-        RangeOffsetRegister |= -(1 << 12);
-      }
-      return RangeOffsetRegister * 250;
+    fetch(RangeOffsetRegister, REG_ALGO_PART_TO_PART_RANGE_OFFSET_MM);
+    /* Apply 12 bit 2's complement conversion */
+    if (getBit<11>(RangeOffsetRegister)) {
+      RangeOffsetRegister |= cOffsetMin;//something like F800, the most negative value works as sign extension for 2's complement math
+    }
+    return RangeOffsetRegister * 250;
   } // VL53L0X_get_offset_calibration_data_micro_meter
 
   bool Api::apply_offset_adjustment() {
     /* if we run on this function we can read all the NVM info used by the API */
-    if(!get_info_from_device(InfoGroup::ALL)){
+    if (!get_info_from_device(InfoGroup::ALL)) {
       return false;
     }
     /* Read back current device offset */
@@ -220,22 +205,12 @@ namespace VL53L0X {
     PALDevDataSet(Part2PartOffsetNVMMicroMeter, CurrentOffsetMicroMeters);
     int32_t CorrectedOffsetMicroMeters = CurrentOffsetMicroMeters + (int32_t) PALDevDataGet(Part2PartOffsetAdjustmentNVMMicroMeter);
 
-     SetOffsetCalibrationDataMicroMeter(CorrectedOffsetMicroMeters);
+    SetOffsetCalibrationDataMicroMeter(CorrectedOffsetMicroMeters);
 
     /* store current, adjusted offset */
     VL53L0X_SETPARAMETERFIELD(RangeOffsetMicroMeters, CorrectedOffsetMicroMeters);
     return true;
   } // VL53L0X_apply_offset_adjustment
-
-  SpadArray::Index Api::get_next_good_spad(SpadArray goodSpadArray, SpadArray::Index curr) {
-    for (; curr.isValid(); ++curr) {
-      if (goodSpadArray.get(curr)) {
-        return curr;
-      }
-    }
-    return ~0;//canonical ! isValid()
-  } // get_next_good_spad
-
 
 
   SpadArray::Index Api::enable_ref_spads(SpadCount &req, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset) {
@@ -252,7 +227,7 @@ namespace VL53L0X {
     const SpadArray::Index badSpad(~0);//sentinel return value
     SpadArray::Index currentSpad = offset;
     while (currentSpad.isValid()) {
-      auto nextGoodSpad = get_next_good_spad(goodSpadArray, currentSpad);
+      auto nextGoodSpad = goodSpadArray.nextSet(currentSpad);
       if (!nextGoodSpad.isValid()) {
         return badSpad;//seems excessive, we just went past the last
       }
@@ -266,10 +241,10 @@ namespace VL53L0X {
       spadArray.enable(nextGoodSpad);
       currentSpad = ++nextGoodSpad;//without the incr we would spin forever
     }
-     set_ref_spad_map(spadArray);
+    set_ref_spad_map(spadArray);
 
     SpadArray checkSpadArray;
-     get_ref_spad_map(checkSpadArray);
+    get_ref_spad_map(checkSpadArray);
     /* Compare spad maps. If not equal report error. */
     if (spadArray != checkSpadArray) {
       return badSpad;
@@ -279,10 +254,10 @@ namespace VL53L0X {
 
   uint16_t Api::perform_ref_signal_measurement(uint16_t iffails) {
 /*This function performs a reference signal rate measurement.    */
-    SeqConfigStacker popper (*this,true,Mask<7,6>::places);
+    SeqConfigStacker popper(*this, true, Mask<7, 6>::places);
 
     RangingMeasurementData_t rangingMeasurementData;
-    if(!PerformSingleRangingMeasurement(rangingMeasurementData)){
+    if (!PerformSingleRangingMeasurement(rangingMeasurementData)) {
       //todo: log detail if the above does not do so
       return iffails;
     }
@@ -311,10 +286,10 @@ namespace VL53L0X {
       comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
       comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);//ick: seems to be SpadArray::MaxCount
     }
-     comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
+    comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
 
     auto ignoredvalue = enable_ref_spads(ref, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
-    if(!ignoredvalue.isValid()){
+    if (!ignoredvalue.isValid()) {
       return false;
     }
     VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, true);
@@ -335,8 +310,8 @@ namespace VL53L0X {
   } // VL53L0X_get_reference_spads
 
   bool Api::perform_single_ref_calibration(uint8_t vhv_init_byte) {
-    push(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | vhv_init_byte,0);//980f: write the zero to _start regardless of measurement success
-    if (measurement_poll_for_completion()){
+    push(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | vhv_init_byte, 0);//980f: write the zero to _start regardless of measurement success
+    if (measurement_poll_for_completion()) {
       ClearInterruptMask(0);
       comm.WrByte(REG_SYSRANGE_START, 0x00);
       return true;
@@ -356,29 +331,24 @@ namespace VL53L0X {
     }
   }
 
-  Api::CalibrationParameters Api::get_ref_calibration(bool getv, bool getp) {
+  Api::CalibrationParameters Api::get_ref_calibration() {
     CalibrationParameters p;
     auto Error = FFpush(0, 0, 1);
-    if (getv) {
       comm.RdByte(0xCB, &p.VhvSettings);
-    }
-    if (getp) {
       comm.RdByte(0xEE, &p.PhaseCal);
-    }
     p.PhaseCal &= phaseMask; // was 0xEF, ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
     return p;
   }
 
   bool Api::perform_item_calibration(bool vElseP, const bool restore_config) {
     /* store the value of the sequence config, this will be reset after the end of the function */
-    SeqConfigStacker popper(*this, restore_config, Bitter(vElseP?0:1));
-    return perform_single_ref_calibration(vElseP?Bitter(6):0);
-
+    SeqConfigStacker popper(*this, restore_config, Bitter(vElseP ? 0 : 1));
+    return perform_single_ref_calibration(vElseP ? Bitter(6) : 0);
   } // VL53L0X_perform_vhv_calibration
 
 
   bool Api::perform_vhv_calibration(bool restore_config) {
-    return  perform_item_calibration(true, restore_config);
+    return perform_item_calibration(true, restore_config);
   } // VL53L0X_perform_vhv_calibration
 
   bool Api::perform_phase_calibration(bool restore_config) {
@@ -387,7 +357,7 @@ namespace VL53L0X {
 
   bool Api::perform_ref_calibration() {
     //todo: sholdn't we push seq config here?
-    return perform_vhv_calibration(false)&&perform_phase_calibration(false);
+    return perform_vhv_calibration(false) && perform_phase_calibration(false);
   } // VL53L0X_perform_ref_calibration
 
 }

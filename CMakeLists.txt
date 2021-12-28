@@ -38,8 +38,9 @@ set(coreSources
 vl53l0x_api.cpp
 vl53l0x_api_calibration.cpp
 vl53l0x_api_core.cpp
-vl53l0x_api_ranging.cpp
+
 vl53l0x_api_strings.cpp
+  vl53l0x_spadarray.cpp
 )
 
 SET(platform

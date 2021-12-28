@@ -113,7 +113,7 @@ namespace VL53L0X {
     InterruptPolarity polarity = INTERRUPTPOLARITY_LOW;
   };
 
-  bool isValid(DeviceModes modes) {//todo: review old code, may need some context here.
+constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need some context here.
     switch (modes) {
       case DEVICEMODE_SINGLE_RANGING:
         return true;
@@ -124,7 +124,7 @@ namespace VL53L0X {
       case DEVICEMODE_CONTINUOUS_TIMED_RANGING:
         return true;
       case DEVICEMODE_SINGLE_ALS:
-        return false;
+        return false; //NYI
       case DEVICEMODE_GPIO_DRIVE:
         return true;
       case DEVICEMODE_GPIO_OSC:
@@ -152,12 +152,15 @@ namespace VL53L0X {
  *	@{
  */
 
+/* 980F: reordered to match value from device, and to get compiler to validate values for anyone who doesn't cast their way around the check */
   enum PowerModes : uint8_t {//two bits: IdleElseStandby and an unused level
     POWERMODE_STANDBY_LEVEL1 = 0 /*!< Standby level 1 */
-    , POWERMODE_STANDBY_LEVEL2 /*!< Standby level 2 */
     , POWERMODE_IDLE_LEVEL1  /*!< Idle level 1 */
+    //using #def to get compile time checking on parameters
+#if VL53L0X_POWERMODES > 1
+    , POWERMODE_STANDBY_LEVEL2 /*!< Standby level 2 */
     , POWERMODE_IDLE_LEVEL2 /*!< Idle level 2 */
-
+#endif
 /** @} VL53L0X_define_PowerModes_group */
   };
 /** @brief Defines all parameters for the device

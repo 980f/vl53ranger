@@ -61,8 +61,13 @@ namespace VL53L0X {
  * @ingroup Configuration
  */
 #define I2C_BUFFER_CONFIG 1
-/** Maximum buffer size to be used in i2c */
-#define VL53L0X_MAX_I2C_XFER_SIZE    64
+/** Maximum buffer size to be used in i2c
+ *
+ * 32 bit ints: 4
+ * SpadArray:   6
+ *
+ * */
+#define VL53L0X_MAX_I2C_XFER_SIZE    12
 
 //unused concept:
 //#if I2C_BUFFER_CONFIG == 0
@@ -85,24 +90,15 @@ namespace VL53L0X {
 //#endif
 
 #define VL53L0X_I2C_USER_VAR /* none but could be for a flag var to get/pass to mutex interruptible  return flags and try again */
-#define VL53L0X_GetI2CAccess(Dev) /* todo mutex acquire */
-#define VL53L0X_DoneI2CAcces(Dev) /* todo mutex release */
-//
-//Error VL53L0X_LockSequenceAccess(VL53L0X_DEV Dev) {
-//  return Error_NONE;
-//}
-//
-//Error VL53L0X_UnlockSequenceAccess(VL53L0X_DEV Dev) {
-//  return Error_NONE;
-//}
 
 #ifdef THROW
 #warning "THROW redefined for platform.cpp Physical access"
 #undef THROW
 #endif
-#define THROW(error) longjmp(wirer.ComException,error)
+#define THROW(error) wirer.ComException(__FUNCTION__ ,__LINE__,error)
 
   void Physical::WriteMulti(uint8_t index, const uint8_t *pdata, int count) {
+    VL53L0X_I2C_USER_VAR //BUG?: not locked like the ReadMulti was, why not?
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
       THROW(ERROR_INVALID_PARAMS);//BUG: formerly went ahead and asked for invalid transfer
     }
@@ -118,7 +114,6 @@ namespace VL53L0X {
   } // VL53L0X_ReadMulti
 
   void Physical::WrByte( uint8_t index, uint8_t data) {
-    //BUG?: not locked like the ReadMulti was, why not?
     wirer.Write( index, data);
   } // VL53L0X_WrByte
 
@@ -152,7 +147,6 @@ namespace VL53L0X {
 //ick: below is a parameter that must be tuned per platform, but is buried deep in the source:
 #define VL53L0X_POLLINGDELAY_LOOPNB 250
   void Dev_t::PollingDelay() {
-    LOG_FUNCTION_START ;
     for (volatile unsigned i = VL53L0X_POLLINGDELAY_LOOPNB; i-- > 0;) {
       // Do nothing, except keep compiler from dropping loop due to no side-effects!
       asm ("nop");

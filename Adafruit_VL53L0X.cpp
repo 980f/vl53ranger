@@ -133,7 +133,7 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
       Serial.println(F("VL53L0X: PerformRefCalibration"));
     }
     if (MyDevice.PerformRefCalibration()) {
-      auto calp = MyDevice.get_ref_calibration(true, true);
+      auto calp = MyDevice.get_ref_calibration();
       //todo: show values to someone?
     } else {
       Error = ERROR_TIME_OUT;//todo: get real error from device
@@ -205,78 +205,48 @@ boolean Adafruit_VL53L0X::setAddress(uint8_t newAddr) {
 /**************************************************************************/
 boolean Adafruit_VL53L0X::configSensor(Sense_config_t vl_config) {
   // All of them appear to configure a few things
-
+  //980F: the only possible errors here were invalid checkid and since we are using the enum values there are no errors.
+  //908F: I made a real class for FixPoint1616_t and it knows how to convert floats so all the casting and *2^16 went away.
   // Serial.print(F("VL53L0X: configSensor "));
   // Serial.println((int)vl_config, DEC);
   // Enable/Disable Sigma and Signal check
-  Error = MyDevice.SetLimitCheckEnable(CHECKENABLE_SIGMA_FINAL_RANGE, 1);
-
-  if (Error == ERROR_NONE) {
-    Error = MyDevice.SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, 1);
-  }
-
-  if (Error != ERROR_NONE) {
-    return false;
-  }
+  MyDevice.SetLimitCheckEnable(CHECKENABLE_SIGMA_FINAL_RANGE, true);
+ MyDevice.SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, true);
 
   switch (vl_config) {
     case SENSE_DEFAULT:
       // Taken directly from SDK vl5310x_SingleRanging_example.c
       // Maybe should convert to helper functions but...
       // Serial.println("  SENSE_DEFAULT");
-      if (Error == ERROR_NONE) {
-        Error = MyDevice.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 1);
-      }
-
-      if (Error == ERROR_NONE) {
-        Error = MyDevice.SetLimitCheckValue(CHECKENABLE_RANGE_IGNORE_THRESHOLD, (FixPoint1616_t) (1.5 * 0.023 * 65536));
-      }
+   MyDevice.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, true);
+   MyDevice.SetLimitCheckValue(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 1.5 * 0.023 );
       break;
     case SENSE_LONG_RANGE:
       Serial.println("  SENSE_LONG_RANGE");
-      Error = MyDevice.SetLimitCheckValue(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (FixPoint1616_t) (0.1 * 65536));
-      if (Error == ERROR_NONE) {
-        Error = MyDevice.SetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE, (FixPoint1616_t) (60 * 65536));
-      }
-      if (Error == ERROR_NONE) {
-        Error = MyDevice.SetMeasurementTimingBudgetMicroSeconds(33000);
-      }
-
-      if (Error == ERROR_NONE) {
-        Error = MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_PRE_RANGE, 18);
-      }
-      if (Error == ERROR_NONE) {
-        Error = MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_FINAL_RANGE, 14);
-      }
+       MyDevice.SetLimitCheckValue(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE,  0.1);
+       MyDevice.SetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE, 60.0F);
+       MyDevice.SetMeasurementTimingBudgetMicroSeconds(33000);
+       MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_PRE_RANGE, 18);
+       MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_FINAL_RANGE, 14);
       break;
     case SENSE_HIGH_SPEED:
       // Serial.println("  SENSE_HIGH_SPEED");
-      Error = MyDevice.SetLimitCheckValue(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (FixPoint1616_t) (0.25 * 65536));
-      if (Error == ERROR_NONE) {
-        Error = MyDevice.SetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE, (FixPoint1616_t) (32 * 65536));
-      }
-      if (Error == ERROR_NONE) {
-        Error = MyDevice.SetMeasurementTimingBudgetMicroSeconds(30000);
-      }
+       MyDevice.SetLimitCheckValue(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE,  0.25);
+       MyDevice.SetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE,  32.0);
+       MyDevice.SetMeasurementTimingBudgetMicroSeconds(30000);
+
       break;
     case SENSE_HIGH_ACCURACY:
       // increase timing budget to 200 ms
-      if (Error == ERROR_NONE) {
-        setLimitCheckValue(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (FixPoint1616_t) (0.25 * 65536));
-      }
-      if (Error == ERROR_NONE) {
-        setLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE, (FixPoint1616_t) (18 * 65536));
-      }
-      if (Error == ERROR_NONE) {
-        setMeasurementTimingBudgetMicroSeconds(200000);
-      }
+      setLimitCheckValue(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE,  0.25);
+      setLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE,  18.0);
+      setMeasurementTimingBudgetMicroSeconds(200000);
       // Not sure about ignore threhold, try turnning it off...
-      if (Error == ERROR_NONE) {
-        Error = MyDevice.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
-      }
+       MyDevice.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
+
       break;
   } // switch
-  return Error == ERROR_NONE;
+  return true;
 } // Adafruit_VL53L0X::configSensor
 
 /**************************************************************************/
@@ -301,7 +271,7 @@ Error Adafruit_VL53L0X::GetSingleRangingMeasurement(RangingMeasurementData_t &Ra
   }
   if (MyDevice.PerformSingleRangingMeasurement(RangingMeasurementData)) {
     if (debug) {
-      Serial.print((F("Measurement Completed OK")))
+      Serial.print((F("Measurement Completed OK")));
     }
   }
   if (debug) {
@@ -309,7 +279,7 @@ Error Adafruit_VL53L0X::GetSingleRangingMeasurement(RangingMeasurementData_t &Ra
   }
 
   if (debug) {
-    FixPoint1616_t LimitCheckCurrent = MyDevice.GetLimitCheckCurrent(CHECKENABLE_RANGE_IGNORE_THRESHOLD);
+    auto LimitCheckCurrent = MyDevice.GetLimitCheckCurrent(CHECKENABLE_RANGE_IGNORE_THRESHOLD);
 
     Serial.print(F("RANGE IGNORE THRESHOLD: "));
     Serial.println(static_cast<float> (LimitCheckCurrent));

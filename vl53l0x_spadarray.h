@@ -1,4 +1,5 @@
 //
+// Copyright 2021 by Andy Heilveil (github/980f)
 // Created by andyh on 12/19/21.
 //
 
@@ -119,6 +120,16 @@ public:
 
   bool operator!=(const SpadArray &rhs) const {
     return !((*this)==(rhs));
+  }
+
+  Index nextSet(Index curr){
+      while ( curr.isValid()) {
+        if (get(curr)) {
+          return curr;
+        }
+        ++curr;
+      }
+      return ~0;//canonical ! isValid()
   }
 
 //there was only one use

@@ -1,3 +1,4 @@
+// Copyright 2021 by Andy Heilveil (github/980f)
 #pragma once
 /**
  * The implementation of all of these methods return 0.
@@ -30,11 +31,23 @@ struct Arg { //the class name here should be made a bit more specific ;)
 
 #include <csetjmp>
 
+struct Exceptor {
+  jmp_buf opaque;
+  const char *location="";
+  unsigned line=0;
+  /** using operator parens makes for easy replacement in macros */
+  void operator()(const char *location,unsigned line,int error){
+    this->location=location;
+    this->line=line;
+    longjmp(opaque, error); // NOLINT(cert-err52-cpp)   exceptions not allowed on our platform
+  }
+} ;
+
 class ArduinoWirer : public Arg { //inheriting as a cheap way to not have to edit as much existing code while still hiding the details of the constructor args list.
 public:
   ArduinoWirer(Arg &&arg):Arg(std::forward<Arg>(arg)){}
 
-  jmp_buf ComException;
+  Exceptor ComException;
   /** one can change the device address, needed for when more than one is on the same i2c link.
    * you will also have to control a pin and that is getting well out of the scope of this layer */
   uint8_t changedAddress(uint8_t  newAddress);

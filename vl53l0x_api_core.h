@@ -60,16 +60,6 @@ namespace VL53L0X {
       //do nothing here so that we can statically construct
     }
 
-    struct FakeTrace {
-      const char *location="";
-      unsigned line=0;
-
-    } theTrace;
-    void throwException(const char *location,unsigned line,Error error){
-      theTrace={location,line};
-      longjmp(comm.wirer.ComException, error); // NOLINT(cert-err52-cpp)   exceptions not allowed on our platform
-    }
-
     bool GetSequenceStepEnable(SequenceStepId StepId); // GetSequenceStepEnable
 
     SemverLite GetProductRevision();
@@ -319,6 +309,18 @@ namespace VL53L0X {
 
     /** @returns an interesting computation that someone should document */
     uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
+/**
+ * @brief Enable/Disable Cross talk compensation feature
+ *
+ * @note This function is not Implemented.
+ * Enable/Disable Cross Talk by set to zero the Cross Talk value
+ * by using @a SetXTalkCompensationRateMegaCps().
+ *
+ * @param   Dev                       Device Handle
+ * @param   XTalkCompensationEnable   Cross talk compensation
+ *  to be set 0=disabled else = enabled
+ * @return  ERROR_NOT_IMPLEMENTED   Not implemented
+ */
 
     void SetXTalkCompensationEnable(bool XTalkCompensationEnable);
 

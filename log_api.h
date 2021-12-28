@@ -2,4 +2,4 @@
 #include "vl53l0x_platform_log.h"
 
 
-#define THROW(error) throwException(__FUNCTION__,__LINE__,error)
+#define THROW(error) comm.wirer.ComException(__FUNCTION__,__LINE__,error)

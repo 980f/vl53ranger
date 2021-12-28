@@ -38,8 +38,6 @@
 
 #include "log_api.h"
 
-#define THROW(error) throwException(__FUNCTION__,__LINE__,error)
-
 #ifdef VL53L0X_LOG_ENABLE
 #define trace_print(level, ...)   trace_print_module_function(TRACE_MODULE_API, level, TRACE_FUNCTION_NONE, ## __VA_ARGS__)
 #endif
@@ -149,27 +147,21 @@ namespace VL53L0X {
   bool Api::SetPowerMode(PowerModes PowerMode) {
     LOG_FUNCTION_START;
 
-    /* Only level1 of Power mode exists */
-    if ((PowerMode != POWERMODE_STANDBY_LEVEL1) && (PowerMode != POWERMODE_IDLE_LEVEL1)) {
-      THROW(ERROR_MODE_NOT_SUPPORTED);
-    }
-
-    if (PowerMode == POWERMODE_STANDBY_LEVEL1) {
-      /* set the standby level1 of power mode */
-      comm.WrByte(0x80, 0x00);
-      /* Set PAL State to standby */
-      PALDevDataSet(PalState, STATE_STANDBY);
-      PALDevDataSet(PowerMode, POWERMODE_STANDBY_LEVEL1);
-    } else { /* VL53L0X_POWERMODE_IDLE_LEVEL1 */
+    if (PowerMode == POWERMODE_IDLE_LEVEL1) {
       comm.WrByte(0x80, 0x00);
       if (StaticInit()) {
         PALDevDataSet(PowerMode, POWERMODE_IDLE_LEVEL1);
+        return true;
       } else {
         return false;
       }
+    } else {/* set the standby level1 of power mode */
+      comm.WrByte(0x80, 0x00);
+      PALDevDataSet(PalState, STATE_STANDBY);
+      PALDevDataSet(PowerMode, POWERMODE_STANDBY_LEVEL1);
+      return true;
     }
 
-    return true;
   } // VL53L0X_SetPowerMode
 
   PowerModes Api::GetPowerMode() {
@@ -618,7 +610,7 @@ namespace VL53L0X {
 
   Api::CalibrationParameters Api::GetRefCalibration() {
     LOG_FUNCTION_START;
-    return get_ref_calibration(true, true);
+    return get_ref_calibration();
   }
 
 /*
@@ -1311,7 +1303,7 @@ if(!perform_ref_calibration()){
       uint32_t lastSignalRateDiff = abs(peakSignalRateRef - targetRefRate);
       bool complete = false;
       while (!complete) {
-        SpadArray::Index nextGoodSpad = get_next_good_spad(Data.SpadData.RefGoodSpadMap, currentSpadIndex);
+        SpadArray::Index nextGoodSpad = Data.SpadData.RefGoodSpadMap.nextSet( currentSpadIndex);
         if (!nextGoodSpad.isValid()) {
           return ERROR_REF_SPAD_INIT;
         }

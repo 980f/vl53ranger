@@ -1,4 +1,5 @@
 //
+// Copyright 2021 by Andy Heilveil (github/980f)
 // Created by andyh on 12/27/21.
 //
 
@@ -15,7 +16,7 @@ using namespace VL53L0X; //# this file exists to manage entities from this names
 
 void NonBlocking::inLoop() {
   //setjmp here!
-  auto error =setjmp(comm.wirer.ComException);
+  auto error =setjmp(comm.wirer.ComException.opaque);
   switch(error) {
     case ERROR_NONE:
       if (waitOnStart) {
@@ -291,10 +292,7 @@ bool NonBlocking::CalProcess::begin() {
 bool NonBlocking::CalProcess::onMeasurement() {
   if (lastStep) {
     /* if measurement ok */{
-      nb.FFpush(0, 0, 1);
-      nb.comm.RdByte(0xCB, &p.VhvSettings);
-      nb.comm.RdByte(0xEE, &p.PhaseCal);
-      p.PhaseCal &= phaseMask; // was 0xEF, ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
+      p= nb.get_ref_calibration();
     }
     /* restore the previous Sequence Config */
     nb.set_SequenceConfig(seqConfigCache, true);

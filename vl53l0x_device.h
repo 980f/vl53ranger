@@ -116,7 +116,7 @@ namespace VL53L0X {
 
   };
 
-  bool valid(GpioFunctionality functionality) {
+constexpr  bool valid(GpioFunctionality functionality) {
     return functionality <= GPIOFUNCTIONALITY_NEW_MEASURE_READY;
   }
 

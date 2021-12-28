@@ -1,4 +1,4 @@
-//Copyright 2021 Andrew Heilveil, github/980f
+// Copyright 2021 by Andy Heilveil (github/980f)
 
 /** implementation for vl53l0x_i2c_platform.h, given a spurious name for legacy reasons */
 
@@ -9,7 +9,7 @@
 
 //#define I2C_DEBUG
 
-#define THROW(error)  longjmp(ComException, error)
+#define THROW(error)  ComException(__FUNCTION__,__LINE__, error)
 
 uint8_t ArduinoWirer::changedAddress(uint8_t newAddress) {
   uint8_t was = devAddr;
@@ -29,7 +29,7 @@ public:
     auto errcode=parent.i2c.endTransmission();//#NB: this here is what takes all the time when sending.
     if(errcode!=0){
 //      THROW(VL53L0X::ERROR_CONTROL_INTERFACE);
-      longjmp(parent.ComException,VL53L0X::ERROR_CONTROL_INTERFACE+errcode);
+      parent.ComException("I2C write failure",0,VL53L0X::ERROR_CONTROL_INTERFACE+errcode);
     }
   }
 };
