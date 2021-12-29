@@ -114,11 +114,11 @@ namespace VL53L0X {
     return isqrt(squared(a) + squared(b));
   } // VL53L0X_quadrature_sum
 
-  bool Core::device_read_strobe() {
+  bool Core::device_read_strobe(unsigned trials) {
     LOG_FUNCTION_START;
     auto onexit = push(Private_Strober, 0x00, 0x01);
     /* polling with timeout to avoid deadlock*/
-    for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {
+    while (trials-- > 0) {
       uint8_t strobe;
       comm.Read(  Private_Strober, strobe);
       if (strobe != 0) {
@@ -164,7 +164,7 @@ namespace VL53L0X {
     const uint32_t DistMeasTgtFixed1104_mm(400 << 4);
     uint32_t DistMeasFixed1104_400_mm;
     uint32_t SignalRateMeasFixed1104_400_mm;
-    FixPoint1616_t SignalRateMeasFixed400mmFix {0};
+    MegaCps SignalRateMeasFixed400mmFix {0};
 
     DeviceSpecificParameters_t::PartUID_t PartUID;
 
@@ -261,7 +261,7 @@ namespace VL53L0X {
         int32_t OffsetMicroMeters(0);//BUG: was int16, truncating too soon
         if (DistMeasFixed1104_400_mm != 0) {
           int32_t OffsetFixed1104_mm = DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm;//was uint32_t despite being an intrinsically signed value
-          OffsetMicroMeters = -((OffsetFixed1104_mm * 1000) >> 4);//ick: truncates
+          OffsetMicroMeters = -roundedScale((OffsetFixed1104_mm * 1000),4);
         }
         PALDevDataSet(Part2PartOffsetAdjustmentNVMMicroMeter, OffsetMicroMeters);
       }
@@ -273,8 +273,6 @@ namespace VL53L0X {
   } // VL53L0X_get_info_from_device
 
   uint32_t calc_macro_period_ps(uint8_t vcsel_period_pclks) {
-    /* The above calculation will produce rounding errors,  therefore set fixed value //ICK: comment refers to non-existent code.
-     */
     const unsigned PLL_period_ps = 1655;//ick: 64 bits for short constant was silly, compiler knows to extend as needed
     const unsigned macro_period_vclks = 2304;//ick: 32 bits for short constant was silly, compiler knows to extend as needed
     //casting the first variable is sufficient to cast the rest, extra parens added in case the compiler disagrees with me :)
@@ -282,10 +280,7 @@ namespace VL53L0X {
   } // VL53L0X_calc_macro_period_ps
 
   uint16_t encode_timeout(uint32_t timeout_macro_clks) {
-    /*!
-     * Encode timeout in macro periods in (LSByte * 2^MSByte) + 1 format
-     */
-
+    /*! Encode timeout in macro periods in (LSByte * 2^MSByte) + 1 format  */
     if (timeout_macro_clks > 0) {
       uint32_t ls_byte = timeout_macro_clks - 1;
       uint16_t ms_byte = 0;
@@ -293,7 +288,7 @@ namespace VL53L0X {
         ls_byte >>= 1;
         ++ms_byte;
       }
-      return MAKEUINT16(ls_byte, ms_byte);//the while repeats until all the bits that the mask formerly here masked is zero, so no point in masking.
+      return MAKEUINT16(ls_byte, ms_byte);//the while() above repeats until all the bits that the mask formerly here masked is zero, so no point in masking.
     } else {
       return 0;
     }
@@ -304,9 +299,6 @@ namespace VL53L0X {
   } // sequence_step_enabled
 
   uint32_t decode_timeout(uint16_t encoded_timeout) {
-    /*!
-     * Decode 16-bit timeout register value - format (LSByte * 2^MSByte) + 1
-     */
     return 1 + (uint32_t(encoded_timeout & 0x00FF) << (encoded_timeout >> 8));//ick: former cast of shrink to u32 was silly
   } // VL53L0X_decode_timeout
 
@@ -328,7 +320,7 @@ namespace VL53L0X {
     return VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
   } // GetXTalkCompensationEnable
 
-  FixPoint1616_t Core::GetXTalkCompensationRateMegaCps() {
+  MegaCps Core::GetXTalkCompensationRateMegaCps() {
     LOG_FUNCTION_START;
     FixPoint<3, 13> Value;
     fetch(Value.raw, REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS);
@@ -337,7 +329,7 @@ namespace VL53L0X {
       VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, false);
     } else {
       VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, true);
-      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, Value);
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, MegaCps(Value));//unnecessary cast for clarity
     }
     return VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
   } // GetXTalkCompensationRateMegaCps
@@ -345,16 +337,16 @@ namespace VL53L0X {
 
   void Core::SetXTalkCompensationEnable(bool XTalkCompensationEnable) {
     LOG_FUNCTION_START;
-    FixPoint313_t duck((XTalkCompensationEnable && Data.unityGain()) ? VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps) : FixPoint1616_t(0));//# type of zero must match type of XTalkCompensationRateMegaCps
+    FixPoint313_t duck((XTalkCompensationEnable && Data.unityGain()) ? VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps) : MegaCps(0));
     comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, duck);
     VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, XTalkCompensationEnable);
   } // VL53L0X_SetXTalkCompensationEnable
 
 
-  bool Core::SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps) {
+  bool Core::SetXTalkCompensationRateMegaCps(MegaCps XTalkCompensationRateMegaCps) {
     LOG_FUNCTION_START;
     if (GetXTalkCompensationEnable()) {
-      FixPoint<3, 13> data = Data.unityGain() ? XTalkCompensationRateMegaCps : FixPoint1616_t(0);
+      FixPoint<3, 13> data = Data.unityGain() ? XTalkCompensationRateMegaCps : MegaCps(0);
       comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, data);
     }
     VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);//ick: records desire even if not sent to device!
@@ -679,13 +671,13 @@ namespace VL53L0X {
     bool xtalkCompEnable = VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
 //todo: lost test value of xtalkCompeEnable
 
-    FixPoint1616_t xtalkPerSpadMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
+    MegaCps xtalkPerSpadMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
 
     /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
-    FixPoint1616_t totalXtalkMegaCps = pRangingMeasurementData.EffectiveSpadRtnCount.raw * xtalkPerSpadMegaCps.raw;
+    MegaCps totalXtalkMegaCps = pRangingMeasurementData.EffectiveSpadRtnCount.raw * xtalkPerSpadMegaCps.raw;
 
     /* FixPoint0824 >> 8 = FixPoint1616 */
-    return totalXtalkMegaCps.shrink(8);
+    return totalXtalkMegaCps.shrink(8);//8 compensats for EffectiveSpadRtnCount being scaled by 8
   } // VL53L0X_get_total_xtalk_rate
 
   FixPoint1616_t Core::get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
@@ -695,10 +687,10 @@ namespace VL53L0X {
     return get_total_xtalk_rate(pRangingMeasurementData);
   } // VL53L0X_get_total_signal_rate
 
-  uint32_t Core::calc_dmax(const FixPoint1616_t totalSignalRate_mcps, const FixPoint1616_t totalCorrSignalRate_mcps, const FixPoint1616_t pwMult, const uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, const uint32_t peakVcselDuration_us) {
+  uint32_t Core::calc_dmax(MegaCps totalSignalRate_mcps, MegaCps totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us) {
     const uint32_t cSigmaLimit = 18;
-    const FixPoint1616_t cSignalLimit {0.25};// = 0x4000;     /* 0.25 */
-    const FixPoint1616_t cSigmaEstRef {0.0001};// = 0x00000042; /* 0.001 */
+    const MegaCps cSignalLimit {0.25};
+    const FixPoint1616_t cSigmaEstRef {0.001};
     const uint32_t cAmbEffWidthSigmaEst_ns = 6;
     const uint32_t cAmbEffWidthDMax_ns = 7;
 
@@ -838,11 +830,7 @@ namespace VL53L0X {
     const FixPoint1616_t cMaxXTalk_kcps {50.0};//= 0x00320000;
     const uint32_t cPllPeriod_ps {1655};
 
-//    uint32_t vcselWidth;
-//    uint32_t finalRangeMacroPCLKS;
-//    uint32_t preRangeMacroPCLKS;
-//    uint32_t peakVcselDuration_us;
-//
+
     /*! \addtogroup calc_sigma_estimate
      * @{
      *

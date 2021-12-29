@@ -744,7 +744,7 @@ namespace VL53L0X {
  *
  * @throws ERROR_ILLEGAL_PARAMS if you don't use the enum for the CheckId
  */
-    FixPoint1616_t GetLimitCheckCurrent(CheckEnable LimitCheckId);
+    MegaCps GetLimitCheckCurrent(CheckEnable LimitCheckId);
 
 /**
  * @brief  Enable (or disable) Wrap around Check

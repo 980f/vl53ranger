@@ -207,7 +207,7 @@ bool NonBlocking::XtalkProcess::finish() {
   /* Round Cal Distance to Whole Number.
    * Note that the cal distance is in mm, therefore no resolution is lost.*/
   unsigned CalDistanceAsInt = roundedScale(CalDistanceMilliMeter, 16);
-  FixPoint1616_t XTalkCompensationRateMegaCps;
+  MegaCps XTalkCompensationRateMegaCps;
 
   if (StoredMeanRtnSpadsAsInt == 0 || CalDistanceAsInt == 0 || StoredMeanRange >= CalDistanceMilliMeter) {
     XTalkCompensationRateMegaCps = 0.0F;

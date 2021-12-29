@@ -41,10 +41,13 @@ namespace VL53L0X {
    * todo: template arg types, return is half as many bits as given and we could use the extra range on some calculations*/
   uint32_t isqrt(uint32_t num);
   uint32_t quadrature_sum(uint32_t a, uint32_t b);
+
+  /* the time out is 8 bits exponent, 8 bits mantissa special value  */
   uint32_t decode_timeout(uint16_t encoded_timeout);
   uint16_t encode_timeout(uint32_t timeout_macro_clks);
   uint32_t calc_timeout_mclks(uint32_t timeout_period_us, uint8_t vcsel_period_pclks);
 
+  // the R and S of RMS root mean square
   template<unsigned whole, unsigned fract>
   static auto quadrature_sum(FixPoint<whole, fract> a, FixPoint<whole, fract> b) -> typename decltype(a)::RawType {
     return quadrature_sum(a.raw, b.raw);
@@ -81,7 +84,7 @@ namespace VL53L0X {
     uint8_t get_vcsel_pulse_period(VcselPeriod VcselPeriodType);
 
     /**
-     * todo: refactoring dropped a call to  perform_phase_calibration(&PhaseCalInt, false, true); which is in API, not CORE.
+     * @note: refactoring dropped a call to  perform_phase_calibration
      * ... callers of this method should call that.
      * */
     bool set_vcsel_pulse_period(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK);
@@ -112,9 +115,9 @@ namespace VL53L0X {
      * */
     FixPoint1616_t calc_sigma_estimate(const RangingMeasurementData_t &pRangingMeasurementData, uint32_t &dmm);
 
-    FixPoint1616_t get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData);
+    MegaCps get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
-    FixPoint1616_t get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
+    MegaCps get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
     /** RMD not const due to setting of darkMM */
     RangeStatus get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData);
@@ -128,19 +131,8 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
  * @param   LimitCheckId                  Limit Check ID
- *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
- * @param   pLimitCheckEnable             Pointer to the check limit enable
- * value.
- *  if 1 the check limit
- *        corresponding to LimitCheckId is Enabled
- *  if 0 the check limit
- *        corresponding to LimitCheckId is disabled
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is returned
- *  when LimitCheckId value is out of range.
- * @return  "Other error code"            See ::Error
+ * @return  whether the selected limit is enabled
  */
     bool GetLimitCheckEnable(CheckEnable LimitCheckId);
 
@@ -154,23 +146,20 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
  * @param   LimitCheckId                  Limit Check ID
- *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
- * @param   pLimitCheckValue              Pointer to Limit
- *  check Value for a given LimitCheckId.
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is returned
- *  when LimitCheckId value is out of range.
- * @return  "Other error code"            See ::Error
+ * @return  Limit check Value for a given LimitCheckId
  */
     FixPoint<9, 7> GetLimitCheckValue(CheckEnable LimitCheckId);
 
+    /** a limit might be disabled but still retain its value */
     struct LimitTuple {
-      bool enable;
+      bool enable= false;
       FixPoint<9, 7> value;
     };
 
+    /**
+     * @returns the @param LimitCheckId 's enable and value.
+     * */
     LimitTuple GetLimitCheck(CheckEnable LimitCheckId) {
       LimitTuple collector;
       collector.enable = GetLimitCheckEnable(LimitCheckId);
@@ -182,8 +171,8 @@ namespace VL53L0X {
      * An instance of this class ensures that a matching operation such as clearing a pause bit in the device occurs even when a procedure bails out early.
      * You may see otherwise extraneous {} surround code to control the timing of the second operation.
      *
-     * Since exceptions are disabled on any exception the device has been left in an unknown state.
-     * Since the exceptions are except for a few due to communications failure doing a complete restart on any error makes sense.
+     * Since exceptions are disabled any exception leaves the device in an unknown state.
+     * Since the exceptions are (except for a few we may remove) due to communications failure doing a complete restart on any error makes sense.
      * */
     class SysPopper {
     protected:
@@ -230,7 +219,7 @@ namespace VL53L0X {
       }
 
       ~FFPopper() {
-        //todo: not try if push fails?
+        //NB: this won't happen when an Error is thrown
         auto popper = SysPopper(comm, 0xFF, 0x01, 0x00);
         comm.WrByte(index, pop);
       }
@@ -242,7 +231,7 @@ namespace VL53L0X {
     }
 
     /** Yet Another Popper
-     *
+     * undocumented magic access to a write only bit
      * comm.WrByte(0xFF, 0x06);
       comm.UpdateBit(0x83, 2, true to start, false when done);
      * */
@@ -260,18 +249,14 @@ namespace VL53L0X {
       }
     };
 
-    class MagicDuo {
-      Physical &comm; //not a base as eventually we will pass in a reference to a baser class
+
+    class MagicDuo: SysPopper {
+      SysPopper inner;
     public:
-      MagicDuo(Physical &comm) : comm(comm) {
-        comm.WrByte(0xFF, 0x01);
-        comm.WrByte(0x00, 0x00);
+      MagicDuo(Physical &comm) : SysPopper(comm,0xFF,0x01,0x00),inner(comm,0x00,0x00,0x01) {
       }
 
-      ~MagicDuo() {
-        comm.WrByte(0x00, 0x01);
-        comm.WrByte(0xFF, 0x00);
-      }
+      ~MagicDuo() =default;
     };
 
     class MagicTrio {
@@ -281,8 +266,7 @@ namespace VL53L0X {
       MagicTrio(Physical &comm) : eighty(comm, 0x80, 0x01, 0x00), duo(comm) {
       }
 
-      ~MagicTrio() {
-      };
+      ~MagicTrio() =default;
     };
 
     /** RAII widget that surrounds some fetches. */
@@ -298,7 +282,7 @@ namespace VL53L0X {
     public:
       SeqConfigStacker(Core &core, bool restore_config, uint8_t settit) : core(core) {
         mycache = core.get_SequenceConfig();
-        core.set_SequenceConfig(settit, false);//todo: probably should set andChace true
+        core.set_SequenceConfig(settit, false);//todo: probably should set andCaache true
         restore_it = restore_config; //maydo: don't restore if we failed to set.
       }
 
@@ -329,16 +313,18 @@ namespace VL53L0X {
     void setPhasecalLimit(uint8_t value);
 
   protected: //some of this functionality was in api.cpp but used by core.cpp
-    bool device_read_strobe();
+      /** spin until a particular byte is non-zero.
+       * @returns whether that occurred, false on a timeout set by @param trials loop count */
+      bool device_read_strobe(unsigned trials=VL53L0X_DEFAULT_MAX_LOOP);
 
-    /** read up to 4 bytes from 0x90 after selecting which at 0x94
+    /** read and return up to 4 bytes from 0x90 after selecting which at 0x94
      * NB: source for templates can be in the CPP if not used outside that module :) */
     template<typename Int> Int packed90(uint8_t which);
 
     /** pulls a 24:8 from a 32:32 */
     uint32_t middleof64(unsigned int which);
 
-    /** reads the sequence steps and breaks them out into a struct of bools. */
+    /** reads and @returns the sequence steps and broken out into a struct of bools. */
     SchedulerSequenceSteps_t get_sequence_step_enables();
 
     /** @returns an interesting computation that someone should document */
@@ -346,8 +332,8 @@ namespace VL53L0X {
 /**
  * @brief Enable/Disable Cross talk compensation feature
  *
- * Enable/Disable Cross Talk by set to zero the Cross Talk value
- * by using @a SetXTalkCompensationRateMegaCps().
+ * old code and documentation acted like the enable was implemented via setting the value to zero, but now there is a definite device boolean as well as the threshold.
+ * @a SetXTalkCompensationRateMegaCps().
  *
  * @param   XTalkCompensationEnable   Cross talk compensation to be set 0=disabled else = enabled
  */
@@ -359,10 +345,7 @@ namespace VL53L0X {
  * Enable/Disable Cross Talk by set to zero the Cross Talk value by
  * using @a SetXTalkCompensationRateMegaCps().
  *
-
- * @param   pXTalkCompensationEnable   Pointer to the Cross talk compensation
- *  state 0=disabled or 1 = enabled
- * @return  ERROR_NOT_IMPLEMENTED   Not implemented
+ * @return  whether xtalk compensation is enabled
  */
     bool GetXTalkCompensationEnable();
 
@@ -374,12 +357,10 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   XTalkCompensationRateMegaCps   Compensation rate in
- *  Mega counts per second (16.16 fix point) see datasheet for details
- * @return  ERROR_NONE              Success
- * @return  "Other error code"             See ::Error
+ * @param   XTalkCompensationRateMegaCps   Compensation rate in Mega counts per second (16.16 fix point) see datasheet for details
+ * @return Success
  */
-    bool SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps);
+    bool SetXTalkCompensationRateMegaCps(MegaCps XTalkCompensationRateMegaCps);
 
 /**
  * @brief Get Cross talk compensation rate
@@ -389,13 +370,9 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                            Device Handle
- * @param   pXTalkCompensationRateMegaCps  Pointer to Compensation rate
- *  in Mega counts per second (16.16 fix point) see datasheet for details
- * @return  ERROR_NONE              Success
- * @return  "Other error code"             See ::Error
+ * @return  xtalk comp rate in megacps
  */
-    FixPoint1616_t GetXTalkCompensationRateMegaCps( );
+    MegaCps GetXTalkCompensationRateMegaCps( );
 
     void set_ref_spad_map(SpadArray &refSpadArray);//writes to device
     void get_ref_spad_map(SpadArray &refSpadArray);//read from device

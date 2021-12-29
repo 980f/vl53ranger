@@ -53,7 +53,7 @@ namespace VL53L0X {
     /* Perform 50 measurements and compute the averages */
     unsigned sum_ranging = 0;//bug: former use of 16 bit begs for integer overflow
     unsigned sum_spads = 0;//... which we will tolerate only on processors whose natural int is 16 bits
-    FixPoint1616_t sum_signalRate = 0;
+    MegaCps sum_signalRate = 0;
     uint32_t total_count = 0;//unsigned is probably adequate
     for (uint8_t xtalk_meas = 0; xtalk_meas < 50; xtalk_meas++) {//ick: buried constant
       RangingMeasurementData_t RangingMeasurementData;
@@ -90,7 +90,7 @@ namespace VL53L0X {
      * Note that the cal distance is in mm, therefore no resolution
      * is lost.*/
     uint32_t xTalkCalDistanceAsInt = roundedScale(XTalkCalDistance, 16);
-    FixPoint1616_t XTalkCompensationRateMegaCps;
+    MegaCps XTalkCompensationRateMegaCps;
 
     if (xTalkStoredMeanRtnSpadsAsInt == 0 || xTalkCalDistanceAsInt == 0 || xTalkStoredMeanRange >= XTalkCalDistance) {
       XTalkCompensationRateMegaCps = 0.0F;
@@ -353,7 +353,7 @@ namespace VL53L0X {
   } // VL53L0X_perform_phase_calibration
 
   bool Api::perform_ref_calibration() {
-    //todo: shouldn't we push seq config here?
+    //todo: shouldn't we push seq config here? Logically yes, but then we would have to repeat something else
     return perform_vhv_calibration(false) && perform_phase_calibration(false);
   } // VL53L0X_perform_ref_calibration
 

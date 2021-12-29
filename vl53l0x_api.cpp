@@ -672,7 +672,7 @@ namespace VL53L0X {
     SetLimitCheckValue(LimitCheckId, limit.value);
   }
 
-  FixPoint1616_t Api::GetLimitCheckCurrent(CheckEnable LimitCheckId) {
+  MegaCps Api::GetLimitCheckCurrent(CheckEnable LimitCheckId) {
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
       THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }
@@ -909,7 +909,7 @@ namespace VL53L0X {
     pRangingMeasurementData.MeasurementTimeUsec = 0;
 
     /* peak_signal_count_rate_rtn_mcps */
-    FixPoint1616_t SignalRate = FixPoint<9, 7>(MAKEUINT16(localBuffer[7], localBuffer[6]));
+    MegaCps SignalRate = FixPoint<9, 7>(MAKEUINT16(localBuffer[7], localBuffer[6]));
     pRangingMeasurementData.SignalRateRtnMegaCps = SignalRate;
 
     pRangingMeasurementData.AmbientRateRtnMegaCps = FixPoint<9, 7>(MAKEUINT16(localBuffer[9], localBuffer[8]));
@@ -929,7 +929,7 @@ namespace VL53L0X {
       bool XTalkCompensationEnable = VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
 
       if (XTalkCompensationEnable) {
-        uint16_t XTalkCompensationRateMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
+        uint16_t XTalkCompensationRateMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);//BUG: loses integer part, perhaps a 9,7 was intended?
         auto dry = SignalRate.raw - ((XTalkCompensationRateMegaCps * EffectiveSpadRtnCount) >> 8);
         RangeMilliMeter = dry > 0 ? (RangeMilliMeter * SignalRate) / dry : (RangeFractionalEnable ? 8888 : (8888 << 2));//bug: magic value
       }
