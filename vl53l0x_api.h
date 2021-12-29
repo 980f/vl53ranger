@@ -1167,23 +1167,22 @@ namespace VL53L0X {
  * @note This function Access to the device
  *
 
- * @param   Pin                   ID of the GPIO Pin
- * @param   Functionality         Select Pin functionality.
- *  Refer to ::GpioFunctionality
- * @param   DeviceMode            Device Mode associated to the Gpio.
- * @param   Polarity              Set interrupt polarity. Active high
- *   or active low see ::InterruptPolarity
- * @return  ERROR_NONE                            Success
- * @return  ERROR_GPIO_NOT_EXISTING               Only Pin=0 is accepted.
- * @return  ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED    This error occurs
- * when Functionality programmed is not in the supported list:
+ * @param   Pin                   ID of the GPIO Pin MUST BE 0 at present
+ * gpioConfig containes
+ * Select Pin functionality.
+ * Device Mode associated to the Gpio.
+ * Active high or active low interrupt see ::InterruptPolarity
+ *
+ * @return    Success
+ *
+ * @throws  ERROR_GPIO_NOT_EXISTING               Only Pin=0 is accepted.
+ * @throws  ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED    when Functionality programmed is not in the supported list:
  *                             Supported value are:
  *                             GPIOFUNCTIONALITY_OFF,
  *                             GPIOFUNCTIONALITY_THRESHOLD_CROSSED_LOW,
  *                             GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH,
  *                             GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT,
  *                             GPIOFUNCTIONALITY_NEW_MEASURE_READY
- * @return  "Other error code"    See ::Error
  */
     bool SetGpioConfig(uint8_t Pin, GpioConfiguration gpioConfig);
 
@@ -1192,28 +1191,11 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
- * @param   Pin                   ID of the GPIO Pin
- * @param   pDeviceMode           Pointer to Device Mode associated to the Gpio.
- * @param   pFunctionality        Pointer to Pin functionality.
- *  Refer to ::GpioFunctionality
- * @param   pPolarity             Pointer to interrupt polarity.
- *  Active high or active low see ::InterruptPolarity
- * @return  ERROR_NONE                            Success
- * @return  ERROR_GPIO_NOT_EXISTING               Only Pin=0 is
- * accepted.
- * @return  ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED   This error occurs
- * when Functionality programmed is not in the supported list:
- *                      Supported value are:
- *                      GPIOFUNCTIONALITY_OFF,
- *                      GPIOFUNCTIONALITY_THRESHOLD_CROSSED_LOW,
- *                      GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH,
- *                      GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT,
- *                      GPIOFUNCTIONALITY_NEW_MEASURE_READY
- * @return  "Other error code"    See ::Error
+ * @return  collection of values read from the device
  */
     GpioConfiguration GetGpioConfig(uint8_t Pin = 0);
 
+    /** yet another handy tuple. May import a range class from other libraries,*/
     struct RangeWindow {
       FixPoint1616_t Low;
       FixPoint1616_t High;
@@ -1225,18 +1207,13 @@ namespace VL53L0X {
  *
  * @par Function Description
  * Set low and high Interrupt thresholds for a given mode (ranging, ALS, ...)
- * for a given device
  *
  * @note This function Access to the device
  *
  * @note DeviceMode is ignored for the current device
  *
-
- * @param   DeviceMode       Device Mode for which change thresholds
- * @param   ThresholdLow     Low threshold (mm, lux ..., depending on the mode)
- * @param   ThresholdHigh    High threshold (mm, lux ..., depending on the mode)
- * @return  ERROR_NONE    Success
- * @return  "Other error code"   See ::Error
+ * @param   DeviceMode       ignored on present device
+ * @param   Threshold    Low and high for compare to undocumented value, presumably mm
  */
     void SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold);
 
@@ -1252,30 +1229,22 @@ namespace VL53L0X {
  *
  * @note DeviceMode is ignored for the current device
  *
-
- * @param   DeviceMode       Device Mode from which read thresholds
- * @param   pThresholdLow    Low threshold (mm, lux ..., depending on the mode)
- * @param   pThresholdHigh   High threshold (mm, lux ..., depending on the mode)
- * @return  ERROR_NONE   Success
- * @return  "Other error code"  See ::Error
+ * @param   DeviceMode       ignored, arbitrary default added as most likely choice associated with feature.
+ * @return  pair of threshold values
  */
-    RangeWindow GetInterruptThresholds(DeviceModes DeviceMode);
+    RangeWindow GetInterruptThresholds(DeviceModes DeviceMode=DeviceModes::DEVICEMODE_CONTINUOUS_RANGING);
 
 /**
  * @brief Return device stop completion status
  *
  * @par Function Description
- * Returns stop completiob status.
+ * Returns stop completion status.
  * User shall call this function after a stop command
  *
  * @note This function Access to the device
  *
-
- * @param   pStopStatus            Pointer to status variable to update
- * @return  ERROR_NONE      Success
- * @return  "Other error code"     See ::Error
+ * @return  undocumented stop value.
  */
-
     uint8_t GetStopCompletedStatus();
 
 /**
@@ -1286,12 +1255,8 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
  * @param   InterruptMask        Mask of interrupts to clear
- * @return  ERROR_NONE    Success
- * @return  ERROR_INTERRUPT_NOT_CLEARED    Cannot clear interrupts
- *
- * @return  "Other error code"   See ::Error
+ * @return  Success of issuing command
  */
     bool ClearInterruptMask(uint32_t InterruptMask);
 
@@ -1305,10 +1270,13 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
- * @param   pInterruptMaskStatus   Pointer to status variable to update
- * @return  ERROR_NONE      Success
- * @return  "Other error code"     See ::Error
+ * @note C code cleared bit 4 and 3, we now let those get returned
+ *
+ * perhaps the bits imply that the interrupt flags are not meaningful?
+ * logic removed:
+  if (getBits<4, 3>(mask)) {//if either bit? what are each of them?
+      return ERROR_RANGE_ERROR;
+    }
  */
     uint8_t GetInterruptMaskStatus();
 
@@ -1317,12 +1285,13 @@ namespace VL53L0X {
  *
  * @note This function is not Implemented
  *
-
  * @param   InterruptMask         Mask of interrupt to Enable/disable
  *  (0:interrupt disabled or 1: interrupt enabled)
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    bool EnableInterruptMask(uint32_t InterruptMask);
+    bool EnableInterruptMask(uint8_t InterruptMask){//ick: prior code used 32 bits when getMask only returns at most 8
+      VL53L0X_NYI(false)
+    }
 
 /** @} interrupt_group */
 
@@ -1339,10 +1308,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
  * @param   SpadAmbientDamperThreshold    SPAD Ambient Damper Threshold value
- * @return  ERROR_NONE             Success
- * @return  "Other error code"            See ::Error
  */
     void SetSpadAmbientDamperThreshold(uint16_t SpadAmbientDamperThreshold);
 
@@ -1354,11 +1320,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
- * @param   pSpadAmbientDamperThreshold   Pointer to programmed
- *                                        SPAD Ambient Damper Threshold value
- * @return  ERROR_NONE             Success
- * @return  "Other error code"            See ::Error
+ * @return  programmed SPAD Ambient Damper Threshold value
  */
     uint16_t GetSpadAmbientDamperThreshold();
 
@@ -1370,10 +1332,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
  * @param   SpadAmbientDamperFactor       SPAD Ambient Damper Factor value
- * @return  ERROR_NONE             Success
- * @return  "Other error code"            See ::Error
  */
     void SetSpadAmbientDamperFactor(uint16_t SpadAmbientDamperFactor);
 
@@ -1385,13 +1344,12 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
  * @param   pSpadAmbientDamperFactor      Pointer to programmed SPAD Ambient
  * Damper Factor value
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    uint8_t GetSpadAmbientDamperFactor(); //former code expanded to 16 bits locally. It is just 8 in the device, let us not hide that.
+    uint8_t GetSpadAmbientDamperFactor(); //ick: former code expanded to 16 bits locally. It is just 8 in the device, let us not hide that.
 
 /**
  * @brief Performs Reference Spad Management
@@ -1403,17 +1361,9 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @note This function change the device mode to
- * DEVICEMODE_SINGLE_RANGING
+ * @note This function change the device mode to  DEVICEMODE_SINGLE_RANGING
  *
-
- * @param   refSpadCount                 Reports ref Spad Count
- * @param   isApertureSpads              Reports if spads are of type
- *                                       aperture or non-aperture.
- *                                       1:=aperture, 0:=Non-Aperture
- * @return  ERROR_NONE            Success
- * @return  ERROR_REF_SPAD_INIT   Error in the Ref Spad procedure.
- * @return  "Other error code"           See ::Error
+ * @return Success. Values are available in the PALData
  */
     bool PerformRefSpadManagement();
 
@@ -1421,24 +1371,14 @@ namespace VL53L0X {
  * @brief Applies Reference SPAD configuration
  *
  * @par Function Description
- * This function applies a given number of reference spads, identified as
- * either Aperture or Non-Aperture.
- * The requested spad count and type are stored within the device specific
- * parameters data for access by the host.
+ * This function applies a given number of reference spads, identified as either Aperture or Non-Aperture.
+ * The requested spad count and type are stored within the device specific parameters data for access by the host.
  *
- * @note This function Access to the device
+ * @note This function does NOT access the device
  *
-
- * @param   refSpadCount                 Number of ref spads.
- * @param   isApertureSpads              Defines if spads are of type
- *                                       aperture or non-aperture.
- *                                       1:=aperture, 0:=Non-Aperture
- * @return  ERROR_NONE            Success
- * @return  ERROR_REF_SPAD_INIT   Error in the in the reference
- *                                       spad configuration.
- * @return  "Other error code"           See ::Error
+ * @param   refSpadCount                 Number of ref spads and isAperture
  */
-    Error SetReferenceSpads(SpadCount spad);
+    void SetReferenceSpads(SpadCount spad);
 
 /**
  * @brief Retrieves SPAD configuration
@@ -1449,15 +1389,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
-
- * @param   refSpadCount                 Number ref Spad Count
- * @param   isApertureSpads              Reports if spads are of type
- *                                       aperture or non-aperture.
- *                                       1:=aperture, 0:=Non-Aperture
- * @return  ERROR_NONE            Success
- * @return  ERROR_REF_SPAD_INIT   Error in the in the reference
- *                                       spad configuration.
- * @return  "Other error code"           See ::Error
+ * @return  spad count and type
  */
     SpadCount GetReferenceSpads();//todo: restore from st's code
 
@@ -1471,8 +1403,9 @@ namespace VL53L0X {
     bool perform_ref_spad_management();//#staying with reference parameter for error handling ease in one place
 
     SpadCount get_reference_spads();
-  private: //calibration.h was high level actions hidden from direct use in api
+    Api::CalibrationParameters get_ref_calibration();
 
+  private: //calibration.h was high level actions hidden from direct use in api
 
     bool perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter);
 
@@ -1487,8 +1420,7 @@ namespace VL53L0X {
     bool perform_ref_calibration();
 
     void set_ref_calibration(CalibrationParameters p, bool setv, bool setp);
-  public:
-    Api::CalibrationParameters get_ref_calibration();
+
   protected:
     bool waitOnResetIndicator(bool disappear);
 
@@ -1511,7 +1443,7 @@ namespace VL53L0X {
     /** @returns Cal parameters after running a calibration of one type or the other. Only one param will be meaningful */
     bool perform_item_calibration(bool vElseP, bool restore_config);
 
-    /** @returns the rate if measurmeent succeeds else @param iffails (not sure what makes a good sentinal, 0 or ~0 ) */
+    /** @returns the rate if measurement succeeds else @param iffails (not sure what makes a good sentinal, 0 or ~0 ) */
     uint16_t perform_ref_signal_measurement(uint16_t iffails);
     bool perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance);
 

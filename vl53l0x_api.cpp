@@ -1131,16 +1131,13 @@ namespace VL53L0X {
     uint8_t mask;
     fetch(mask, REG_RESULT_INTERRUPT_STATUS);
 //todo: this must be duplicated at each caller's site
-//    if (getBits<4, 3>(mask.wrapped)) {//if either bit? what are each of them?
+//    if (getBits<4, 3>(mask)) {//if either bit? what are each of them?
 //      return ERROR_RANGE_ERROR;
 //    }
 //    mask &= Mask<2, 0>::places;
     return mask;
   } // GetInterruptMaskStatus
 
-  bool Api::EnableInterruptMask(uint32_t InterruptMask) {
-    VL53L0X_NYI(false);
-  }
 
 /* End Group PAL Interrupt Functions */
 
@@ -1351,5 +1348,9 @@ namespace VL53L0X {
   bool Api::PerformRefSpadManagement() {
     LOG_FUNCTION_START;
     return perform_ref_spad_management();
+  }
+
+  void Api::SetReferenceSpads(SpadCount spad) {
+    VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad,spad);
   }
 }//end namespace
