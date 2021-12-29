@@ -32,21 +32,25 @@ struct Arg { //the class name here should be made a bit more specific ;)
 #include <csetjmp>
 
 struct Exceptor {
+  //written by setjmp:
   jmp_buf opaque;
+  //written by throw:
   const char *location="";
   unsigned line=0;
   int errorcode;
 
   /** record source location info and then longjmp.
    *
-   * using operator parens makes for easy replacement in macros */
+   * using operator parens makes for easier replacement by a macro */
   void operator()(const char *location,unsigned line,int error){
     this->location=location;
     this->line=line;
     errorcode=error;
     longjmp(opaque, errorcode); // NOLINT(cert-err52-cpp)   exceptions not allowed on our platform
   }
+
 };
+
 
 struct WriteOperation {
   uint8_t index;
