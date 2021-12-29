@@ -181,10 +181,10 @@ protected:
     /** the result of the process */
     CalibrationParameters p;
   public:
-    bool begin();
+    bool begin() override;
     /** @returns whether to continue the process. if not then nb.lastError details why  */
     bool onMeasurement();
-    void startNext();
+    void startNext() override;
   } theCalProcess;
 
   /** single measurement from which a reference signal rate is extracted*/

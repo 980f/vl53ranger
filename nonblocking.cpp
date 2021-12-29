@@ -274,6 +274,10 @@ bool NonBlocking::OffsetProcess::finish() {
   return false;//done
 }
 
+void NonBlocking::OffsetProcess::startNext() {
+//todo: seqconfig and start
+}
+
 /////////////////////////////////////////////////////
 //
 //const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::places;
@@ -319,6 +323,7 @@ bool NonBlocking::RefSignalProcess::onMeasurement() {
 }
 
 bool NonBlocking::RefSignalProcess::begin() {
+  //todo: startNext
   return true;
 }
 

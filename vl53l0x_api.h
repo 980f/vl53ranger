@@ -30,13 +30,7 @@
 #ifndef VL53L0X__api_H_
 #define VL53L0X__api_H_
 
-
-//if the core isn't using it then move it to this class #include "vl53l0x_def.h"
-//the platform is below the core #include "vl53l0x_platform.h"
 #include "vl53l0x_api_core.h" //extends this
-#include "vl53l0x_platform_log.h"
-
-#define  VL53L0X_NYI(fakeout)   LOG_ERROR(ERROR_NOT_IMPLEMENTED); return fakeout;
 
 namespace VL53L0X {
 
@@ -229,9 +223,7 @@ namespace VL53L0X {
  * @param   GroupParamHold   Group parameter Hold state to be set (on/off)
  * @return  false
  */
-    bool SetGroupParamHold(uint8_t GroupParamHold) {
-      VL53L0X_NYI(false);
-    }
+    bool SetGroupParamHold(uint8_t GroupParamHold);
 
 /**
  * @brief Get the maximal distance for actual setup
@@ -248,9 +240,7 @@ namespace VL53L0X {
  *
  * @return  extreme value for type
  */
-    uint16_t GetUpperLimitMilliMeter() {
-      VL53L0X_NYI(~0);
-    }
+    uint16_t GetUpperLimitMilliMeter();
 
 /**
  * @brief Get the Total Signal Rate
@@ -261,7 +251,7 @@ namespace VL53L0X {
  *
  * @return  Total Signal Rate value in Mega count per second
  */
-    FixPoint1616_t GetTotalSignalRate();
+    MegaCps GetTotalSignalRate();
 
 /** @} general_group */
 
@@ -360,9 +350,7 @@ namespace VL53L0X {
  *
  * todo: can use i2c address probe to detect device ready to communicate.
  */
-    bool WaitDeviceBooted() {
-      VL53L0X_NYI(false);
-    }
+    bool WaitDeviceBooted();
 
 /**
  * @brief Do an hard reset or soft reset (depending on implementation) of the
@@ -941,9 +929,7 @@ namespace VL53L0X {
  * @param   MaxLoop    Max Number of polling loop (timeout).
  * @return  false
  */
-    bool WaitDeviceReadyForNewMeasurement(unsigned MaxLoop) {
-      VL53L0X_NYI(false);
-    }
+    bool WaitDeviceReadyForNewMeasurement(unsigned MaxLoop);
 
 /**
  * @brief Retrieve the Reference Signal after a measurements
@@ -957,7 +943,7 @@ namespace VL53L0X {
  *
  * @return  signal rate of last successful measurement
  */
-    FixPoint1616_t GetMeasurementRefSignal();
+    MegaCps GetMeasurementRefSignal();
 
 /**
  * @brief Retrieve the measurements from device for a given setup
@@ -1289,9 +1275,7 @@ namespace VL53L0X {
  *  (0:interrupt disabled or 1: interrupt enabled)
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
-    bool EnableInterruptMask(uint8_t InterruptMask){//ick: prior code used 32 bits when getMask only returns at most 8
-      VL53L0X_NYI(false)
-    }
+    bool EnableInterruptMask(uint8_t InterruptMask);
 
 /** @} interrupt_group */
 

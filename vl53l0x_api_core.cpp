@@ -29,8 +29,6 @@ Copyright 2021 Andy Heilveil, github/980F via mutation of source
 
 #include <Arduino.h>
 #include "vl53l0x_api_core.h"
-#include "vl53l0x_api.h"
-#include "vl53l0x_api_calibration.h"
 
 #include "log_api.h"
 #include "vl53l0x_fixpoint.h"

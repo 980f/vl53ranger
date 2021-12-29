@@ -31,7 +31,6 @@
 #include "vl53l0x_api.h" //private members of the class, split across files due to size of files.
 
 #include "log_api.h"
-#include "vl53l0x_spadarray.h"
 
 namespace VL53L0X {
 
@@ -125,7 +124,7 @@ namespace VL53L0X {
     /* Disable the TCC */
     SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
     /* Disable the RIT */
-    SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
+    SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
     /* Perform 50 measurements and compute the averages */
     uint16_t sum_ranging = 0;
     uint32_t total_count = 0;

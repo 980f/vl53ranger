@@ -38,6 +38,8 @@ Copyright 2021 by Andy Heilveil github/980f via extensive rewrite of stuff origi
 
 #include "log_api.h"
 
+#define  VL53L0X_NYI(fakeout)   LOG_ERROR(ERROR_NOT_IMPLEMENTED); return fakeout;
+
 #ifdef VL53L0X_LOG_ENABLE
 #define trace_print(level, ...)   trace_print_module_function(TRACE_MODULE_API, level, TRACE_FUNCTION_NONE, ## __VA_ARGS__)
 #endif
@@ -206,7 +208,7 @@ namespace VL53L0X {
     return PALDevDataGet(LinearityCorrectiveGain);
   }
 
-  FixPoint1616_t Api::GetTotalSignalRate() {
+  MegaCps Api::GetTotalSignalRate() {
     LOG_FUNCTION_START;
     return get_total_signal_rate(PALDevDataGet(LastRangeMeasure));
   } // GetTotalSignalRate
@@ -958,7 +960,7 @@ namespace VL53L0X {
     return true;
   } // GetRangingMeasurementData
 
-  FixPoint1616_t Api::GetMeasurementRefSignal() {
+  MegaCps Api::GetMeasurementRefSignal() {
     return PALDevDataGet(LastSignalRefMcps);
   }
 
@@ -1074,7 +1076,7 @@ namespace VL53L0X {
     uint16_t Threshold12;
     comm.RdWord(REG_SYSTEM_THRESH_LOW, &Threshold12);
     /* Need to multiply by 2 because the FW will apply a x2 */
-    return FixPoint1616_t(getBits<11, 0>(Threshold12) << 17, 1);
+    return {getBits<11, 0>(Threshold12) << 17, 1};
   }
 
   void Api::SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold) {
@@ -1353,4 +1355,27 @@ namespace VL53L0X {
   void Api::SetReferenceSpads(SpadCount spad) {
     VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad,spad);
   }
+
+#if IncludeNotimplemented
+  bool Api::SetGroupParamHold(uint8_t GroupParamHold) {
+    VL53L0X_NYI(false);
+  }
+
+  uint16_t Api::GetUpperLimitMilliMeter() {
+    VL53L0X_NYI(~0);
+  }
+
+  bool Api::WaitDeviceBooted() {
+    VL53L0X_NYI(false);
+  }
+
+  bool Api::WaitDeviceReadyForNewMeasurement(unsigned int MaxLoop) {
+    VL53L0X_NYI(false);
+  }
+
+  bool Api::EnableInterruptMask(uint8_t InterruptMask) {//ick: prior code used 32 bits when getMask only returns at most 8
+    VL53L0X_NYI(false)
+  }
+
+#endif
 }//end namespace
