@@ -143,7 +143,7 @@ namespace VL53L0X {
 
 /**
  * Write double word (4 byte) register
- * @param   Dev       Device Handle
+
  * @param   index     The register index
  * @param   data      32 bit register data
  */
@@ -151,7 +151,7 @@ namespace VL53L0X {
 
 /**
  * Read single byte register
- * @param   Dev       Device Handle
+
  * @param   index     The register index
  * @param   data      pointer to 8 bit data
  */
@@ -159,7 +159,7 @@ namespace VL53L0X {
 
 /**
  * Read word (2byte) register
- * @param   Dev       Device Handle
+
  * @param   index     The register index
  * @param   data      pointer to 16 bit data
  */
@@ -167,7 +167,7 @@ namespace VL53L0X {
 
 /**
  * Read dword (4byte) register
- * @param   Dev       Device Handle
+
  * @param   index     The register index
  * @param   data      pointer to 32 bit data
  */
@@ -180,7 +180,7 @@ namespace VL53L0X {
  *
  * todo:  mask and value to get rid of ~'s
  *
- * @param   Dev        Device Handle
+
  * @param   index      The register index
  * @param   AndData    clear register where bits here are zero
  * @param   OrData     set register where bits here are one
@@ -215,7 +215,7 @@ namespace VL53L0X {
  * @code
  * #define VL53L0X_PollingDelay(...) (void)0
  * @endcode
- * @param Dev       Device Handle
+
  */
     void PollingDelay(); /* usually best implemented as a real function */
 
@@ -227,7 +227,7 @@ namespace VL53L0X {
  * @def PALDevDataGet
  * @brief Get ST private structure @a VL53L0X_DevData_t data access
  *
- * @param Dev       Device Handle
+
  * @param field     ST structure field name
  * It maybe used and as real data "ref" not just as "get" for sub-structure item
  * like PALDevDataGet(FilterData.field)[i] or
@@ -238,7 +238,7 @@ namespace VL53L0X {
 /**
  * @def PALDevDataSet( field, data)
  * @brief  Set ST private structure @a VL53L0X_DevData_t data field
- * @param Dev       Device Handle
+
  * @param field     ST structure field name
  * @param data      Data to be set
  */

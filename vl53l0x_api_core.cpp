@@ -48,23 +48,7 @@ namespace VL53L0X {
   const uint32_t DssOverheadMicroSeconds = 690;
   const uint32_t PreRangeOverheadMicroSeconds = 660;
   const uint32_t FinalRangeOverheadMicroSeconds = 550;
-  const uint32_t cMinTimingBudgetMicroSeconds = 20000;
-
-  //deprecated via reversing capability of i2c layer
-//  void reverse_bytes(uint8_t *data, uint32_t size) {
-//    uint8_t tempData;
-//    uint32_t mirrorIndex;
-//    uint32_t middle = size / 2;
-//    uint32_t index;
-//
-//    for (index = 0; index < middle; index++) {
-//      mirrorIndex = size - index - 1;
-//      tempData = data[index];
-//      data[index] = data[mirrorIndex];
-//      data[mirrorIndex] = tempData;
-//    }
-//  } // VL53L0X_reverse_bytes
-
+  const uint32_t cMinTimingBudgetMicroSeconds = 20000;//ick: documentation says that 12000 and 17000 are the bounds depending upon wraparound
 
   uint8_t decode_vcsel_period(uint8_t vcsel_period_reg) {
     /*!
@@ -102,13 +86,14 @@ namespace VL53L0X {
     while (bit != 0) {
       if (num >= res + bit) {
         num -= res + bit;
-        res = (res >> 1) + bit;
+        res = (res >> 1) | bit;
       } else {
         res >>= 1;
       }
       bit >>= 2;
     }
-
+// round:
+    if(num>res) ++res;
     return res;
   } // VL53L0X_isqrt
 
@@ -259,7 +244,7 @@ namespace VL53L0X {
       if (getBit<0>(needs)) {
         VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, ReferenceSpad);
 
-        Data.SpadData.RefGoodSpadMap = NvmRefGoodSpadMap;
+        Data.SpadData.goodones = NvmRefGoodSpadMap;
       }
 
       if (getBit<1>(needs)) {
@@ -338,17 +323,46 @@ namespace VL53L0X {
   } // VL53L0X_calc_timeout_us
 
 
+  bool Core::GetXTalkCompensationEnable() {
+    LOG_FUNCTION_START;
+    return VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
+  } // GetXTalkCompensationEnable
+
+  FixPoint1616_t Core::GetXTalkCompensationRateMegaCps() {
+    LOG_FUNCTION_START;
+    FixPoint<3, 13> Value;
+    fetch(Value.raw, REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS);
+    if (Value.raw == 0) {
+      /* the Xtalk is disabled, record that and return value from memory */
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, false);
+    } else {
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, true);
+      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, Value);
+    }
+    return VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
+  } // GetXTalkCompensationRateMegaCps
+
+
   void Core::SetXTalkCompensationEnable(bool XTalkCompensationEnable) {
     LOG_FUNCTION_START;
-    uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
-    FixPoint313_t saywhatyoumean(((XTalkCompensationEnable) && (LinearityCorrectiveGain == 1000)) ? VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps) : FixPoint1616_t(0));
-
-    /* the following register has a format 3.13 */
-    comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, saywhatyoumean);
+    FixPoint313_t duck((XTalkCompensationEnable && Data.unityGain()) ? VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps) : FixPoint1616_t(0));//# type of zero must match type of XTalkCompensationRateMegaCps
+    comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, duck);
     VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, XTalkCompensationEnable);
   } // VL53L0X_SetXTalkCompensationEnable
 
 
+  bool Core::SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps) {
+    LOG_FUNCTION_START;
+    if (GetXTalkCompensationEnable()) {
+      FixPoint<3, 13> data = Data.unityGain() ? XTalkCompensationRateMegaCps : FixPoint1616_t(0);
+      comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, data);
+    }
+    VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);//ick: records desire even if not sent to device!
+    return true;
+  } // VL53L0X_SetXTalkCompensationRateMegaCps
+
+
+///////////////////////////////
   uint32_t Core::get_sequence_step_timeout(SequenceStepId stepId) {////BUG: uses many values even when they were not successfully fetched.
     switch (stepId) {
       case SEQUENCESTEP_TCC:

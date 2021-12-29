@@ -1,4 +1,5 @@
 /*******************************************************************************
+Copyright 2021 by Andy Heilveil github/980f via extensive rewrite of stuff originally
  *  Copyright 2016, STMicroelectronics International N.V.
  *  All rights reserved.
  *
@@ -30,7 +31,6 @@
 //if the above is essential as in devices don't actually work at the lower voltage than that needs to be well documented and the option removed!
 
 #include "vl53l0x_api.h"
-//inserted into core as it tangled the layers to the point of not having them: #include "vl53l0x_api_calibration.h"
 #include "vl53l0x_api_core.h"
 #include "vl53l0x_api_strings.h"  //should get rid of wrapping, only one ever had a concept of error and for that we can return a nullptr.
 #include "vl53l0x_interrupt_threshold_settings.h" //some tuning parameters
@@ -128,8 +128,8 @@ namespace VL53L0X {
     return device_error_string(ErrorCode);
   }
 
-  const char *Api::GetRangeStatusString(uint8_t RangeStatus) {
-    return range_status_string(RangeStatus);
+  const char *Api::GetRangeStatusString(RangeStatus rangeStatus) {
+    return range_status_string(rangeStatus);
   }
 
   const char *Api::GetPalErrorString(Error PalErrorCode) {
@@ -156,6 +156,9 @@ namespace VL53L0X {
         return false;
       }
     } else {/* set the standby level1 of power mode */
+      if(PowerMode!=POWERMODE_STANDBY_LEVEL1){
+        return false;// or perhaps throw
+      }
       comm.WrByte(0x80, 0x00);
       PALDevDataSet(PalState, STATE_STANDBY);
       PALDevDataSet(PowerMode, POWERMODE_STANDBY_LEVEL1);
@@ -183,16 +186,16 @@ namespace VL53L0X {
     return get_offset_calibration_data_micro_meter();
   }
 
-  bool Api::SetLinearityCorrectiveGain(int16_t LinearityCorrectiveGain) {
+  bool Api::SetLinearityCorrectiveGain(uint16_t LinearityCorrectiveGain) {
     LOG_FUNCTION_START;
-    if ((LinearityCorrectiveGain < 0) || (LinearityCorrectiveGain > 1000)) {
+    if (!validGain(LinearityCorrectiveGain)) {
       LOG_ERROR(ERROR_INVALID_PARAMS);
       return false;
     }
     PALDevDataSet(LinearityCorrectiveGain, LinearityCorrectiveGain);
 
-    if (LinearityCorrectiveGain != 1000) {
-      /* Disable FW Xtalk */
+    if (!Data.unityGain()) { /* Disable FW Xtalk */
+      //ick: there seems to have been an enable bit added after this code was written
       comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, 0);
     }
 
@@ -544,7 +547,7 @@ namespace VL53L0X {
   FixPoint1616_t Api::GetSequenceStepTimeout(SequenceStepId SequenceStepId) {
     LOG_FUNCTION_START;
     auto TimeoutMicroSeconds = get_sequence_step_timeout(SequenceStepId);
-    return FixPoint1616_t(TimeoutMicroSeconds, 1000);
+    return {TimeoutMicroSeconds, 1000};
   } // GetSequenceStepTimeout
 
   void Api::SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds) {
@@ -570,37 +573,6 @@ namespace VL53L0X {
   } // GetInterMeasurementPeriodMilliSeconds
 
 
-  bool Api::GetXTalkCompensationEnable() {
-    LOG_FUNCTION_START;
-    return VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
-  } // GetXTalkCompensationEnable
-
-  bool Api::SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps) {
-    LOG_FUNCTION_START;
-    if (GetXTalkCompensationEnable()) {
-      uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
-      FixPoint<3, 13> data = (LinearityCorrectiveGain == 1000) ? XTalkCompensationRateMegaCps : FixPoint1616_t(0);
-      comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, data);
-      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
-    } else { /* disabled write only internal value */
-      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, XTalkCompensationRateMegaCps);
-    }
-    return true;
-  } // VL53L0X_SetXTalkCompensationRateMegaCps
-
-  FixPoint1616_t Api::GetXTalkCompensationRateMegaCps() {
-    LOG_FUNCTION_START;
-    FixPoint<3, 13> Value;
-    fetch(Value.raw, REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS);
-    if (Value.raw == 0) {
-      /* the Xtalk is disabled, return value from memory */
-      VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, false);
-    } else {
-      VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, true);
-      VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, Value);
-    }
-    return VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
-  } // GetXTalkCompensationRateMegaCps
 
   void Api::SetRefCalibration(CalibrationParameters p) {
     LOG_FUNCTION_START;
@@ -925,7 +897,7 @@ namespace VL53L0X {
      */
 
     uint8_t localBuffer[12];
-    comm.ReadMulti(0x14, localBuffer, 12);
+    comm.ReadMulti(0x14, localBuffer, sizeof (localBuffer));
 
     pRangingMeasurementData.ZoneId = 0;    /* Only one zone */
     pRangingMeasurementData.TimeStamp = 0; /* Not Implemented */
@@ -947,15 +919,11 @@ namespace VL53L0X {
 
     auto DeviceRangeStatus = localBuffer[0];
 
-    /* Get Linearity Corrective Gain */
-    uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
-
-    /* Get ranging configuration */
     bool RangeFractionalEnable = PALDevDataGet(RangeFractionalEnable);
-
+    uint16_t LinearityCorrectiveGain = PALDevDataGet(LinearityCorrectiveGain);
     auto RangeMilliMeter = MAKEUINT16(localBuffer[11], localBuffer[10]);
-    if (LinearityCorrectiveGain != 1000) {
-      RangeMilliMeter = roundedDivide(LinearityCorrectiveGain * RangeMilliMeter, 1000);
+    if (LinearityCorrectiveGain != UnityGain) {
+      RangeMilliMeter = roundedDivide(LinearityCorrectiveGain * RangeMilliMeter, UnityGain);
 
       /* Implement Xtalk */
       bool XTalkCompensationEnable = VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
@@ -1006,6 +974,7 @@ namespace VL53L0X {
     return false;
   } // VL53L0X_PerformSingleRangingMeasurement
 
+#if HaveRoiZones
   bool Api::SetNumberOfROIZones(uint8_t NumberOfROIZones) {
     if (NumberOfROIZones != 1) {
       return LOG_ERROR(ERROR_INVALID_PARAMS);
@@ -1020,6 +989,7 @@ namespace VL53L0X {
   unsigned Api::GetMaxNumberOfROIZones() {
     return 1;
   }
+#endif
 
 /* End Group PAL Measurement Functions */
 
@@ -1235,7 +1205,7 @@ namespace VL53L0X {
      * This is a short term implementation. The good spad map will be
      * provided as an input.
      */
-    Data.SpadData.RefSpadEnables.clear();
+    Data.SpadData.enables.clear();
 
     {
       SysPopper ffer = push(0xFF, 0x01, 0x00);
@@ -1254,7 +1224,7 @@ namespace VL53L0X {
     SpadArray::Index currentSpadIndex = 0;
 
     SpadCount sc {minimumSpadCount, false};
-    auto lastSpadIndex = enable_ref_spads(sc, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
+    auto lastSpadIndex = enable_ref_spads(sc, Data.SpadData.goodones, Data.SpadData.enables, currentSpadIndex);
     if (!lastSpadIndex.isValid()) {
       return false;
     }
@@ -1266,7 +1236,7 @@ namespace VL53L0X {
     }
 
     if (peakSignalRateRef > targetRefRate) { /* Signal rate measurement too high, switch to APERTURE SPADs */
-      Data.SpadData.RefSpadEnables.clear();
+      Data.SpadData.enables.clear();
 
       /* Increment to the first APERTURE spad */
       while (currentSpadIndex.isValid() && !(startSelect + currentSpadIndex).is_aperture()) {
@@ -1275,7 +1245,7 @@ namespace VL53L0X {
 
       sc = {minimumSpadCount, true};
 
-      lastSpadIndex = enable_ref_spads(sc, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
+      lastSpadIndex = enable_ref_spads(sc, Data.SpadData.goodones, Data.SpadData.enables, currentSpadIndex);
 
       if (lastSpadIndex.isValid()) {
         currentSpadIndex = lastSpadIndex;
@@ -1299,12 +1269,12 @@ namespace VL53L0X {
 //      sc.isAperture = needAptSpads;
       sc.quantity = minimumSpadCount;//perhaps superfluous
 
-      SpadArray lastSpadArray = Data.SpadData.RefSpadEnables;
+      SpadArray lastSpadArray = Data.SpadData.enables;
 
       uint32_t lastSignalRateDiff = abs(peakSignalRateRef - targetRefRate);
       bool complete = false;
       while (!complete) {
-        SpadArray::Index nextGoodSpad = Data.SpadData.RefGoodSpadMap.nextSet(currentSpadIndex);
+        SpadArray::Index nextGoodSpad = Data.SpadData.goodones.nextSet(currentSpadIndex);
         if (!nextGoodSpad.isValid()) {
           return ERROR_REF_SPAD_INIT;
         }
@@ -1315,10 +1285,10 @@ namespace VL53L0X {
         }
 
         currentSpadIndex = nextGoodSpad;
-        Data.SpadData.RefSpadEnables.enable(currentSpadIndex);
+        Data.SpadData.enables.enable(currentSpadIndex);
         ++currentSpadIndex;//post ++ not coded
 /* Proceed to apply the additional spad and perform measurement. */
-        set_ref_spad_map(Data.SpadData.RefSpadEnables);
+        set_ref_spad_map(Data.SpadData.enables);
         peakSignalRateRef = perform_ref_signal_measurement(0);
         if (peakSignalRateRef == 0) {
           return false;
@@ -1328,13 +1298,13 @@ namespace VL53L0X {
         if (peakSignalRateRef > targetRefRate) { /* Select the spad map that provides the measurement closest to the target rate, either above or below it. */
           if (signalRateDiff > lastSignalRateDiff) { /* Previous spad map produced a closer measurement, so choose this. */
             set_ref_spad_map(lastSpadArray);
-            Data.SpadData.RefSpadEnables = lastSpadArray;
+            Data.SpadData.enables = lastSpadArray;
             --sc.quantity;
           }
           complete = true;
         } else { /* Continue to add spads */
           lastSignalRateDiff = signalRateDiff;
-          lastSpadArray = Data.SpadData.RefSpadEnables;
+          lastSpadArray = Data.SpadData.enables;
         }
       } /* while */
     }

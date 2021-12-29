@@ -150,19 +150,19 @@ namespace VL53L0X {
     return scanTable(DEVICEERROR_table, ErrorCode, VL53L0X_STRING_UNKNOW_ERROR_CODE);
   }
 
-  const char *range_status_string(uint8_t RangeStatus) {
-    return scanTable(RANGESTATUS_table, RangeStatus, VL53L0X_STRING_RANGESTATUS_NONE);
+  const char *range_status_string(RangeStatus rangeStatus) {
+    return scanTable(RANGESTATUS_table, rangeStatus, VL53L0X_STRING_RANGESTATUS_NONE);
   }
 
-  const char *pal_error_string(const Error &PalErrorCode) {
+  const char *pal_error_string(Error PalErrorCode) {
     return scanTable(PalERROR_table, PalErrorCode, VL53L0X_STRING_UNKNOW_ERROR_CODE);
   }
 
-  const char *pal_state_string(const State &PalStateCode) {
+  const char *pal_state_string(State PalStateCode) {
     return scanTable(STATE_table, PalStateCode, VL53L0X_STRING_STATE_UNKNOWN);
   }
 
-  const char *sequence_steps_info(const SequenceStepId &SequenceStepId) {
+  const char *sequence_steps_info(SequenceStepId SequenceStepId) {
     return scanTable(SEQUENCESTEP_table, SequenceStepId); //odd man out: returns error instead of filling a string.
   }
 
@@ -177,8 +177,8 @@ namespace VL53L0X {
 
 
 
-  void get_range_status_string(uint8_t RangeStatus, char *pRangeStatusString) {
-    copyit(range_status_string(RangeStatus), pRangeStatusString);
+  void get_range_status_string(RangeStatus rangeStatus, char *pRangeStatusString) {
+    copyit(range_status_string(rangeStatus), pRangeStatusString);
   }   // get_range_status_string
 
 

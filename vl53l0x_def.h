@@ -76,8 +76,8 @@ namespace VL53L0X {
     /** equality compare omits revision.
      * If you wish to also omit build then compare the ver members.
      * */
-    constexpr bool operator ==(const Version_t other) const {
-      return ver==other.ver && build==other.build;
+    constexpr bool operator==(const Version_t other) const {
+      return ver == other.ver && build == other.build;
     }
   };
 
@@ -118,7 +118,7 @@ namespace VL53L0X {
     InterruptPolarity polarity = INTERRUPTPOLARITY_LOW;
   };
 
-constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need some context here.
+  constexpr bool isValid(DeviceModes modes) {//todo: review old code, may need some context here.
     switch (modes) {
       case DEVICEMODE_SINGLE_RANGING:
         return true;
@@ -139,6 +139,7 @@ constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need so
     }
   }
 
+#if IncludeHistogramming
 /** @defgroup VL53L0X_define_HistogramModes_group Defines Histogram modes
  *	Defines all possible Histogram modes for the device
  *	@{
@@ -152,6 +153,9 @@ constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need so
 /* ... Modes to be added depending on device */
 /** @} VL53L0X_define_HistogramModes_group */
   };
+
+#endif
+
 /** @defgroup VL53L0X_define_PowerModes_group List of available Power Modes
  *	List of available Power Modes
  *	@{
@@ -172,7 +176,9 @@ constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need so
  */
   struct DeviceParameters_t {
     DeviceModes DeviceMode; /*!< Defines type of measurement to be done for the next measure */
+#if IncludeHistogramming
     HistogramModes HistogramMode;/*!< Defines type of histogram measurement to be done for the next measure */
+#endif
     uint32_t MeasurementTimingBudgetMicroSeconds; /*!< Defines the allowed total time for a single measurement */
     uint32_t InterMeasurementPeriodMilliSeconds; /*!< Defines time between two consecutive measurements (between two	measurement starts). If set to 0 means back-to-back mode */
     bool XTalkCompensationEnable; /*!< Tells if Crosstalk compensation shall be enable or not	 */
@@ -183,7 +189,7 @@ constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need so
     //todo: struct and single array.
     bool LimitChecksEnable[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Limit Check enable for this device. */
     bool LimitChecksStatus[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Error of the check linked to last measurement. */
-    FixPoint<9,7> LimitChecksValue[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
+    FixPoint<9, 7> LimitChecksValue[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
 
     bool WrapAroundCheckEnable; /*!< Tells if Wrap Around Check shall be enable or not */
   };
@@ -247,8 +253,7 @@ constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need so
     uint8_t BufferSize;    /*!< Buffer Size - Set by the user.*/
     uint8_t NumberOfBins;  /*!< Number of bins filled by the histogram measurement */
 
-    DeviceError ErrorStatus;
-    /*!< Error status of the current measurement. \n
+    DeviceError ErrorStatus;  /*!< Error status of the current measurement. \n
     see @a ::VL53L0X_DeviceError @a VL53L0X_GetStatusErrorString() */
   };
 
@@ -257,10 +262,8 @@ constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need so
  * @brief Spad Configuration Data.
  */
   struct SpadData_t {
-    SpadArray RefSpadEnables;
-    /*!< Reference Spad Enables */
-    SpadArray RefGoodSpadMap;
-    /*!< Reference Spad Good Spad Map */
+    SpadArray enables;
+    SpadArray goodones;
   };
 
   struct SigmaEstimates {
@@ -277,22 +280,22 @@ constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need so
     GpioFunctionality Pin0GpioFunctionality = GPIOFUNCTIONALITY_OFF;/* store the functionality of the GPIO: pin0 */
 
     struct RangeSetting {
-      uint32_t TimeoutMicroSecs=0;/*!< Execution time of the final range*/
-      uint8_t VcselPulsePeriod=0;/*!< Vcsel pulse period (pll clocks) for the final range measurement*/
+      uint32_t TimeoutMicroSecs = 0;/*!< Execution time of the final range*/
+      uint8_t VcselPulsePeriod = 0;/*!< Vcsel pulse period (pll clocks) for the final range measurement*/
     };
     RangeSetting FinalRange;/*!< Execution &Vcsel time of the final range*/
     RangeSetting PreRange;/*!< Execution time of the pre-range range (ST had rogue tile in this comment) */
 
     SigmaEstimates SigmaEst;
 
-    uint8_t ReadDataFromDeviceDone=0; /* 3bits for subsets of device data having been read */
+    uint8_t ReadDataFromDeviceDone = 0; /* 3bits for subsets of device data having been read */
 
-    uint8_t ModuleId=0;               /* Module ID */
-    uint8_t Revision=0;               /* test Revision */
-    char ProductId[VL53L0X_MAX_STRING_LENGTH]="";/* Product Identifier String  */
+    uint8_t ModuleId = 0;               /* Module ID */
+    uint8_t Revision = 0;               /* test Revision */
+    char ProductId[VL53L0X_MAX_STRING_LENGTH] = "";/* Product Identifier String  */
 
     SpadCount ReferenceSpad;
-    bool RefSpadsInitialised=false; /* reports if ref spads are initialised. */
+    bool RefSpadsInitialised = false; /* reports if ref spads are initialised. */
 
     struct PartUID_t {
       uint32_t Upper = 0;       /*!< Unique Part ID Upper */
@@ -302,6 +305,17 @@ constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need so
   };
 
   using Tunings = const uint8_t *;
+
+  const uint16_t UnityGain = 1000;//used with LinearityCorrectiveGain
+
+  /** @returns whether @param gain is a legal value for the hardware.
+   * By using unsigned type we don't have to check signed values for being positive, the bounds check in here will throw those out.
+   * If the compiler warns you about narrowing conversion etc then you need to add an explicit check in your code before calling this.
+   * */
+  constexpr bool validGain(uint16_t gain) {
+    return gain <= UnityGain;
+  }
+
   /**
  * @struct VL53L0X_DevData_t
  *
@@ -334,8 +348,12 @@ constexpr  bool isValid(DeviceModes modes) {//todo: review old code, may need so
     Tunings pTuningSettingsPointer;     /*!< Pointer for Tuning Settings table */
     bool UseInternalTuningSettings;     /*!< Indicate if we use	 Tuning Settings table */
     uint16_t LinearityCorrectiveGain;     /*!< Linearity Corrective Gain value in x1000 */
+    bool unityGain() const {
+      return LinearityCorrectiveGain == UnityGain;
+    }
+
     struct DmaxCal {
-      uint16_t RangeMilliMeter=0;     /*!< Dmax Calibration Range millimeter */
+      uint16_t RangeMilliMeter = 0;     /*!< Dmax Calibration Range millimeter */
       FixPoint1616_t SignalRateRtnMegaCps;     /*!< Dmax Calibration Signal Rate Return MegaCps */
     } dmaxCal;
   };

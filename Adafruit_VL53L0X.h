@@ -75,6 +75,7 @@ public:
 
   void printRangeStatus(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData);
 
+  void printError();
 
   // Add similar methods as Adafruit_VL6180X class adapted to range of device
   uint16_t readRange();

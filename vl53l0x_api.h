@@ -40,12 +40,11 @@
 
 namespace VL53L0X {
 
-  /** division of Api and Core seems arbitrary. Might make Core a member to hide it if that was the intent of the orignal API developers. */
+  /** division of Api and Core seems arbitrary. Might make Core a private base to hide it if that was the intent of the orignal API developers. */
   class Api : public Core {
   public:
     /** once the comm member of the Physical interface is given an abstract interface we can build one and pass it in here instead of passing in its constructor args.
      * before that we can make a macro for the arg list so that we don't have to change it at the three levels ...*/
-    //instead of passing the device handle into (nearly) every function place it on the object, reduces visual clutter. 
     Api(Arg &&args) : Core(std::forward<Arg>(args)) {
       //do nothing so that we may static construct.
     }
@@ -72,27 +71,12 @@ namespace VL53L0X {
  *  @{
  */
 
-/**
- * @brief Reads the Product Revision for a for given Device
- * This function can be used to distinguish cut1.0 from cut1.1.
- *
- * @note This function Access to the device
- *
- * @param   Dev                 Device Handle
- * @param   pProductRevisionMajor  Pointer to Product Revision major
- * for a given Device
- * @param   pProductRevisionMinor  Pointer to Product Revision minor
- * for a given Device
- * @return  ERROR_NONE      Success
- * @return  "Other error code"  See ::Error
- */
 
 /**
  * @brief Reads the Device information for given Device
  *
  * @note This function Access to the device
  *
- * @param   Dev                 Device Handle
  * @param   pDeviceInfo  Pointer to current device info for a given
  *  Device
  * @return  ERROR_NONE   Success
@@ -104,11 +88,7 @@ namespace VL53L0X {
  * @brief Read current status of the error register for the selected device
  *
  * @note This function Access to the device
- *
- * @param   Dev                   Device Handle
- * @param   pDeviceErrorStatus    Pointer to current error code of the device
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ * @return  value read from device
  */
     DeviceError GetDeviceErrorStatus();
 
@@ -117,11 +97,10 @@ namespace VL53L0X {
  *
  * @note This function doesn't access to the device
  *
- * @param   RangeStatus         The rangeError code as stored on a RangingMeasurementData_t
+ * @param   rangeStatus         The rangeError code as stored on a RangingMeasurementData_t
  * @return  pointer to const text.
  */
-
-    const char *GetRangeStatusString(uint8_t RangeStatus);
+    const char *GetRangeStatusString(RangeStatus rangeStatus);
 
 /**
  * @brief Human readable error string for a given Error Code
@@ -131,7 +110,7 @@ namespace VL53L0X {
  * @param   ErrorCode           The error code as stored on  ::DeviceError
  * @return  pointer to const string
  */
-    const char * GetDeviceErrorString(DeviceError ErrorCode);
+    const char *GetDeviceErrorString(DeviceError ErrorCode);
 
 /**
  * @brief Human readable error string for current PAL error status
@@ -141,7 +120,7 @@ namespace VL53L0X {
  * @param   PalErrorCode       The error code as stored on @a Error
  * @return  The error string corresponding to the PalErrorCode
  */
-    const char * GetPalErrorString(Error PalErrorCode);
+    const char *GetPalErrorString(Error PalErrorCode);
 
 /**
  * @brief Human readable PAL State string
@@ -152,56 +131,45 @@ namespace VL53L0X {
  * PalStateCode
  * @return pointer to const text.
  */
-    const char * GetPalStateString(State PalStateCode);
+    const char *GetPalStateString(State PalStateCode);
 
 /**
  * @brief Reads the internal state of the PAL for a given Device
  *
  * @note This function doesn't access to the device
  *
- * @param   Dev                   Device Handle
- * @param   pPalState             Pointer to current state of the PAL for a given Device
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ * @return  current state of the PAL for a given Device
  */
     State GetPalState();
 
 /**
  * @brief Set the power mode for a given Device
- * The power mode can be Standby or Idle. Different level of both Standby and
- * Idle can exists.
+ * The power mode can be Standby or Idle.
+ * Different level of both Standby and Idle can exist i some models.
  * This function should not be used when device is in Ranging state.
  *
  * @note This function Access to the device
  *
- * @param   Dev                   Device Handle
+
  * @param   PowerMode             The value of the power mode to set.
  * see ::PowerModes
  *                                Valid values are:
  *                                POWERMODE_STANDBY_LEVEL1,
  *                                POWERMODE_IDLE_LEVEL1
- * @return  ERROR_NONE                  Success
- * @return  ERROR_MODE_NOT_SUPPORTED    This error occurs when PowerMode
- * is not in the supported list
- * @return  "Other error code"    See ::Error
+ * @return  Success, will fail if you choose an invalid enum value
  */
     bool SetPowerMode(PowerModes PowerMode);
 
 /**
- * @brief Get the power mode for a given Device
+ * @brief Get the power mode of the Device
  *
  * @note This function Access to the device
  *
- * @param   Dev                   Device Handle
  * @param   pPowerMode            Pointer to the current value of the power
  * mode. see ::PowerModes
- *                                Valid values are:
- *                                POWERMODE_STANDBY_LEVEL1,
- *                                POWERMODE_IDLE_LEVEL1
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ * @return  powerMode
  */
-    PowerModes GetPowerMode( );
+    PowerModes GetPowerMode();
 
 /**
  * Set or over-hide part to part calibration offset
@@ -209,10 +177,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                                Device Handle
  * @param   OffsetCalibrationDataMicroMeter    Offset (microns)
- * @return  ERROR_NONE                  Success
- * @return  "Other error code"                 See ::Error
  */
     void SetOffsetCalibrationDataMicroMeter(int32_t OffsetCalibrationDataMicroMeter);
 
@@ -220,32 +185,26 @@ namespace VL53L0X {
  * @brief Get part to part calibration offset
  *
  * @par Function Description
- * Should only be used after a successful call to @a DataInit to backup
- * device NVM value
+ * Should only be used after a successful call to @a DataInit to backup device NVM value
  *
  * @note This function Access to the device
  *
- * @param   Dev                                Device Handle
- * @param   pOffsetCalibrationDataMicroMeter   Return part to part
- * calibration offset from device (microns)
- * @return  ERROR_NONE                  Success
- * @return  "Other error code"                 See ::Error
+ * @return  part to part calibration offset from device (microns)
  */
-    int32_t GetOffsetCalibrationDataMicroMeter( );
+    int32_t GetOffsetCalibrationDataMicroMeter();
 
 /**
  * Set the linearity corrective gain
  *
  * @note This function Access to the device
  *
- * @param   Dev                                Device Handle
- * @param   LinearityCorrectiveGain            Linearity corrective
- * gain in x1000
+ * @param   LinearityCorrectiveGain   Linearity corrective gain in x1000
  * if value is 1000 then no modification is applied.
- * @return  ERROR_NONE                  Success
- * @return  "Other error code"                 See ::Error
+ *
+ * 980F changed to unsigned type as underlying value is unsigned and any signed value when interpreted as unsigned will be above the limit that this item has
+ * @return  Success
  */
-    bool SetLinearityCorrectiveGain(int16_t LinearityCorrectiveGain);
+    bool SetLinearityCorrectiveGain(uint16_t LinearityCorrectiveGain);
 
 /**
  * @brief Get the linearity corrective gain
@@ -255,9 +214,9 @@ namespace VL53L0X {
  *
  * @note This function did NOT Access to the device
  *
- * @return linearity  corrective gain in x1000
+ * @return linearity  corrective gain in x1000 (1000 == 1.0)
  */
-    uint16_t  GetLinearityCorrectiveGain();
+    uint16_t GetLinearityCorrectiveGain();
 
 /**
  * Set Group parameter Hold state
@@ -265,13 +224,12 @@ namespace VL53L0X {
  * @par Function Description
  * Set or remove device internal group parameter hold
  *
- * @note This function is not Implemented
+ * @note This function does nothing
  *
- * @param   Dev      Device Handle
  * @param   GroupParamHold   Group parameter Hold state to be set (on/off)
- * @return  ERROR_NOT_IMPLEMENTED        Not implemented
+ * @return  false
  */
-    bool SetGroupParamHold(uint8_t GroupParamHold){
+    bool SetGroupParamHold(uint8_t GroupParamHold) {
       VL53L0X_NYI(false);
     }
 
@@ -286,14 +244,11 @@ namespace VL53L0X {
  * "no target in detectable range"\n
  * @warning The maximal distance depends on the setup
  *
- * @note This function is not Implemented
+ * @note This function does nothing
  *
- * @param   Dev      Device Handle
- * @param   pUpperLimitMilliMeter   The maximal range limit for actual setup
- * (in millimeter)
- * @return  ERROR_NOT_IMPLEMENTED        Not implemented
+ * @return  extreme value for type
  */
-    uint16_t GetUpperLimitMilliMeter(){
+    uint16_t GetUpperLimitMilliMeter() {
       VL53L0X_NYI(~0);
     }
 
@@ -304,12 +259,9 @@ namespace VL53L0X {
  *
  * @note This function access to Device
  *
- * @param   Dev      Device Handle
- * @param   pTotalSignalRate   Total Signal Rate value in Mega count per second
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ * @return  Total Signal Rate value in Mega count per second
  */
-    FixPoint1616_t GetTotalSignalRate( );
+    FixPoint1616_t GetTotalSignalRate();
 
 /** @} general_group */
 
@@ -324,14 +276,12 @@ namespace VL53L0X {
  * After completion the device will answer to the new address programmed.
  * This function should be called when several devices are used in parallel
  * before start programming the sensor.
- * When a single device us used, there is no need to call this function.
+ * When a single device is used, there is no need to use this functionality.
  *
  * @note This function Access to the device
  *
- * @param   Dev                   Device Handle
  * @param   _8bitAddress         The new Device address
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ * @return       Success
  */
     bool SetDeviceAddress(uint8_t _8bitAddress);
 
@@ -355,9 +305,6 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                   Device Handle
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
  */
     void DataInit();
 
@@ -372,7 +319,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                             Device Handle
+
  * @param   pTuningSettingBuffer            Pointer to tuning settings buffer.
  * @param   UseInternalTuningSettings       Use internal tuning settings value.
  * @return  ERROR_NONE     Success
@@ -387,9 +334,9 @@ namespace VL53L0X {
  *
  * @note This function DOES NOT Access to the device
  *
- * @return  pointer if not 'use internal' else nullptr
+ * @return  if @param theInternal is true then the default/internal table else the pointer which will be used which might be the default one or one set via SetTuningSettingBuffer
  */
-    Tunings GetTuningSettingBuffer(bool theInternal=false);
+    Tunings GetTuningSettingBuffer(bool theInternal = false);
 
 /**
  * @brief Do basic device init (and eventually patch loading)
@@ -399,9 +346,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                   Device Handle
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ * @return      Success
  */
     bool StaticInit();
 
@@ -409,13 +354,13 @@ namespace VL53L0X {
  * @brief Wait for device booted after chip enable (hardware standby)
  * This function can be run only when State is STATE_POWERDOWN.
  *
- * @note This function is not Implemented
+ * @note This function does nothing
  *
- * @param   Dev      Device Handle
- * @return  ERROR_NOT_IMPLEMENTED Not implemented
+ * @return  false
  *
+ * todo: can use i2c address probe to detect device ready to communicate.
  */
-    bool WaitDeviceBooted(){
+    bool WaitDeviceBooted() {
       VL53L0X_NYI(false);
     }
 
@@ -428,9 +373,7 @@ namespace VL53L0X {
  * @note This function Access to the device
  * @note  This function blacks until reset is successful.
  *
- * @param   Dev                   Device Handle
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ * @return Success
  */
     bool ResetDevice();
 
@@ -449,10 +392,8 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                   Device Handle
  * @param   pDeviceParameters     Pointer to store current device parameters.
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ *
  */
     void SetDeviceParameters(const DeviceParameters_t &pDeviceParameters);
 
@@ -464,12 +405,10 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                   Device Handle
- * @param   pDeviceParameters     Pointer to store current device parameters.
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
+ * @param   pDeviceParameters     Pointer to store
+ * @return  current device parameters.
  */
-    DeviceParameters_t GetDeviceParameters( );
+  DeviceParameters_t GetDeviceParameters();
 
 /**
  * @brief  Set a new device mode
@@ -478,61 +417,34 @@ namespace VL53L0X {
  *
  * @note This function doesn't Access to the device
  *
- * @param   Dev                   Device Handle
- * @param   DeviceMode            New device mode to apply
- *                                Valid values are:
- *                                DEVICEMODE_SINGLE_RANGING
- *                                DEVICEMODE_CONTINUOUS_RANGING
- *                                DEVICEMODE_CONTINUOUS_TIMED_RANGING
- *                                DEVICEMODE_SINGLE_HISTOGRAM
- *                                HISTOGRAMMODE_REFERENCE_ONLY
- *                                HISTOGRAMMODE_RETURN_ONLY
- *                                HISTOGRAMMODE_BOTH
+
+ * @param   DeviceMode            see DeviceModes enum, although some might not be allowed on some devices
  *
  *
- * @return  ERROR_NONE               Success
- * @return  ERROR_MODE_NOT_SUPPORTED This error occurs when DeviceMode
- * is not in the supported list
+ * @return   Success
  */
     bool SetDeviceMode(DeviceModes DeviceMode);
 
 /**
  * @brief  Get current new device mode
  * @par Function Description
- * Get actual mode of the device(ranging, histogram ...)
+ * Get last requested mode of the device(ranging, histogram ...)
  *
  * @note This function doesn't Access to the device
  *
- * @param   Dev                   Device Handle
- * @param   pDeviceMode           Pointer to current apply mode value
- *                                Valid values are:
- *                                DEVICEMODE_SINGLE_RANGING
- *                                DEVICEMODE_CONTINUOUS_RANGING
- *                                DEVICEMODE_CONTINUOUS_TIMED_RANGING
- *                                DEVICEMODE_SINGLE_HISTOGRAM
- *                                HISTOGRAMMODE_REFERENCE_ONLY
- *                                HISTOGRAMMODE_RETURN_ONLY
- *                                HISTOGRAMMODE_BOTH
- *
- * @return  ERROR_NONE                   Success
- * @return  ERROR_MODE_NOT_SUPPORTED     This error occurs when
- * DeviceMode is not in the supported list
+ * @return  see DeviceModes enum
  */
     DeviceModes GetDeviceMode();
 
 /**
  * @brief  Sets the resolution of range measurements.
  * @par Function Description
- * Set resolution of range measurements to either 0.25mm if
- * fraction enabled or 1mm if not enabled.
+ * Set resolution of range measurements to either 0.25mm if fraction enabled or 1mm if not enabled.
  *
  * @note This function Accesses the device
  *
- * @param   Dev               Device Handle
- * @param   Enable            Enable high resolution
+ * @param   Enable            Enable high resolution (1/4 mm)
  *
- * @return  ERROR_NONE               Success
- * @return  "Other error code"              See ::Error
  */
     void SetRangeFractionEnable(bool Enable);
 
@@ -547,61 +459,11 @@ namespace VL53L0X {
  *
  * @note This function Accesses the device
  *
- * @param   Dev               Device Handle
- * @param   pEnable           Output Parameter reporting the fraction enable
- * state.
- *
- * @return  ERROR_NONE                   Success
- * @return  "Other error code"                  See ::Error
+ * @return  whether resolution is 1/4 mm or 1 mm
  */
     bool GetFractionEnable();
 
-/**
- * @brief  Set a new Histogram mode
- * @par Function Description
- * Set device to a new Histogram mode
- *
- * @note This function doesn't Access to the device
- *
- * @param   Dev                   Device Handle
- * @param   HistogramMode         New device mode to apply
- *                                Valid values are:
- *                                HISTOGRAMMODE_DISABLED
- *                                DEVICEMODE_SINGLE_HISTOGRAM
- *                                HISTOGRAMMODE_REFERENCE_ONLY
- *                                HISTOGRAMMODE_RETURN_ONLY
- *                                HISTOGRAMMODE_BOTH
- *
- * @return  ERROR_NONE                   Success
- * @return  ERROR_MODE_NOT_SUPPORTED     This error occurs when
- * HistogramMode is not in the supported list
- * @return  "Other error code"    See ::Error
- */
-    bool SetHistogramMode(HistogramModes HistogramMode){
-      VL53L0X_NYI(false);
-    }
 
-/**
- * @brief  Get current new device mode
- * @par Function Description
- * Get current Histogram mode of a Device
- *
- * @note This function doesn't Access to the device
- *
- * @param   Dev                   Device Handle
- * @param   pHistogramMode        Pointer to current Histogram Mode value
- *                                Valid values are:
- *                                HISTOGRAMMODE_DISABLED
- *                                DEVICEMODE_SINGLE_HISTOGRAM
- *                                HISTOGRAMMODE_REFERENCE_ONLY
- *                                HISTOGRAMMODE_RETURN_ONLY
- *                                HISTOGRAMMODE_BOTH
- * @return  ERROR_NONE     Success
- * @return  "Other error code"    See ::Error
- */
-    HistogramModes GetHistogramMode(){
-      return HISTOGRAMMODE_DISABLED;//NYI
-    }
 
 /**
  * @brief Set Ranging Timing Budget in microseconds
@@ -612,18 +474,16 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                                Device Handle
+
  * @param MeasurementTimingBudgetMicroSeconds  Max measurement time in
  * microseconds.
  *                                   Valid values are:
  *                                   >= 17000 microsecs when wraparound enabled
  *                                   >= 12000 microsecs when wraparound disabled
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is returned if
- *  MeasurementTimingBudgetMicroSeconds out of range
- * @return  "Other error code"            See ::Error
+ *                                   (bug: 20000 enforced by present code!)
+ * @return  Success
  */
-    bool SetMeasurementTimingBudgetMicroSeconds(uint32_t MeasurementTimingBudgetMicroSeconds){
+    bool SetMeasurementTimingBudgetMicroSeconds(uint32_t MeasurementTimingBudgetMicroSeconds) {
       return set_measurement_timing_budget_micro_seconds(MeasurementTimingBudgetMicroSeconds);
     }
 
@@ -637,16 +497,9 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                                    Device Handle
- * @param   pMeasurementTimingBudgetMicroSeconds   Max measurement time in
- * microseconds.
- *                                   Valid values are:
- *                                   >= 17000 microsecs when wraparound enabled
- *                                   >= 12000 microsecs when wraparound disabled
- * @return  ERROR_NONE                      Success
- * @return  "Other error code"                     See ::Error
+ * @return   Max measurement time in microseconds.
  */
-    uint32_t GetMeasurementTimingBudgetMicroSeconds( );
+    uint32_t GetMeasurementTimingBudgetMicroSeconds();
 
 /**
  * @brief Gets the VCSEL pulse period.
@@ -656,13 +509,8 @@ namespace VL53L0X {
  *
  * @note This function Accesses the device
  *
- * @param   Dev                      Device Handle
  * @param   VcselPeriodType          VCSEL period identifier (pre-range|final).
- * @param   pVCSELPulsePeriod        Pointer to VCSEL period value.
- * @return  ERROR_NONE        Success
- * @return  ERROR_INVALID_PARAMS  Error VcselPeriodType parameter not
- *                                       supported.
- * @return  "Other error code"           See ::Error
+ * @return  period in apparently useconds
  */
     uint8_t GetVcselPulsePeriod(VcselPeriod VcselPeriodType);
 
@@ -674,13 +522,10 @@ namespace VL53L0X {
  *
  * @note This function Accesses the device
  *
- * @param   Dev                       Device Handle
- * @param   VcselPeriodType	      VCSEL period identifier (pre-range|final).
- * @param   VCSELPulsePeriod          VCSEL period value
- * @return  ERROR_NONE            Success
- * @return  ERROR_INVALID_PARAMS  Error VcselPeriodType parameter not
- *                                       supported.
- * @return  "Other error code"           See ::Error
+
+ * @param   VcselPeriodType	      VCSEL period identifier @see VcselPeriod enum
+ * @param   VCSELPulsePeriod      VCSEL period value
+ * @return              Success
  */
     bool SetVcselPulsePeriod(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriod);
 
@@ -694,49 +539,8 @@ namespace VL53L0X {
  *
  * @param   SequenceStepId	         Sequence step identifier.
  * @param   SequenceStepEnabled          Demanded state {0=Off,1=On}
- *                                       is enabled.
- * @return  ERROR_NONE            Success
- * @return  ERROR_INVALID_PARAMS  Error SequenceStepId parameter not
- *                                       supported.
- * @return  "Other error code"           See ::Error
  */
     void SetSequenceStepEnable(SequenceStepId SequenceStepId, bool SequenceStepEnabled);
-
-    //Core:
-///**
-// * @brief Gets the (on/off) state of a requested sequence step.
-// *
-// * @par Function Description
-// * This function retrieves the state of a requested sequence step, i.e. on/off.
-// *
-// * @note This function Accesses the device
-// *
-// * @param   Dev                    Device Handle
-// * @param   SequenceStepId         Sequence step identifier.
-// * @param   pSequenceStepEnabled   Out parameter reporting if the sequence step
-// *                                 is enabled {0=Off,1=On}.
-// * @return  ERROR_NONE            Success
-// * @return  ERROR_INVALID_PARAMS  Error SequenceStepId parameter not
-// *                                       supported.
-// * @return  "Other error code"           See ::Error
-// */
-//    bool GetSequenceStepEnable(SequenceStepId StepId);
-
-//disappeared
-///**
-// * @brief Gets the (on/off) state of all sequence steps.
-// *
-// * @par Function Description
-// * This function retrieves the state of all sequence step in the scheduler.
-// *
-// * @note This function Accesses the device
-// *
-// * @param   Dev                          Device Handle
-// * @param   pSchedulerSequenceSteps      Pointer to struct containing result.
-// * @return  ERROR_NONE            Success
-// * @return  "Other error code"           See ::Error
-// */
-//    SchedulerSequenceSteps_t GetSequenceStepEnables();
 
 /**
  * @brief Sets the timeout of a requested sequence step.
@@ -746,13 +550,9 @@ namespace VL53L0X {
  *
  * @note This function Accesses the device
  *
- * @param   Dev                          Device Handle
  * @param   SequenceStepId               Sequence step identifier.
  * @param   TimeOutMilliSecs             Demanded timeout
- * @return  ERROR_NONE            Success
- * @return  ERROR_INVALID_PARAMS  Error SequenceStepId parameter not
- *                                       supported.
- * @return  "Other error code"           See ::Error
+ * @return  Success
  */
     bool SetSequenceStepTimeout(SequenceStepId SequenceStepId, FixPoint1616_t TimeOutMilliSecs);
 
@@ -764,13 +564,8 @@ namespace VL53L0X {
  *
  * @note This function Accesses the device
  *
- * @param   Dev                          Device Handle
  * @param   SequenceStepId               Sequence step identifier.
- * @param   pTimeOutMilliSecs            Timeout value.
- * @return  ERROR_NONE            Success
- * @return  ERROR_INVALID_PARAMS  Error SequenceStepId parameter not
- *                                       supported.
- * @return  "Other error code"           See ::Error
+ * @return  MilliSecs            Timeout value.
  */
     FixPoint1616_t GetSequenceStepTimeout(SequenceStepId SequenceStepId);
 
@@ -780,14 +575,10 @@ namespace VL53L0X {
  * @par Function Description
  * This function retrieves the number of sequence steps currently managed
  * by the API
+ * use the SequenceStepId enum and you don't have to check this.
  *
  * @note This function Accesses the device
- *
- * @param   Dev                          Device Handle
- * @param   pNumberOfSequenceSteps       Out parameter reporting the number of
- *                                       sequence steps.
- * @return  ERROR_NONE            Success
- * @return  "Other error code"           See ::Error
+ * @return  max sequence step id
  */
     static SequenceStepId GetNumberOfSequenceSteps();
 
@@ -806,7 +597,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE            Success
  * @return  "Other error code"           See ::Error
  */
-    const char * GetSequenceStepsInfo(SequenceStepId SequenceStepId);
+    const char *GetSequenceStepsInfo(SequenceStepId SequenceStepId);
 
 /**
  * Program continuous mode Inter-Measurement period in milliseconds
@@ -816,80 +607,23 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                                  Device Handle
  * @param   InterMeasurementPeriodMilliSeconds   Inter-Measurement Period in ms.
- * @return  ERROR_NONE                    Success
- * @return  "Other error code"                   See ::Error
  */
     void SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds);
 
 /**
  * Get continuous mode Inter-Measurement period in milliseconds
- *
- * @par Function Description
- * When trying to set too short time return  INVALID_PARAMS minimal value
- *
  * @note This function Access to the device
  *
- * @param   Dev                                  Device Handle
- * @param   pInterMeasurementPeriodMilliSeconds  Pointer to programmed
- *  Inter-Measurement Period in milliseconds.
- * @return  ERROR_NONE                    Success
- * @return  "Other error code"                   See ::Error
+ * @return  Inter-Measurement Period in milliseconds.
  */
     uint32_t GetInterMeasurementPeriodMilliSeconds();
 
-
-
-/**
- * @brief Get Cross talk compensation rate
- *
- * @note This function is not Implemented. (Says who!) //BUG: stale documentation
- * Enable/Disable Cross Talk by set to zero the Cross Talk value by
- * using @a SetXTalkCompensationRateMegaCps().
- *
- * @param   Dev                        Device Handle
- * @param   pXTalkCompensationEnable   Pointer to the Cross talk compensation
- *  state 0=disabled or 1 = enabled
- * @return  ERROR_NOT_IMPLEMENTED   Not implemented
- */
-    bool GetXTalkCompensationEnable();
-
-/**
- * @brief Set Cross talk compensation rate
- *
- * @par Function Description
- * Set Cross talk compensation rate.
- *
- * @note This function Access to the device
- *
- * @param   Dev                            Device Handle
- * @param   XTalkCompensationRateMegaCps   Compensation rate in
- *  Mega counts per second (16.16 fix point) see datasheet for details
- * @return  ERROR_NONE              Success
- * @return  "Other error code"             See ::Error
- */
-    bool SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps);
-
-/**
- * @brief Get Cross talk compensation rate
- *
- * @par Function Description
- * Get Cross talk compensation rate.
- *
- * @note This function Access to the device
- *
- * @param   Dev                            Device Handle
- * @param   pXTalkCompensationRateMegaCps  Pointer to Compensation rate
- *  in Mega counts per second (16.16 fix point) see datasheet for details
- * @return  ERROR_NONE              Success
- * @return  "Other error code"             See ::Error
- */
-    FixPoint1616_t GetXTalkCompensationRateMegaCps( );
-
-    struct CalibrationParameters{
-      uint8_t VhvSettings=0; //zero init for when we are only using one field
-      uint8_t PhaseCal=0;
+    /** these guys are often manipulate at the same time so we make them a pair.
+     * They are small enough to pass the struct in a register so copying is cheap. */
+    struct CalibrationParameters {
+      uint8_t VhvSettings = 0; //zero init for when we are only using one field
+      uint8_t PhaseCal = 0;
     };
 
 /**
@@ -900,11 +634,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                            Device Handle
- * @param   VhvSettings                    Parameter for VHV
- * @param   PhaseCal                       Parameter for PhaseCal
- * @return  ERROR_NONE              Success
- * @return  "Other error code"             See ::Error
+ * @param   Parameter for VHV and PhaseCal
  */
     void SetRefCalibration(CalibrationParameters refParams);
 
@@ -916,11 +646,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                            Device Handle
- * @param   pVhvSettings                   Pointer to VHV parameter
- * @param   pPhaseCal                      Pointer to PhaseCal Parameter
- * @return  ERROR_NONE              Success
- * @return  "Other error code"             See ::Error
+ * @return  vhv phase pair
  */
     CalibrationParameters GetRefCalibration();
 
@@ -928,13 +654,13 @@ namespace VL53L0X {
  * @brief  Get the number of the check limit managed by a given Device
  *
  * @par Function Description
- * This function give the number of the check limit managed by the Device
+ * This function give the number of the check limit managed by the Device.
+ * Use the CheckEnable enum and you will never need to reference this.
+ *
+ *   (0<= LimitCheckId < GetNumberOfLimitCheck() ).
  *
  * @note This function doesn't Access to the device
- *
- * @param   pNumberOfLimitCheck           Pointer to the number of check limit.
- * @return  ERROR_NONE             Success
- * @return  "Other error code"            See ::Error
+ * @return  check value for limitId.
  */
     static CheckEnable GetNumberOfLimitCheck();
 
@@ -947,17 +673,10 @@ namespace VL53L0X {
  *
  * @note This function doesn't Access to the device
  *
- * @param   Dev                           Device Handle
  * @param   LimitCheckId                  Limit Check ID
- *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
- * @param   pLimitCheckString             Pointer to the
- *  description string of the given check limit.
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is
- *  returned when LimitCheckId value is out of range.
- * @return  "Other error code"            See ::Error
+ * @return  description of limit checked
  */
-    static const char * GetLimitCheckInfo(CheckEnable LimitCheckId);
+    static const char *GetLimitCheckInfo(CheckEnable LimitCheckId);
 
 /**
  * @brief  Return a the Error of the specified check limit
@@ -969,19 +688,9 @@ namespace VL53L0X {
  *
  * @note This function doesn't Access to the device
  *
- * @param   Dev                           Device Handle
  * @param   LimitCheckId                  Limit Check ID
- *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
- * @param   pLimitCheckStatus             Pointer to the
- *  Limit Check Error of the given check limit.
- * LimitCheckStatus :
- * 0 the check is not fail
- * 1 the check if fail or not enabled
- *
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is
- *  returned when LimitCheckId value is out of range.
- * @return  "Other error code"            See ::Error
+
+ * @return  whether limit fired, IE limit was exceeded
  */
     bool GetLimitCheckStatus(CheckEnable LimitCheckId);
 
@@ -990,24 +699,14 @@ namespace VL53L0X {
  *
  * @par Function Description
  * This function Enable/Disable a specific limit check.
- * The limit check is identified with the LimitCheckId.
  *
  * @note This function doesn't Access to the device
  *
- * @param   Dev                           Device Handle
  * @param   LimitCheckId                  Limit Check ID
- *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
- * @param   LimitCheckEnable              if 1 the check limit
- *  corresponding to LimitCheckId is Enabled
- *                                        if 0 the check limit
- *  corresponding to LimitCheckId is disabled
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is returned
- *  when LimitCheckId value is out of range.
- * @return  "Other error code"            See ::Error
+ * @param   LimitCheckEnable              whether to check limit corresponding to LimitCheckId
+ * @return  Success
  */
     bool SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable);
-
 
 /**
  * @brief  Set a specific limit check value
@@ -1018,21 +717,17 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                           Device Handle
  * @param   LimitCheckId                  Limit Check ID
- *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
- * @param   LimitCheckValue               Limit check Value for a given
- * LimitCheckId
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is returned when either
- *  LimitCheckId or LimitCheckValue value is out of range.
- * @return  "Other error code"            See ::Error
+ * @param   LimitCheckValue               Limit check Value for given LimitCheckId
  */
     void SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
 
-
- void SetLimitCheck(CheckEnable LimitCheckId, LimitTuple limit);
-
+    /** convenience to set limit enable and value in one call.
+     * we might remove the individual setters.
+     *
+     * use SetLimitCheck(CheckSomething, { enable, value });
+     * */
+    void SetLimitCheck(CheckEnable LimitCheckId, LimitTuple limit);
 
 /**
  * @brief  Get the current value of the signal used for the limit check
@@ -1044,9 +739,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                           Device Handle
  * @param   LimitCheckId                  Limit Check ID
- *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
  * @return  value limit is checked against
  *
  * @throws ERROR_ILLEGAL_PARAMS if you don't use the enum for the CheckId
@@ -1058,12 +751,8 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                    Device Handle
- * @param   WrapAroundCheckEnable  Wrap around Check to be set
- *                                 0=disabled, other = enabled
- * @return  ERROR_NONE      Success
- * @return  "Other error code"     See ::Error
- */
+ * @param   WrapAroundCheckEnable  whether to perform Wrap around Check
+ **/
     void SetWrapAroundCheckEnable(bool WrapAroundCheckEnable);
 
 /**
@@ -1074,11 +763,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                     Device Handle
- * @param   pWrapAroundCheckEnable  Pointer to the Wrap around Check state
- *                                  0=disabled or 1 = enabled
- * @return  ERROR_NONE       Success
- * @return  "Other error code"      See ::Error
+ * @return  whether wrap around check is enabled
  */
     bool GetWrapAroundCheckEnable();
 
@@ -1088,25 +773,17 @@ namespace VL53L0X {
  * from NVM.
  * @note This function doesn't Access to the device
  *
- * @param   Dev                    Device Handle
- * @param   RangeMilliMeter        Calibration Distance
- * @param   SignalRateRtnMegaCps   Signal rate return read at CalDistance
- * @return  ERROR_NONE      Success
- * @return  "Other error code"     See ::Error
+ * @param   RangeMilliMeter        Calibration Distance and rate read at that distance
+ * @return   Success
  */
     bool SetDmaxCalParameters(const DevData_t::DmaxCal &p);
 
 /**
  * @brief  Get Dmax Calibration Parameters for a given device
  *
- *
  * @note This function Access to the device
  *
- * @param   Dev                     Device Handle
- * @param   pRangeMilliMeter        Pointer to Calibration Distance
- * @param   pSignalRateRtnMegaCps   Pointer to Signal rate return
- * @return  ERROR_NONE       Success
- * @return  "Other error code"      See ::Error
+ * @return   pRangeMilliMeter        Calibration Distance and its rate
  */
     DevData_t::DmaxCal GetDmaxCalParameters();
 
@@ -1133,9 +810,8 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                  Device Handle
- * @return  ERROR_NONE    Success
- * @return  "Other error code"   See ::Error
+
+ * @return  Success  , @see GetRangingMeasurementData for results
  */
     bool PerformSingleMeasurement();
 
@@ -1149,49 +825,15 @@ namespace VL53L0X {
  * if interrupt are enable an interrupt will be done.
  * This function will clear the interrupt generated automatically.
  *
- * @warning This function is a blocking function
+ * @warning This function is blocking
  *
  * @note This function Access to the device
  *
- * @param   Dev                  Device Handle
- * @param   pVhvSettings         Pointer to vhv settings parameter.
- * @param   pPhaseCal            Pointer to PhaseCal parameter.
- * @return  ERROR_NONE    Success
- * @return  "Other error code"   See ::Error
+ * @return   Success
  */
     bool PerformRefCalibration();
 
-/**
- * @brief Perform XTalk Measurement
- *
- * @details Measures the current cross talk from glass in front
- * of the sensor.
- * This functions performs a histogram measurement and uses the results
- * to measure the crosstalk. For the function to be successful, there
- * must be no target in front of the sensor.
- *
- * @warning This function is a blocking function
- *
- * @warning This function is not supported when the final range
- * vcsel clock period is set below 10 PCLKS.
- *
- * @note This function Access to the device
- *
- * @param   Dev                  Device Handle
- * @param   TimeoutMs            Histogram measurement duration.
- * @param   pXtalkPerSpad        Output parameter containing the crosstalk
- * measurement result, in MCPS/Spad. Format fixpoint 16:16.
- * @param   pAmbientTooHigh      Output parameter which indicate that
- * pXtalkPerSpad is not good if the Ambient is too high.
- * @return  ERROR_NONE    Success
- * @return  ERROR_INVALID_PARAMS vcsel clock period not supported
- * for this operation. Must not be less than 10PCLKS.
- * @return  "Other error code"   See ::Error
- */
-    bool PerformXTalkMeasurement(uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad, uint8_t *pAmbientTooHigh){
-      VL53L0X_NYI(false);
-//similar name but quite different technique from      perform_xtalk_calibration()
-    }
+
 
 /**
  * @brief Perform XTalk Calibration
@@ -1202,22 +844,17 @@ namespace VL53L0X {
  * This function will clear the interrupt generated automatically.
  * This function will program a new value for the XTalk compensation
  * and it will enable the cross talk before exit.
- * This function will disable the CHECKENABLE_RANGE_IGNORE_THRESHOLD.
+ * @note This function disables the CHECKENABLE_RANGE_IGNORE_THRESHOLD.
  *
- * @warning This function is a blocking function
+ * @note This function change the device mode to DEVICEMODE_SINGLE_RANGING
+ *
+ * @warning This function is blocking
  *
  * @note This function Access to the device
  *
- * @note This function change the device mode to
- * DEVICEMODE_SINGLE_RANGING
  *
- * @param   Dev                  Device Handle
- * @param   XTalkCalDistance     CalDistanceMilliMeter value used for the XTalk
- * computation.
- * @param   pXTalkCompensationRateMegaCps  Pointer to new
- * XTalkCompensation value.
- * @return  ERROR_NONE    Success
- * @return  "Other error code"   See ::Error
+ * @param   XTalkCalDistance     CalDistanceMilliMeter value used for the XTalk measurement
+ * @return    Success
  */
     bool PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance);
 
@@ -1229,15 +866,14 @@ namespace VL53L0X {
  * enabled an interrupt will be done.
  * This function will clear the interrupt generated automatically.
  * This function will program a new value for the Offset calibration value
- * This function will disable the CHECKENABLE_RANGE_IGNORE_THRESHOLD.
+ * @note  This function will disable the CHECKENABLE_RANGE_IGNORE_THRESHOLD.
  *
- * @warning This function is a blocking function
+ * @warning This function is blocking
  *
  * @note This function Access to the device
  *
  * @note This function does not change the device mode.
  *
- * @param   Dev                  Device Handle
  * @param   CalDistanceMilliMeter     Calibration distance value used for the offset compensation.
 
  * @return  whether process completed.
@@ -1257,18 +893,8 @@ namespace VL53L0X {
  * @note This function Access to the device
  *
  *
- * @param   Dev                  Device Handle
- * @return  ERROR_NONE                  Success
- * @return  ERROR_MODE_NOT_SUPPORTED    This error occurs when
- * DeviceMode programmed with @a SetDeviceMode is not in the supported
- * list:
- *                                   Supported mode are:
- *                                   DEVICEMODE_SINGLE_RANGING,
- *                                   DEVICEMODE_CONTINUOUS_RANGING,
- *                                   DEVICEMODE_CONTINUOUS_TIMED_RANGING
- * @return  ERROR_TIME_OUT    Time out on start measurement
- * @return  "Other error code"   See ::Error
- */
+ * @return Success
+ * */
     bool StartMeasurement();
 
 /**
@@ -1277,14 +903,11 @@ namespace VL53L0X {
  * @details Will set the device in standby mode at end of current measurement\n
  *          Not necessary in single mode as device shall return automatically
  *          in standby mode at end of measurement.
- *          This function will change the State from
- * STATE_RUNNING to STATE_IDLE.
+ *          This function will change the State from STATE_RUNNING to STATE_IDLE.
  *
  * @note This function Access to the device
  *
- * @param   Dev                  Device Handle
- * @return  ERROR_NONE    Success
- * @return  "Other error code"   See ::Error
+ * @return    Success
  */
     bool StopMeasurement();
 
@@ -1305,11 +928,9 @@ namespace VL53L0X {
  */
     bool GetMeasurementDataReady();
 
-
     /** formerly declared in core.h but implemented in api.cpp
      * @returns false on timeout */
     bool measurement_poll_for_completion();
-
 
     /**
  * @brief Wait for device ready for a new measurement command.
@@ -1317,11 +938,10 @@ namespace VL53L0X {
  *
  * @note This function is not Implemented
  *
- * @param   Dev      Device Handle
  * @param   MaxLoop    Max Number of polling loop (timeout).
- * @return  ERROR_NOT_IMPLEMENTED   Not implemented
+ * @return  false
  */
-    bool WaitDeviceReadyForNewMeasurement(unsigned MaxLoop){
+    bool WaitDeviceReadyForNewMeasurement(unsigned MaxLoop) {
       VL53L0X_NYI(false);
     }
 
@@ -1335,12 +955,9 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                      Device Handle
- * @param   pMeasurementRefSignal    Pointer to the Ref Signal to fill up.
- * @return  ERROR_NONE        Success
- * @return  "Other error code"       See ::Error
+ * @return  signal rate of last successful measurement
  */
-  FixPoint1616_t GetMeasurementRefSignal();
+    FixPoint1616_t GetMeasurementRefSignal();
 
 /**
  * @brief Retrieve the measurements from device for a given setup
@@ -1354,12 +971,46 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                      Device Handle
+
  * @param   pRangingMeasurementData  Pointer to the data structure to fill up.
- * @return  ERROR_NONE        Success
- * @return  "Other error code"       See ::Error
+ * @return  Success.  on failure the object may be partially altered. If successful a copy is made on the PALData object
  */
     bool GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData);
+#if IncludeHistogramming
+/**
+ * @brief  Set a new Histogram mode
+ * @par Function Description
+ * Set device to a new Histogram mode
+ *
+ * @note This function doesn't Access to the device
+ *
+
+ * @param   HistogramMode         New device mode to apply
+ *                                Valid values are:
+ *                                HISTOGRAMMODE_DISABLED
+ *                                DEVICEMODE_SINGLE_HISTOGRAM
+ *                                HISTOGRAMMODE_REFERENCE_ONLY
+ *                                HISTOGRAMMODE_RETURN_ONLY
+ *                                HISTOGRAMMODE_BOTH
+ *
+ * @return  false
+ */
+    bool SetHistogramMode(HistogramModes HistogramMode) {
+      VL53L0X_NYI(false);
+    }
+
+/**
+ * @brief  Get current new device mode
+ * @par Function Description
+ * Get current Histogram mode of a Device
+ *
+ * @note This function doesn't Access to the device
+ *
+ * @return  histogram mode, which at present is always disabled
+ */
+    HistogramModes GetHistogramMode() {
+      return HISTOGRAMMODE_DISABLED;//NYI
+    }
 
 /**
  * @brief Retrieve the measurements from device for a given setup
@@ -1373,17 +1024,63 @@ namespace VL53L0X {
  *
  * @note This function is not Implemented
  *
- * @param   Dev                         Device Handle
  * @param   pHistogramMeasurementData   Pointer to the histogram data structure.
- * @return  ERROR_NOT_IMPLEMENTED   Not implemented
+ * @return  false
  */
-    bool GetHistogramMeasurementData(HistogramMeasurementData_t &pHistogramMeasurementData){
+    bool GetHistogramMeasurementData(HistogramMeasurementData_t &pHistogramMeasurementData) {
       VL53L0X_NYI(false);
     }
 
 /**
- * @brief Performs a single ranging measurement and retrieve the ranging
- * measurement data
+ * @brief Performs a single histogram measurement and retrieve the histogram measurement data
+ *   Is equivalent to PerformSingleMeasurement +  GetHistogramMeasurementData
+ *
+ * @par Function Description
+ * Get data from last successful Ranging measurement.
+ * This function will clear the interrupt in case of these are enabled.
+ *
+ * @note This function is not Implemented
+ *
+ * @param   pHistogramMeasurementData  Pointer to the data structure to fill up.
+ * @return  false
+ */
+    bool PerformSingleHistogramMeasurement(HistogramMeasurementData_t &pHistogramMeasurementData) {
+      VL53L0X_NYI(false)
+    }
+
+/**
+ * @brief Perform XTalk Measurement
+ *
+ * @details Measures the current cross talk from glass in front
+ * of the sensor.
+ * This functions performs a histogram measurement and uses the results
+ * to measure the crosstalk. For the function to be successful, there
+ * must be no target in front of the sensor.
+ *
+ * @warning This function is a blocking function
+ *
+ * @warning This function is not supported when the final range
+ * vcsel clock period is set below 10 PCLKS.
+ *
+ * @note This function Access to the device
+ *
+ * @param   TimeoutMs            Histogram measurement duration.
+ * @param   pXtalkPerSpad        Output parameter containing the crosstalk
+ * measurement result, in MCPS/Spad. Format fixpoint 16:16.
+ * @param   pAmbientTooHigh      Output parameter which indicate that
+ * pXtalkPerSpad is not good if the Ambient is too high.
+ * @return  ERROR_NONE    Success
+ * @return  ERROR_INVALID_PARAMS vcsel clock period not supported
+ * for this operation. Must not be less than 10PCLKS.
+ * @return  "Other error code"   See ::Error
+ */
+    bool PerformXTalkMeasurement(uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad, uint8_t *pAmbientTooHigh) {
+      VL53L0X_NYI(false);
+//similar name but quite different technique from      perform_xtalk_calibration()
+    }
+#endif
+/**
+ * @brief Performs a single ranging measurement and retrieve the ranging measurement data
  *
  * @par Function Description
  * This function will change the device mode to
@@ -1395,36 +1092,16 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @note This function change the device mode to
- * DEVICEMODE_SINGLE_RANGING
+ * @note This function change the device mode to DEVICEMODE_SINGLE_RANGING
  *
- * @param   Dev                       Device Handle
+ * @warning blocking
+ *
  * @param   pRangingMeasurementData   Pointer to the data structure to fill up.
- * @return  ERROR_NONE         Success
- * @return  "Other error code"        See ::Error
+ * @return   Success
  */
     bool PerformSingleRangingMeasurement(RangingMeasurementData_t &pRangingMeasurementData);
 
-/**
- * @brief Performs a single histogram measurement and retrieve the histogram
- * measurement data
- *   Is equivalent to PerformSingleMeasurement +
- *   GetHistogramMeasurementData
- *
- * @par Function Description
- * Get data from last successful Ranging measurement.
- * This function will clear the interrupt in case of these are enabled.
- *
- * @note This function is not Implemented
- *
- * @param   Dev                        Device Handle
- * @param   pHistogramMeasurementData  Pointer to the data structure to fill up.
- * @return  ERROR_NOT_IMPLEMENTED   Not implemented
- */
-    bool PerformSingleHistogramMeasurement(HistogramMeasurementData_t &pHistogramMeasurementData){
-      VL53L0X_NYI(false)
-    }
-
+#if HaveRoiZones
 /**
  * @brief Set the number of ROI Zones to be used for a specific Device
  *
@@ -1434,7 +1111,7 @@ namespace VL53L0X {
  * with @a GetMaxNumberOfROIZones().
  * This version of API manage only one zone.
  *
- * @param   Dev                           Device Handle
+
  * @param   NumberOfROIZones              Number of ROI Zones to be used for a
  *  specific Device.
  * @return  ERROR_NONE             Success
@@ -1455,7 +1132,7 @@ namespace VL53L0X {
  *
  * @note This function doesn't Access to the device
  *
- * @param   Dev                   Device Handle
+
  * @param   pNumberOfROIZones     Pointer to the Number of ROI Zones value.
  * @return  ERROR_NONE     Success
  */
@@ -1469,12 +1146,13 @@ namespace VL53L0X {
  *
  * @note This function doesn't Access to the device
  *
- * @param   Dev                    Device Handle
+
  * @param   pMaxNumberOfROIZones   Pointer to the Maximum Number
  *  of ROI Zones value.
  * @return  ERROR_NONE      Success
  */
     unsigned GetMaxNumberOfROIZones();
+#endif
 
 /** @} measurement_group */
 
@@ -1488,7 +1166,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                   Device Handle
+
  * @param   Pin                   ID of the GPIO Pin
  * @param   Functionality         Select Pin functionality.
  *  Refer to ::GpioFunctionality
@@ -1514,7 +1192,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                   Device Handle
+
  * @param   Pin                   ID of the GPIO Pin
  * @param   pDeviceMode           Pointer to Device Mode associated to the Gpio.
  * @param   pFunctionality        Pointer to Pin functionality.
@@ -1534,7 +1212,7 @@ namespace VL53L0X {
  *                      GPIOFUNCTIONALITY_NEW_MEASURE_READY
  * @return  "Other error code"    See ::Error
  */
-    GpioConfiguration GetGpioConfig(uint8_t Pin=0);
+    GpioConfiguration GetGpioConfig(uint8_t Pin = 0);
 
     struct RangeWindow {
       FixPoint1616_t Low;
@@ -1553,7 +1231,7 @@ namespace VL53L0X {
  *
  * @note DeviceMode is ignored for the current device
  *
- * @param   Dev              Device Handle
+
  * @param   DeviceMode       Device Mode for which change thresholds
  * @param   ThresholdLow     Low threshold (mm, lux ..., depending on the mode)
  * @param   ThresholdHigh    High threshold (mm, lux ..., depending on the mode)
@@ -1574,7 +1252,7 @@ namespace VL53L0X {
  *
  * @note DeviceMode is ignored for the current device
  *
- * @param   Dev              Device Handle
+
  * @param   DeviceMode       Device Mode from which read thresholds
  * @param   pThresholdLow    Low threshold (mm, lux ..., depending on the mode)
  * @param   pThresholdHigh   High threshold (mm, lux ..., depending on the mode)
@@ -1592,7 +1270,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                    Device Handle
+
  * @param   pStopStatus            Pointer to status variable to update
  * @return  ERROR_NONE      Success
  * @return  "Other error code"     See ::Error
@@ -1608,7 +1286,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                  Device Handle
+
  * @param   InterruptMask        Mask of interrupts to clear
  * @return  ERROR_NONE    Success
  * @return  ERROR_INTERRUPT_NOT_CLEARED    Cannot clear interrupts
@@ -1627,7 +1305,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                    Device Handle
+
  * @param   pInterruptMaskStatus   Pointer to status variable to update
  * @return  ERROR_NONE      Success
  * @return  "Other error code"     See ::Error
@@ -1639,7 +1317,7 @@ namespace VL53L0X {
  *
  * @note This function is not Implemented
  *
- * @param   Dev                  Device Handle
+
  * @param   InterruptMask         Mask of interrupt to Enable/disable
  *  (0:interrupt disabled or 1: interrupt enabled)
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
@@ -1661,7 +1339,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                           Device Handle
+
  * @param   SpadAmbientDamperThreshold    SPAD Ambient Damper Threshold value
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
@@ -1676,13 +1354,13 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                           Device Handle
+
  * @param   pSpadAmbientDamperThreshold   Pointer to programmed
  *                                        SPAD Ambient Damper Threshold value
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
  */
-    uint16_t GetSpadAmbientDamperThreshold( );
+    uint16_t GetSpadAmbientDamperThreshold();
 
 /**
  * @brief  Set the SPAD Ambient Damper Factor value
@@ -1692,7 +1370,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                           Device Handle
+
  * @param   SpadAmbientDamperFactor       SPAD Ambient Damper Factor value
  * @return  ERROR_NONE             Success
  * @return  "Other error code"            See ::Error
@@ -1707,7 +1385,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                           Device Handle
+
  * @param   pSpadAmbientDamperFactor      Pointer to programmed SPAD Ambient
  * Damper Factor value
  * @return  ERROR_NONE             Success
@@ -1728,7 +1406,7 @@ namespace VL53L0X {
  * @note This function change the device mode to
  * DEVICEMODE_SINGLE_RANGING
  *
- * @param   Dev                          Device Handle
+
  * @param   refSpadCount                 Reports ref Spad Count
  * @param   isApertureSpads              Reports if spads are of type
  *                                       aperture or non-aperture.
@@ -1750,7 +1428,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                          Device Handle
+
  * @param   refSpadCount                 Number of ref spads.
  * @param   isApertureSpads              Defines if spads are of type
  *                                       aperture or non-aperture.
@@ -1771,7 +1449,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                          Device Handle
+
  * @param   refSpadCount                 Number ref Spad Count
  * @param   isApertureSpads              Reports if spads are of type
  *                                       aperture or non-aperture.
@@ -1789,7 +1467,6 @@ namespace VL53L0X {
 
     bool check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo);
     bool get_device_info(DeviceInfo_t &pDeviceInfo);
-
 
     bool perform_ref_spad_management();//#staying with reference parameter for error handling ease in one place
 
@@ -1809,7 +1486,7 @@ namespace VL53L0X {
     bool perform_phase_calibration(bool restore_config);
     bool perform_ref_calibration();
 
-    void set_ref_calibration(CalibrationParameters p, bool setv, bool setp) ;
+    void set_ref_calibration(CalibrationParameters p, bool setv, bool setp);
   public:
     Api::CalibrationParameters get_ref_calibration();
   protected:

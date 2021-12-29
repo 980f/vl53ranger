@@ -6,6 +6,11 @@
 //define to something other than 0 if calibration routines will be needed, else they will be carefully excised from the build to minimize code footprint 
 #define IncludeCalibrators 1
 
+//define to something other than 0 if histogram modality is to be present in the API
+#define IncludeHistogramming 0
+
+#define HaveRoiZones 0
+
 #ifdef UseEmptyStrings
 #error "the empty strings option is now implemented by setting a file link from vl53l0x.empty.text to vl53l0x.text"
 #endif

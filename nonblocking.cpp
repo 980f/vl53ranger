@@ -3,7 +3,7 @@
 // Created by andyh on 12/27/21.
 //
 
-#include "nonBlocking.h"
+#include "nonblocking.h"
 
 //from safely/cppext lib:
 template<typename Scalar> Scalar take(Scalar &owner) {
@@ -14,9 +14,14 @@ template<typename Scalar> Scalar take(Scalar &owner) {
 
 using namespace VL53L0X; //# this file exists to manage entities from this namespace
 
+
+void NonBlocking::abandonTasks(){
+  onStopComplete(false);
+  doMeasurementComplete(false);
+}
+
 void NonBlocking::inLoop() {
-  //setjmp here!
-  auto error =setjmp(comm.wirer.ComException.opaque); // NOLINT(cert-err52-cpp) as exceptions are too expensive on a microcontroller
+  auto error =setjmp(comm.wirer.Throw.opaque); // NOLINT(cert-err52-cpp) as exceptions are too expensive on a microcontroller
   switch(error) {
     case ERROR_NONE: {
       if (waitOnStart) {
@@ -26,7 +31,7 @@ void NonBlocking::inLoop() {
           waitOnStart = 0;
         } else {
           if (--waitOnStart == 0) {
-            //toodo: abandon pending process and measurements
+            //todo: abandon pending process and measurements
           }
         }
       }
@@ -61,10 +66,11 @@ void NonBlocking::inLoop() {
     case ERROR_GPIO_NOT_EXISTING:
     case ERROR_INVALID_PARAMS:
       //todo: developer errors
+      abandonTasks();
       break;
     case ERROR_CONTROL_INTERFACE: //todo: suberrors
       //todo: device must be detected and fully reinit
-      break;
+      abandonTasks();
       break;
     default:
       //todo: any stored exit routines that apply
@@ -157,7 +163,7 @@ bool NonBlocking::AveragingProcess::onMeasurement() {
     }
     /* no valid values found */
     if (total_count == 0) {//ick: really should be a larger number, like 90% success rate
-      nb.logError(VL53L0X::ERROR_RANGE_ERROR, __FUNCTION__);
+      nb.comm.wirer.Throw( __FUNCTION__,__LINE__,VL53L0X::ERROR_RANGE_ERROR);
       return false;
     }
     finish();
@@ -209,23 +215,18 @@ bool NonBlocking::XtalkProcess::finish() {
     /* Apply division by mean spad count early in the calculation to keep the numbers small.
      * This ensures we can maintain a 32bit calculation.
      * Fixed1616 / int := Fixed1616 */
-    uint32_t signalXTalkTotalPerSpad = (StoredMeanSignalRate) / StoredMeanRtnSpadsAsInt;//ick: please round divide
+    uint32_t signalXTalkTotalPerSpad = roundedDivide(StoredMeanSignalRate, StoredMeanRtnSpadsAsInt);
 
     /* Complete the calculation for total Signal XTalk per SPAD
      * Fixed1616 * (Fixed1616 - Fixed1616/int) := (2^16 * Fixed1616)     */
-    signalXTalkTotalPerSpad *= (Unity.raw - (StoredMeanRange / CalDistanceAsInt));//ick: need rounded divide
+    signalXTalkTotalPerSpad *= (Unity.raw - roundedDivide(StoredMeanRange , CalDistanceAsInt));
 
     /* Round from 2^16 * Fixed1616, to Fixed1616. */
     XTalkCompensationRateMegaCps = roundedScale(signalXTalkTotalPerSpad, 16);
   }
-
-  /* Enable the XTalk compensation */
   nb.SetXTalkCompensationEnable(true);
-
-  /* Enable the XTalk compensation */
   nb.SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
 
-  nb.logError(VL53L0X::ERROR_NONE, "Xtalk Process");
   return false;
 }
 

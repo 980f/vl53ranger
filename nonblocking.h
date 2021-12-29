@@ -10,14 +10,12 @@
 class NonBlocking: public VL53L0X::Api  {
 
 public:
-  VL53L0X::Error lastError=VL53L0X::ERROR_NONE;
-  const char *errorLocation= nullptr;
 
-  bool logError(VL53L0X::Error code,const char *location){
-    lastError=code;
-    errorLocation=location;
-    return false;
-  }
+//  bool logError(VL53L0X::Error code,const char *location){
+//    lastError=code;
+//    errorLocation=location;
+//    return false;
+//  }
 //
 //#define ON_ERROR(c)   return logError( c , __FUNCTION__ );
 
@@ -224,6 +222,7 @@ public: //for debug, read only outside of this class.
   unsigned waitOnMeasurementComplete = 0;
   unsigned waitOnStop = 0;
   bool startMeasurement(MeasurementAction action);
+  void abandonTasks();
 };
 
 

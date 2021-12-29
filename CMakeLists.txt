@@ -1,8 +1,8 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.20)
 
 #until linker issue is resolved:  (this must preceded PROJECT() as project() is what triggers the compiler testing)
-set(CMAKE_C_COMPILER_FORCED true)
-set(CMAKE_CXX_COMPILER_FORCED true)
+SET(CMAKE_C_COMPILER_FORCED true)
+SET(CMAKE_CXX_COMPILER_FORCED true)
 
 PROJECT(vl53)
 
@@ -34,14 +34,14 @@ INCLUDE_DIRECTORIES(.
   /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/variants/qtpy_m0/
   )
 
-set(coreSources
-vl53l0x_api.cpp
-vl53l0x_api_calibration.cpp
-vl53l0x_api_core.cpp
+SET(coreSources
+  vl53l0x_api.cpp
+  vl53l0x_api_calibration.cpp
+  vl53l0x_api_core.cpp
 
-vl53l0x_api_strings.cpp
+  vl53l0x_api_strings.cpp
   vl53l0x_spadarray.cpp
-)
+  )
 
 SET(platform
   vl53l0x_i2c_comms.cpp
@@ -49,10 +49,11 @@ SET(platform
   )
 
 SET(adafruit
- Adafruit_VL53L0X.cpp
+  Adafruit_VL53L0X.cpp
   )
 
 SET(newapi
-  nonBlocking.cpp
+  nonblocking.cpp
   )
-ADD_EXECUTABLE(vl53  ${platform} ${coreSources} ${adafruit} ${newapi})
+
+ADD_EXECUTABLE(vl53 ${platform} ${coreSources} ${adafruit} ${newapi})

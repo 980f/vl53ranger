@@ -95,7 +95,7 @@ namespace VL53L0X {
 #warning "THROW redefined for platform.cpp Physical access"
 #undef THROW
 #endif
-#define THROW(error) wirer.ComException(__FUNCTION__ ,__LINE__,error)
+#define THROW(error) wirer.Throw(__FUNCTION__ ,__LINE__,error)
 
   void Physical::WriteMulti(uint8_t index, const uint8_t *pdata, int count) {
     VL53L0X_I2C_USER_VAR //BUG?: not locked like the ReadMulti was, why not?

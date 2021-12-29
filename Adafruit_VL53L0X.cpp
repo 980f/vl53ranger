@@ -541,3 +541,9 @@ void Adafruit_VL53L0X::setLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 
 FixPoint<9, 7> Adafruit_VL53L0X::getLimitCheckValue(CheckEnable LimitCheckId) {
   return MyDevice.GetLimitCheckValue(LimitCheckId);
 }
+
+void Adafruit_VL53L0X::printError() {
+  Serial.print(pal_error_string(static_cast<Error>(MyDevice.comm.wirer.Throw.errorcode)));
+  Serial.print(MyDevice.comm.wirer.Throw.location);
+  Serial.print(MyDevice.comm.wirer.Throw.line);
+}

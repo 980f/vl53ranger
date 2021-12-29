@@ -38,18 +38,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * @brief platform log function definition
  */
 
-//do this via compile command line or build.h:  #define VL53L0X_LOG_ENABLE 0
-
-//unused feature
-//enum TRACE_LEVEL {
-//  NONE
-//  , ERRORS
-//  , WARNING
-//  , INFO
-//  , DEBUG
-//  , ALL
-//  , IGNORE
-//};
 
 #include "vl53l0x_error.h"
 
@@ -92,6 +80,7 @@ public:
 
 #define LOG_FUNCTION_START  PerformanceTracer Error(__FUNCTION__)
 
+//todo: write to exception trace but don't throw:
 #define LOG_ERROR(errcode) PerformanceTracer::logError(__FUNCTION__,errcode)
 
 #else

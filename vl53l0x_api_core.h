@@ -1,4 +1,5 @@
 /*******************************************************************************
+ * Copyright 2021, Andrew Heilveil (github/980f) via massive rework of source:
 *   Copyright 2016, STMicroelectronics International N.V.
 *   All rights reserved.
 *
@@ -34,7 +35,6 @@
 
 namespace VL53L0X {
   //some device independent functions:
-//  void reverse_bytes(uint8_t *data, uint32_t size);
   uint8_t encode_vcsel_period(uint8_t vcsel_period_pclks);
   uint8_t decode_vcsel_period(uint8_t vcsel_period_reg);
   /** restoring form of integer square root
@@ -47,11 +47,7 @@ namespace VL53L0X {
 
   template<unsigned whole, unsigned fract>
   static auto quadrature_sum(FixPoint<whole, fract> a, FixPoint<whole, fract> b) -> typename decltype(a)::RawType {
-    //todo: debate whether the guard in the non-class quadrature_sum should apply
-//      if (a > 65535 || b > 65535) {
-//        return 65535;
-//      }
-    return isqrt(a.squared() + b.squared());
+    return quadrature_sum(a.raw, b.raw);
   }
 
   class Core : public Dev_t {
@@ -60,8 +56,25 @@ namespace VL53L0X {
       //do nothing here so that we can statically construct
     }
 
+/**
+ * @brief Gets the (on/off) state of a requested sequence step.
+ *
+ * @par Function Description
+ * This function retrieves the state of a requested sequence step, i.e. on/off.
+ *
+ * @note This function Accesses the device
+ *
+ * @param   SequenceStepId         Sequence step identifier.
+ */
     bool GetSequenceStepEnable(SequenceStepId StepId); // GetSequenceStepEnable
-
+/**
+ * @brief Reads the Product Revision for a for given Device
+ * This function can be used to distinguish cut1.0 from cut1.1.
+ *
+ * @note This function Access to the device
+ *
+ * @return  major/minor aka "cut"
+ */
     SemverLite GetProductRevision();
 
     /** VCSELPulsePeriodPCLK */
@@ -115,7 +128,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                           Device Handle
+
  * @param   LimitCheckId                  Limit Check ID
  *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
  * @param   pLimitCheckEnable             Pointer to the check limit enable
@@ -141,7 +154,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   Dev                           Device Handle
+
  * @param   LimitCheckId                  Limit Check ID
  *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
  * @param   pLimitCheckValue              Pointer to Limit
@@ -299,7 +312,9 @@ namespace VL53L0X {
 
   protected:  //common code fragments and what were file static but didn't actually have the 'static' like they should have.
 
-/** gets value from device, @returns whether it worked OK.*/
+/** gets value from device.
+ * to do this as a simple return we would have to explicitly put the type in <> and that would be painful without a macro
+ * */
     template<typename Scalar> void fetch(Scalar &item, RegSystem reg) {
       comm.Read<Scalar>(reg, item);
     }
@@ -331,17 +346,56 @@ namespace VL53L0X {
 /**
  * @brief Enable/Disable Cross talk compensation feature
  *
- * @note This function is not Implemented.
  * Enable/Disable Cross Talk by set to zero the Cross Talk value
  * by using @a SetXTalkCompensationRateMegaCps().
  *
- * @param   Dev                       Device Handle
- * @param   XTalkCompensationEnable   Cross talk compensation
- *  to be set 0=disabled else = enabled
+ * @param   XTalkCompensationEnable   Cross talk compensation to be set 0=disabled else = enabled
+ */
+    void SetXTalkCompensationEnable(bool XTalkCompensationEnable);
+/**
+ * @brief Get Cross talk compensation rate
+ *
+ * @note This function is not Implemented. (Says who!) //BUG: stale documentation
+ * Enable/Disable Cross Talk by set to zero the Cross Talk value by
+ * using @a SetXTalkCompensationRateMegaCps().
+ *
+
+ * @param   pXTalkCompensationEnable   Pointer to the Cross talk compensation
+ *  state 0=disabled or 1 = enabled
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
+    bool GetXTalkCompensationEnable();
 
-    void SetXTalkCompensationEnable(bool XTalkCompensationEnable);
+/**
+ * @brief Set Cross talk compensation rate
+ *
+ * @par Function Description
+ * Set Cross talk compensation rate.
+ *
+ * @note This function Access to the device
+ *
+ * @param   XTalkCompensationRateMegaCps   Compensation rate in
+ *  Mega counts per second (16.16 fix point) see datasheet for details
+ * @return  ERROR_NONE              Success
+ * @return  "Other error code"             See ::Error
+ */
+    bool SetXTalkCompensationRateMegaCps(FixPoint1616_t XTalkCompensationRateMegaCps);
+
+/**
+ * @brief Get Cross talk compensation rate
+ *
+ * @par Function Description
+ * Get Cross talk compensation rate.
+ *
+ * @note This function Access to the device
+ *
+ * @param   Dev                            Device Handle
+ * @param   pXTalkCompensationRateMegaCps  Pointer to Compensation rate
+ *  in Mega counts per second (16.16 fix point) see datasheet for details
+ * @return  ERROR_NONE              Success
+ * @return  "Other error code"             See ::Error
+ */
+    FixPoint1616_t GetXTalkCompensationRateMegaCps( );
 
     void set_ref_spad_map(SpadArray &refSpadArray);//writes to device
     void get_ref_spad_map(SpadArray &refSpadArray);//read from device

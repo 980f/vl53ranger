@@ -264,7 +264,7 @@ namespace VL53L0X {
 
   bool Api::set_reference_spads(SpadCount ref) {
     //this clearing moved here as it executed regardless of error in the I2C writes
-    Data.SpadData.RefSpadEnables.clear();
+    Data.SpadData.enables.clear();
 
     SpadArray::Index currentSpadIndex = 0;
     if (ref.isAperture) {
@@ -285,7 +285,7 @@ namespace VL53L0X {
     }
     comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
 
-    auto ignoredvalue = enable_ref_spads(ref, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
+    auto ignoredvalue = enable_ref_spads(ref, Data.SpadData.goodones, Data.SpadData.enables, currentSpadIndex);
     if (!ignoredvalue.isValid()) {
       return false;
     }

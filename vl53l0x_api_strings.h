@@ -39,10 +39,10 @@ namespace VL53L0X {
  Each of the below returns nullptr on an invalid code unless someone decided to put in a specific string for such.
  */
   const char *device_error_string(DeviceError ErrorCode);
-  const char *range_status_string(uint8_t RangeStatus);
-  const char *pal_error_string(const Error &PalErrorCode);
-  const char *pal_state_string(const State &PalStateCode);
-  const char *sequence_steps_info(const SequenceStepId &SequenceStepId);
+  const char *range_status_string(RangeStatus rangeStatus);
+  const char *pal_error_string(Error PalErrorCode);
+  const char *pal_state_string(State PalStateCode);
+  const char *sequence_steps_info(SequenceStepId SequenceStepId);
   const char *limit_check_info(uint16_t LimitCheckId);
 
   //was in wrong module, is a device function not a stringifying function:
@@ -53,7 +53,7 @@ namespace VL53L0X {
  * */
   void get_device_error_string(DeviceError ErrorCode, char *pDeviceErrorString);
 
-  void get_range_status_string(uint8_t RangeStatus, char *pRangeStatusString);
+  void get_range_status_string(RangeStatus rangeStatus, char *pRangeStatusString);
 
   void get_pal_error_string(Error PalErrorCode, char *pPalErrorString);
 

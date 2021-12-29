@@ -10,9 +10,9 @@
 #define I2C_DEBUG 0
 
 
-#define THROW(error)  ComException(__FUNCTION__,__LINE__, error);return false
+#define THROW(error)  Throw(__FUNCTION__,__LINE__, error);return false
 
-uint8_t ArduinoWirer::changedAddress(uint8_t newAddress) {
+uint8_t ArduinoWirer::changeAddress(uint8_t newAddress) {
   uint8_t was = devAddr;
   devAddr = newAddress;
   return was;
