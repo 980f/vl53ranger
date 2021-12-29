@@ -44,7 +44,7 @@ namespace VL53L0X {
 
   bool Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance) {
     if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
-      THROW(ERROR_INVALID_PARAMS);
+      THROW(ERROR_INVALID_PARAMS);//bad user input
     }
     /* Disable the XTalk compensation */
     SetXTalkCompensationEnable(false);
@@ -100,18 +100,15 @@ namespace VL53L0X {
 
       /* Apply division by mean spad count early in the calculation to keep the numbers small.
        * This ensures we can maintain a 32bit calculation.  Fixed1616 / int := Fixed1616 */
-      uint32_t signalXTalkTotalPerSpad = (xTalkStoredMeanSignalRate) / xTalkStoredMeanRtnSpadsAsInt;//ick: round divide
+      uint32_t signalXTalkTotalPerSpad = roundedDivide(xTalkStoredMeanSignalRate, xTalkStoredMeanRtnSpadsAsInt);
 
       /* Complete the calculation for total Signal XTalk per SPAD
        * Fixed1616 * (Fixed1616 - Fixed1616/int) := (2^16 * Fixed1616)   */
-      signalXTalkTotalPerSpad *= (Unity.raw - (xTalkStoredMeanRange / xTalkCalDistanceAsInt));//ick: round divide
+      signalXTalkTotalPerSpad *= Unity.raw - roundedDivide(xTalkStoredMeanRange , xTalkCalDistanceAsInt);
 
       /* Round from 2^16 * Fixed1616, to Fixed1616. */
       XTalkCompensationRateMegaCps = roundedScale(signalXTalkTotalPerSpad, 16);
     }
-
-//    pXTalkCompensationRateMegaCps = XTalkCompensationRateMegaCps;
-
     /* Enable the XTalk compensation */
     SetXTalkCompensationEnable(true);
     SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
@@ -356,7 +353,7 @@ namespace VL53L0X {
   } // VL53L0X_perform_phase_calibration
 
   bool Api::perform_ref_calibration() {
-    //todo: sholdn't we push seq config here?
+    //todo: shouldn't we push seq config here?
     return perform_vhv_calibration(false) && perform_phase_calibration(false);
   } // VL53L0X_perform_ref_calibration
 

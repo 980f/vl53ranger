@@ -1031,27 +1031,25 @@ namespace VL53L0X {
     void SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
 
 
+ void SetLimitCheck(CheckEnable LimitCheckId, LimitTuple limit);
+
 
 /**
  * @brief  Get the current value of the signal used for the limit check
  *
  * @par Function Description
- * This function get a the current value of the signal used for the limit check.
+ * This function gets the current value of the signal used for the limit check.
  * To obtain the latest value you should run a ranging before.
- * The value reported is linked to the limit check identified with the
- * LimitCheckId.
+ * The value reported is linked to the limit check identified with the LimitCheckId.
  *
  * @note This function Access to the device
  *
  * @param   Dev                           Device Handle
  * @param   LimitCheckId                  Limit Check ID
  *  (0<= LimitCheckId < GetNumberOfLimitCheck() ).
- * @param   pLimitCheckCurrent            Pointer to current Value for a
- * given LimitCheckId.
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is returned when
- * LimitCheckId value is out of range.
- * @return  "Other error code"            See ::Error
+ * @return  value limit is checked against
+ *
+ * @throws ERROR_ILLEGAL_PARAMS if you don't use the enum for the CheckId
  */
     FixPoint1616_t GetLimitCheckCurrent(CheckEnable LimitCheckId);
 
@@ -1739,7 +1737,7 @@ namespace VL53L0X {
  * @return  ERROR_REF_SPAD_INIT   Error in the Ref Spad procedure.
  * @return  "Other error code"           See ::Error
  */
-    SpadCount PerformRefSpadManagement();
+    bool PerformRefSpadManagement();
 
 /**
  * @brief Applies Reference SPAD configuration
@@ -1793,8 +1791,9 @@ namespace VL53L0X {
     bool get_device_info(DeviceInfo_t &pDeviceInfo);
 
 
-    bool perform_ref_spad_management(SpadCount &ref);//#staying with reference parameter for error handling ease in one place
+    bool perform_ref_spad_management();//#staying with reference parameter for error handling ease in one place
 
+    SpadCount get_reference_spads();
   private: //calibration.h was high level actions hidden from direct use in api
 
 
@@ -1806,8 +1805,6 @@ namespace VL53L0X {
     bool apply_offset_adjustment();
 
     bool set_reference_spads(SpadCount ref);
-
-    SpadCount get_reference_spads();
 
     bool perform_phase_calibration(bool restore_config);
     bool perform_ref_calibration();

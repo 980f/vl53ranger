@@ -201,8 +201,17 @@ protected:
     /** @returns whether to continue the process. if not then nb.lastError details why  */
     bool onMeasurement();
     void startNext() override;
+  } theRefSignalProcess;
 
-  }theRefSignalProcess;
+  /** complicated bugger:
+   * it does the CalProcess
+   * then it does a variable number of RefSignalProcesses.
+   *
+   * our scheduler should tolerate more than one process active, ordered by this guys needs.
+   * */
+  class SpadSetupProcess:public MeasurementProcess {
+
+  };
 
   /** result of most recent measurement of any type */
   VL53L0X::RangingMeasurementData_t theRangingMeasurementData;

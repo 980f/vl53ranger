@@ -100,7 +100,7 @@ namespace VL53L0X {
   void Physical::WriteMulti(uint8_t index, const uint8_t *pdata, int count) {
     VL53L0X_I2C_USER_VAR //BUG?: not locked like the ReadMulti was, why not?
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
-      THROW(ERROR_INVALID_PARAMS);//BUG: formerly went ahead and asked for invalid transfer
+      THROW(ERROR_INVALID_PARAMS);//unlikely: unreasonably large item
     }
     wirer.write_multi( index, pdata, count);
   }
@@ -108,7 +108,7 @@ namespace VL53L0X {
   void Physical::ReadMulti( uint8_t index, uint8_t *pdata, int count) {
     VL53L0X_I2C_USER_VAR
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
-      THROW( ERROR_INVALID_PARAMS);//BUG: formerly went ahead and sent truncated data
+      THROW( ERROR_INVALID_PARAMS);//unlikely: unreasonably large item
     }
     wirer.read_multi( index, pdata, count);
   } // VL53L0X_ReadMulti

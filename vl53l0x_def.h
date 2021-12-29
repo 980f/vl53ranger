@@ -44,8 +44,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *	@{
  */
 
-
+//there is no real basis for this value:
 #define VL53L0X_DEFAULT_MAX_LOOP 200
+
+//ick: the product id is at most 20 chars, where does the 32 come into play?
 #define VL53L0X_MAX_STRING_LENGTH 32
 
 #include "vl53l0x_device.h"
@@ -56,14 +58,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace VL53L0X {
 
-/****************************************
- * PRIVATE define do not edit
- ****************************************/
-
   struct SemverLite {
     uint8_t major;   /*!< Product revision major */
     uint8_t minor;/*!< Product revision minor */
-    bool operator==(SemverLite other) const {
+    constexpr bool operator==(SemverLite other) const {
       return major == other.major && minor == other.minor;
     }
   };
@@ -71,9 +69,16 @@ namespace VL53L0X {
   /** @brief Defines the parameters of the Get Version Functions
  */
   struct Version_t {
-    uint32_t revision; /*!< revision number */
     SemverLite ver;
     uint8_t build;     /*!< build number */
+    uint32_t revision; /*!< revision number */
+
+    /** equality compare omits revision.
+     * If you wish to also omit build then compare the ver members.
+     * */
+    constexpr bool operator ==(const Version_t other) const {
+      return ver==other.ver && build==other.build;
+    }
   };
 
   using InfoText = const char *;//formerly expensive: char [VL53L0X_MAX_STRING_LENGTH];

@@ -67,16 +67,13 @@ public:
    *   @returns True if address was set successfully, False otherwise
    */
   /**************************************************************************/
-  VL53L0X::Error rangingTest(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false){
+  bool rangingTest(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false){
     return GetSingleRangingMeasurement(pRangingMeasurementData, debug);
   }
 
-  VL53L0X::Error GetSingleRangingMeasurement(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false);
+  bool GetSingleRangingMeasurement(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData, boolean debug = false);
 
   void printRangeStatus(VL53L0X::RangingMeasurementData_t &pRangingMeasurementData);
-
-  /** the API would be vastly improved internally if they implemented this: */
-  VL53L0X::Error Error = VL53L0X::ERROR_NONE; ///< indicates whether or not the sensor has encountered an error
 
 
   // Add similar methods as Adafruit_VL6180X class adapted to range of device
@@ -116,9 +113,9 @@ public:
 
   uint8_t getVcselPulsePeriod(VL53L0X::VcselPeriod VcselPeriodType);
 
-  boolean setLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId, bool LimitCheckEnable);
+  void setLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId, bool LimitCheckEnable);
   boolean getLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId);
-  boolean setLimitCheckValue(VL53L0X::CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
+  void setLimitCheckValue(VL53L0X::CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
   FixPoint<9,7> getLimitCheckValue(VL53L0X::CheckEnable LimitCheckId);
 
 private:

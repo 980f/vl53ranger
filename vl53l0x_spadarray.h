@@ -12,6 +12,11 @@
 struct SpadCount {
   uint8_t quantity=0;//ReferenceSpadCount;  /* used for ref spad management */
   bool isAperture=false;//ReferenceSpadType;   /* used for ref spad management */
+
+  bool isValid()const{
+    return quantity>0; //not this guy's job to enforce minSpadCount
+  }
+
 };
 
 /** spad arrays are arrays of bits of whether a spad exists or is enabled

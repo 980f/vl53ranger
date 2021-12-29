@@ -30,11 +30,11 @@
 #define _VL53L0X_API_CORE_H_
 
 #include "vl53l0x_platform.h" //for Dev_t
-#include "vl53l0x_fixpoint.h"
+#include "vl53l0x_fixpoint.h" //replaces all the inline shifting etc of the original source base
 
 namespace VL53L0X {
   //some device independent functions:
-  void reverse_bytes(uint8_t *data, uint32_t size);
+//  void reverse_bytes(uint8_t *data, uint32_t size);
   uint8_t encode_vcsel_period(uint8_t vcsel_period_pclks);
   uint8_t decode_vcsel_period(uint8_t vcsel_period_reg);
   /** restoring form of integer square root
@@ -77,7 +77,7 @@ namespace VL53L0X {
       SpadStuff = Bitter(0)
       , IDStuff = Bitter(1)
       , PartUidEtc = Bitter(2)
-      , ALL = Mask<2,0>::places
+      , ALL = Mask<2, 0>::places
     };
 
     bool get_info_from_device(uint8_t infoGroupBits);
@@ -153,7 +153,25 @@ namespace VL53L0X {
  */
     FixPoint<9, 7> GetLimitCheckValue(CheckEnable LimitCheckId);
 
-    /** devolved into same code as FrameEnder, removed it in favor of this as being in a better file  */
+    struct LimitTuple {
+      bool enable;
+      FixPoint<9, 7> value;
+    };
+
+    LimitTuple GetLimitCheck(CheckEnable LimitCheckId) {
+      LimitTuple collector;
+      collector.enable = GetLimitCheckEnable(LimitCheckId);
+      collector.value = GetLimitCheckValue(LimitCheckId);
+      return collector;
+    }
+
+    /**
+     * An instance of this class ensures that a matching operation such as clearing a pause bit in the device occurs even when a procedure bails out early.
+     * You may see otherwise extraneous {} surround code to control the timing of the second operation.
+     *
+     * Since exceptions are disabled on any exception the device has been left in an unknown state.
+     * Since the exceptions are except for a few due to communications failure doing a complete restart on any error makes sense.
+     * */
     class SysPopper {
     protected:
       Physical &comm;
@@ -174,7 +192,7 @@ namespace VL53L0X {
       return {comm, index, push, pop};
     }
 
-    /** writes an object after first writing 1 to 0xFF , writing a 0 to FF when done, returnin accumulated error */
+    /** writes an object after first writing 1 to 0xFF , writing a 0 to FF when done */
     template<typename Intish> void FFwrap(RegSystem index, Intish value) {
       push(0xFF, 0x01, 0x00);
       comm.WriteMulti(index, reinterpret_cast<uint8_t *>(&value), sizeof(Intish));
@@ -187,7 +205,8 @@ namespace VL53L0X {
       return value;
     }
 
-    class FFPopper  {
+    /** sometimes a matched pair of operations needs each access wrapped with 0xFF accesses*/
+    class FFPopper {
       Physical &comm;
       uint8_t index;
       uint8_t pop;
@@ -209,23 +228,24 @@ namespace VL53L0X {
       return {comm, index, push, pop};
     }
 
-    /**
+    /** Yet Another Popper
+     *
      * comm.WrByte(0xFF, 0x06);
       comm.UpdateBit(0x83, 2, true to start, false when done);
      * */
-    class YAPopper{
+    class YAPopper {
       Physical &comm;
     public:
-      YAPopper(Physical &comm):comm(comm){
+      YAPopper(Physical &comm) : comm(comm) {
         comm.WrByte(0xFF, 0x06);
         comm.UpdateBit(0x83, 2, true);
       }
-      ~YAPopper(){
+
+      ~YAPopper() {
         comm.WrByte(0xFF, 0x06);
         comm.UpdateBit(0x83, 2, false);
       }
     };
-
 
     class MagicDuo {
       Physical &comm; //not a base as eventually we will pass in a reference to a baser class
@@ -245,10 +265,11 @@ namespace VL53L0X {
       SysPopper eighty;
       MagicDuo duo;
     public:
-      MagicTrio(Physical &comm) :eighty(comm,0x80, 0x01,0x00), duo(comm) {
+      MagicTrio(Physical &comm) : eighty(comm, 0x80, 0x01, 0x00), duo(comm) {
       }
 
-      ~MagicTrio() {  };
+      ~MagicTrio() {
+      };
     };
 
     /** RAII widget that surrounds some fetches. */
@@ -256,16 +277,15 @@ namespace VL53L0X {
       return {comm};
     }
 
-    /** creating one of these saves sequence config, sets it, and on destruction restores what was saved.
-     * Inheriting rather than containing ErrorAccumulator so that we can share some macros. */
-    class SeqConfigStacker  {
+    /** creating one of these saves sequence config, sets it, and on destruction restores what was saved. */
+    class SeqConfigStacker {
       Core &core;
       uint8_t mycache;
       bool restore_it;
     public:
       SeqConfigStacker(Core &core, bool restore_config, uint8_t settit) : core(core) {
-        mycache=core.get_SequenceConfig();
-        core.set_SequenceConfig(settit,false);//todo: probably should set andChace true
+        mycache = core.get_SequenceConfig();
+        core.set_SequenceConfig(settit, false);//todo: probably should set andChace true
         restore_it = restore_config; //maydo: don't restore if we failed to set.
       }
 
@@ -277,9 +297,7 @@ namespace VL53L0X {
       }
     };
 
-  protected:  //common code fragments or what were file static but didn't actually have the 'static' like they should have.
-
-
+  protected:  //common code fragments and what were file static but didn't actually have the 'static' like they should have.
 
 /** gets value from device, @returns whether it worked OK.*/
     template<typename Scalar> void fetch(Scalar &item, RegSystem reg) {
@@ -291,14 +309,15 @@ namespace VL53L0X {
       fetch<typename FixPoint<whole, fract>::RawType>(reg, item.raw);
     }
 
-    void setValidPhase(uint8_t high, uint8_t low=8);
+    void setValidPhase(uint8_t high, uint8_t low = 8);
 
     void setPhasecalLimit(uint8_t value);
 
   protected: //some of this functionality was in api.cpp but used by core.cpp
     bool device_read_strobe();
+
     /** read up to 4 bytes from 0x90 after selecting which at 0x94
-     * source for templates can be in the CPP if not used outside that module :) */
+     * NB: source for templates can be in the CPP if not used outside that module :) */
     template<typename Int> Int packed90(uint8_t which);
 
     /** pulls a 24:8 from a 32:32 */

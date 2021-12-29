@@ -47,9 +47,9 @@ namespace VL53L0X {
 #include "versioninfo.h"
 #include "bitmanipulators.h"
 
-  const Version_t Api::ImplementationVersion {VL53L0X_IMPLEMENTATION_VER_REVISION, {VL53L0X_IMPLEMENTATION_VER_MAJOR, VL53L0X_IMPLEMENTATION_VER_MINOR}, VL53L0X_IMPLEMENTATION_VER_SUB};
+  const Version_t Api::ImplementationVersion {{VL53L0X_IMPLEMENTATION_VER_MAJOR, VL53L0X_IMPLEMENTATION_VER_MINOR}, VL53L0X_IMPLEMENTATION_VER_SUB,VL53L0X_IMPLEMENTATION_VER_REVISION};
 
-  const Version_t Api::PalSpecVersion {VL53L0X_SPECIFICATION_VER_REVISION, VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR, VL53L0X_SPECIFICATION_VER_SUB};
+  const Version_t Api::PalSpecVersion { {VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR}, VL53L0X_SPECIFICATION_VER_SUB,VL53L0X_SPECIFICATION_VER_REVISION};
 
 /* Group PAL General Functions */
   bool Api::measurement_poll_for_completion() {
@@ -161,7 +161,6 @@ namespace VL53L0X {
       PALDevDataSet(PowerMode, POWERMODE_STANDBY_LEVEL1);
       return true;
     }
-
   } // VL53L0X_SetPowerMode
 
   PowerModes Api::GetPowerMode() {
@@ -346,7 +345,7 @@ namespace VL53L0X {
 
     /* check NVM value: two known types, 1 and 0, '1' has a max 32 spads, '0' has a max of 12 */
     if (ref.quantity > (ref.isAperture ? 32 : 12)) {//if true then invalid settings so compute correct ones
-      if (!perform_ref_spad_management(ref)) {
+      if (!perform_ref_spad_management()) {
         return false;
       }
     } else {
@@ -493,8 +492,8 @@ namespace VL53L0X {
   void Api::SetSequenceStepEnable(SequenceStepId SequenceStepId, bool SequenceStepEnabled) {
     LOG_FUNCTION_START;
     unsigned bitnum = bitFor(SequenceStepId);
-    if(bitnum==~0){
-      THROW(ERROR_INVALID_PARAMS);
+    if (bitnum == ~0) {
+      THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }
     auto SequenceConfig = get_SequenceConfig();
     uint8_t SequenceConfigNew = SequenceConfig;
@@ -545,7 +544,7 @@ namespace VL53L0X {
   FixPoint1616_t Api::GetSequenceStepTimeout(SequenceStepId SequenceStepId) {
     LOG_FUNCTION_START;
     auto TimeoutMicroSeconds = get_sequence_step_timeout(SequenceStepId);
-      return FixPoint1616_t(TimeoutMicroSeconds, 1000);
+    return FixPoint1616_t(TimeoutMicroSeconds, 1000);
   } // GetSequenceStepTimeout
 
   void Api::SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds) {
@@ -627,14 +626,14 @@ namespace VL53L0X {
 
   bool Api::GetLimitCheckStatus(CheckEnable LimitCheckId) {
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
-      THROW(ERROR_INVALID_PARAMS);
+      THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }
     return Data.CurrentParameters.LimitChecksStatus[LimitCheckId];
   } // GetLimitCheckStatus
 
   bool Api::SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable) {
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
-      THROW(ERROR_INVALID_PARAMS);
+      THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }
 
     LOG_FUNCTION_START;
@@ -664,7 +663,7 @@ namespace VL53L0X {
         break;
 
       default:
-        THROW(ERROR_INVALID_PARAMS);
+        THROW(ERROR_INVALID_PARAMS);//bypassed enum
     } // switch
 
     VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, LimitCheckEnable);
@@ -689,27 +688,30 @@ namespace VL53L0X {
           comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
           break;
         default:
-          THROW (ERROR_INVALID_PARAMS);
+          THROW (ERROR_INVALID_PARAMS);//bypassed enum
       } // switch
     }
     VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId, LimitCheckValue);
   } // VL53L0X_SetLimitCheckValue
 
 
+  void Api::SetLimitCheck(CheckEnable LimitCheckId, Api::LimitTuple limit) {
+    SetLimitCheckEnable(LimitCheckId, limit.enable);
+    SetLimitCheckValue(LimitCheckId, limit.value);
+  }
+
   FixPoint1616_t Api::GetLimitCheckCurrent(CheckEnable LimitCheckId) {
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
-      THROW( ERROR_INVALID_PARAMS);
+      THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }
     switch (LimitCheckId) {
       case CHECKENABLE_SIGMA_FINAL_RANGE:
         /* Need to have run a ranging to have the latest values */
         return PALDevDataGet(SigmaEstimate);
-        break;
 
       case CHECKENABLE_SIGNAL_REF_CLIP:
         /* Need to have run a ranging to have the latest values */
         return PALDevDataGet(LastSignalRefMcps);
-        break;
 
       case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
       case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
@@ -717,10 +719,10 @@ namespace VL53L0X {
       case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
         /* Need to run a ranging to have the latest values */;
         return PALDevDataGet(LastRangeMeasure).SignalRateRtnMegaCps;
-        break;
 
       default:
-        return LOG_ERROR(ERROR_INVALID_PARAMS);
+        THROW(ERROR_INVALID_PARAMS);
+        return 0;//dummy to appease compiler
     } // switch
 
   } // GetLimitCheckCurrent
@@ -781,7 +783,7 @@ namespace VL53L0X {
     /* Start immediately to run a single ranging measurement in case of
      * single ranging or single histogram */
     if (DeviceMode == DEVICEMODE_SINGLE_RANGING) {
-      if(!StartMeasurement()){
+      if (!StartMeasurement()) {
         return false;
       }
     }
@@ -1025,14 +1027,14 @@ namespace VL53L0X {
     LOG_FUNCTION_START;
 
     if (Pin != 0) {
-      THROW(ERROR_GPIO_NOT_EXISTING);
+      THROW(ERROR_GPIO_NOT_EXISTING);//bad argument, very unlikely unless built for the wrong device.
     }
 
     switch (gpioConfig.devMode) {
       case DEVICEMODE_GPIO_DRIVE:
-         comm.WrByte(REG_GPIO_HV_MUX_ACTIVE_HIGH, (gpioConfig.polarity == INTERRUPTPOLARITY_LOW) ? Bitter(4) : 1);//ick: elsewhere does an update
-         return true;
-      case DEVICEMODE_GPIO_OSC:
+        comm.WrByte(REG_GPIO_HV_MUX_ACTIVE_HIGH, (gpioConfig.polarity == INTERRUPTPOLARITY_LOW) ? Bitter(4) : 1);//ick: elsewhere does an update
+        return true;
+      case DEVICEMODE_GPIO_OSC://todo: convert into a table for tuning parameters.
 
         comm.WrByte(0xff, 0x01);
         comm.WrByte(0x00, 0x00);
@@ -1063,14 +1065,13 @@ namespace VL53L0X {
         comm.WrByte(REG_SYSTEM_INTERRUPT_CONFIG_GPIO, gpioConfig.function);
         comm.UpdateBit(REG_GPIO_HV_MUX_ACTIVE_HIGH, 4, gpioConfig.polarity == INTERRUPTPOLARITY_HIGH);
         VL53L0X_SETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality, gpioConfig.function);
-        return  ClearInterruptMask(0);
+        return ClearInterruptMask(0);
     }
-
   } // VL53L0X_SetGpioConfig
 
   GpioConfiguration Api::GetGpioConfig(uint8_t Pin) {
     if (Pin != 0) {
-      THROW(ERROR_GPIO_NOT_EXISTING);
+      THROW(ERROR_GPIO_NOT_EXISTING);//unlikley bad argument
     }
 
     LOG_FUNCTION_START;
@@ -1079,16 +1080,16 @@ namespace VL53L0X {
     gpio.devMode = GetDeviceMode();
     uint8_t gpioConfig;
     fetch(gpioConfig, REG_SYSTEM_INTERRUPT_CONFIG_GPIO);
-      gpio.function = static_cast<enum GpioFunctionality>(gpioConfig & Mask<2, 0>::places);
+    gpio.function = static_cast<enum GpioFunctionality>(gpioConfig & Mask<2, 0>::places);
 
-      if (!valid(gpio.function)) {
-        THROW( ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);//todo: actual nvm failure, should force a valid value into it.
-      } // switch
-      uint8_t polarity;
-      fetch(polarity, REG_GPIO_HV_MUX_ACTIVE_HIGH);
-        gpio.polarity = getBit<4>(polarity) ? INTERRUPTPOLARITY_LOW : INTERRUPTPOLARITY_HIGH;
-        VL53L0X_SETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality, gpio.function);
-        return gpio;
+    if (!valid(gpio.function)) {
+      THROW(ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);//todo: actual nvm failure, should force a valid value into it.
+    } // switch
+    uint8_t polarity;
+    fetch(polarity, REG_GPIO_HV_MUX_ACTIVE_HIGH);
+    gpio.polarity = getBit<4>(polarity) ? INTERRUPTPOLARITY_LOW : INTERRUPTPOLARITY_HIGH;
+    VL53L0X_SETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality, gpio.function);
+    return gpio;
   } // GetGpioConfig
 
 
@@ -1201,7 +1202,7 @@ namespace VL53L0X {
 * Internal functions
 *****************************************************************************/
 //todo: nonblocking version
-  bool Api::perform_ref_spad_management(SpadCount &ref) {
+  bool Api::perform_ref_spad_management() {
 
     /*
      * The reference SPAD initialization procedure determines the minimum
@@ -1245,14 +1246,14 @@ namespace VL53L0X {
     comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
     comm.WrByte(REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
 
-if(!perform_ref_calibration()){
-  return false;
-}
+    if (!perform_ref_calibration()) {
+      return false;
+    }
 
     /* Enable Minimum NON-APERTURE Spads */
     SpadArray::Index currentSpadIndex = 0;
 
-    SpadCount sc{minimumSpadCount, false};
+    SpadCount sc {minimumSpadCount, false};
     auto lastSpadIndex = enable_ref_spads(sc, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
     if (!lastSpadIndex.isValid()) {
       return false;
@@ -1272,7 +1273,7 @@ if(!perform_ref_calibration()){
         ++currentSpadIndex;
       }
 
-      sc= {minimumSpadCount,true};
+      sc = {minimumSpadCount, true};
 
       lastSpadIndex = enable_ref_spads(sc, Data.SpadData.RefGoodSpadMap, Data.SpadData.RefSpadEnables, currentSpadIndex);
 
@@ -1285,11 +1286,11 @@ if(!perform_ref_calibration()){
         if (peakSignalRateRef > targetRefRate) {
           /* Signal rate still too high after setting the minimum number of APERTURE spads.
            * Can do no more therefore set the min number of aperture spads as the result. */
-          sc= {minimumSpadCount,true};//todo: 1 this seems to already be the state of it.
+          sc = {minimumSpadCount, true};//todo: 1 this seems to already be the state of it.
         }
       }
     } else {
-      ref.isAperture = false;//but we ERROR_OUT so why this lingering assign? changed to ref object instead of internal one
+//      sc.isAperture = false;//but we ERROR_OUT so why this lingering assign? changed to ref object instead of internal one
       return false;//todo: check original source
     }
     if (peakSignalRateRef < targetRefRate) {
@@ -1303,7 +1304,7 @@ if(!perform_ref_calibration()){
       uint32_t lastSignalRateDiff = abs(peakSignalRateRef - targetRefRate);
       bool complete = false;
       while (!complete) {
-        SpadArray::Index nextGoodSpad = Data.SpadData.RefGoodSpadMap.nextSet( currentSpadIndex);
+        SpadArray::Index nextGoodSpad = Data.SpadData.RefGoodSpadMap.nextSet(currentSpadIndex);
         if (!nextGoodSpad.isValid()) {
           return ERROR_REF_SPAD_INIT;
         }
@@ -1341,7 +1342,6 @@ if(!perform_ref_calibration()){
     VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, true);
     VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, sc);
 
-    ref = sc;
     return true;
   }
 
@@ -1376,5 +1376,10 @@ if(!perform_ref_calibration()){
     wad.WrapAroundCheckEnable = wcenable;
     wad.MeasurementTimingBudgetMicroSeconds = GetMeasurementTimingBudgetMicroSeconds();
     return wad;
+  }
+
+  bool Api::PerformRefSpadManagement() {
+    LOG_FUNCTION_START;
+    return perform_ref_spad_management();
   }
 }//end namespace

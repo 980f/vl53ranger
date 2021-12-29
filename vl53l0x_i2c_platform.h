@@ -35,19 +35,32 @@ struct Exceptor {
   jmp_buf opaque;
   const char *location="";
   unsigned line=0;
-  /** using operator parens makes for easy replacement in macros */
+  int errorcode;
+
+  /** record source location info and then longjmp.
+   *
+   * using operator parens makes for easy replacement in macros */
   void operator()(const char *location,unsigned line,int error){
     this->location=location;
     this->line=line;
-    longjmp(opaque, error); // NOLINT(cert-err52-cpp)   exceptions not allowed on our platform
+    errorcode=error;
+    longjmp(opaque, errorcode); // NOLINT(cert-err52-cpp)   exceptions not allowed on our platform
   }
-} ;
+};
+
+struct WriteOperation {
+  uint8_t index;
+  uint8_t count;
+  //the following will be just the first 4 bytes of a longer operation.
+  uint32_t value;
+};
 
 class ArduinoWirer : public Arg { //inheriting as a cheap way to not have to edit as much existing code while still hiding the details of the constructor args list.
 public:
   ArduinoWirer(Arg &&arg):Arg(std::forward<Arg>(arg)){}
 
   Exceptor ComException;
+  WriteOperation tracer;
   /** one can change the device address, needed for when more than one is on the same i2c link.
    * you will also have to control a pin and that is getting well out of the scope of this layer */
   uint8_t changedAddress(uint8_t  newAddress);

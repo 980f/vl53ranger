@@ -148,8 +148,10 @@ namespace VL53L0X {
     Int value;
     if (device_read_strobe()) {
       comm.Read( 0x90,value );
+      return value;
     }
-    return value;
+    //todo: probably should throw an error here, ERROR_TIMEOUT
+    return 0;//todo: maybe something more likely to be grossly wrong?
   }
 
   /** fetch 24 bits from one register and merge with 8 from the next.
@@ -255,8 +257,7 @@ namespace VL53L0X {
     if (ReadDataFromDeviceDone != 7) {
       /* Assign to variable if status is ok */
       if (getBit<0>(needs)) {
-        VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad.quantity, ReferenceSpad.quantity);
-        VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad.isAperture, ReferenceSpad.isAperture);
+        VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, ReferenceSpad);
 
         Data.SpadData.RefGoodSpadMap = NvmRefGoodSpadMap;
       }
@@ -269,8 +270,6 @@ namespace VL53L0X {
 
       if (getBit<2>(needs)) {
         VL53L0X_SETDEVICESPECIFICPARAMETER(PartUID, PartUID);
-//BUG: originally, types reversed!
-//        SignalRateMeasFixed400mmFix = VL53L0X_FIXPOINT97TOFIXPOINT1616(SignalRateMeasFixed1104_400_mm);
         //ick: the ST code suggests that the 32 bits we extracted from the middle of 64 is really 16 bits in 9.7 format.
         SignalRateMeasFixed400mmFix = SignalRateMeasFixed1104_400_mm << 9;
         VL53L0X_SETDEVICESPECIFICPARAMETER(SignalRateMeasFixed400mm, SignalRateMeasFixed400mmFix);
@@ -394,7 +393,7 @@ namespace VL53L0X {
       }
         break;
       default:
-        THROW(ERROR_INVALID_PARAMS);
+        THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }//end switch
 
     return 0;//this seems like residue of some error above.
@@ -454,7 +453,7 @@ namespace VL53L0X {
       }
         break;
       default:
-        THROW(ERROR_INVALID_PARAMS);
+        THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }
 //we only get here on failure to fetch a value.
     return true;
@@ -483,7 +482,7 @@ namespace VL53L0X {
         fetch(vcsel_period_reg, REG_FINAL_RANGE_CONFIG_VCSEL_PERIOD);
         break;
       default:
-        THROW(ERROR_INVALID_PARAMS);
+        THROW(ERROR_INVALID_PARAMS);//bypassed enum
     } // switch
 
     return decode_vcsel_period(vcsel_period_reg);
@@ -1046,7 +1045,7 @@ namespace VL53L0X {
     LOG_FUNCTION_START;
     auto seqbit = bitFor(StepId);
     if(seqbit==~0){
-      THROW(ERROR_INVALID_PARAMS);
+      THROW(ERROR_INVALID_PARAMS);//bypassed enum
       return false;
     }
     uint8_t SequenceConfig = get_SequenceConfig();
@@ -1055,7 +1054,7 @@ namespace VL53L0X {
 
   bool Core::GetLimitCheckEnable(CheckEnable LimitCheckId) {
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
-      THROW (ERROR_INVALID_PARAMS);
+      THROW (ERROR_INVALID_PARAMS);//bypassed enum
     }
     return Data.CurrentParameters.LimitChecksEnable[LimitCheckId];
   } // GetLimitCheckEnable
@@ -1086,7 +1085,7 @@ namespace VL53L0X {
         break;
 
       default:
-        THROW (ERROR_INVALID_PARAMS);
+        THROW (ERROR_INVALID_PARAMS);//bypassed enum
     } // switch
 
     //980f: this seems awful convoluted since only one of the enums sets this true. review original code!

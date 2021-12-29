@@ -16,9 +16,9 @@ using namespace VL53L0X; //# this file exists to manage entities from this names
 
 void NonBlocking::inLoop() {
   //setjmp here!
-  auto error =setjmp(comm.wirer.ComException.opaque);
+  auto error =setjmp(comm.wirer.ComException.opaque); // NOLINT(cert-err52-cpp) as exceptions are too expensive on a microcontroller
   switch(error) {
-    case ERROR_NONE:
+    case ERROR_NONE: {
       if (waitOnStart) {
         uint8_t flags;
         fetch(flags, REG_SYSRANGE_START);
@@ -54,6 +54,7 @@ void NonBlocking::inLoop() {
         }
       }
       //todo: if action request act on it:
+    }
       break;
     case ERROR_MODE_NOT_SUPPORTED:
     case ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED:
@@ -273,8 +274,8 @@ bool NonBlocking::OffsetProcess::finish() {
 }
 
 /////////////////////////////////////////////////////
-
-const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::places;
+//
+//const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::places;
 
 void NonBlocking::CalProcess::startNext() {
   uint8_t magic = lastStep ? 0 : Bitter(6);
@@ -324,9 +325,11 @@ void NonBlocking::RefSignalProcess::startNext() {
   nb.set_SequenceConfig(0xC0, false);
 }
 
-NonBlocking::RefSignalProcess::RefSignalProcess(NonBlocking &dev) :MeasurementProcess(dev){
+NonBlocking::RefSignalProcess::RefSignalProcess(NonBlocking &dev) :MeasurementProcess(dev),rate(0){
+  //do nothing here
 }
 
 
-NonBlocking::MeasurementProcess::MeasurementProcess(NonBlocking &dev) : nb(dev) {
+NonBlocking::MeasurementProcess::MeasurementProcess(NonBlocking &dev) : nb(dev),seqConfigCache(0) {
+  //do nothing here
 }
