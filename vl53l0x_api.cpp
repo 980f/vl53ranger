@@ -40,6 +40,7 @@ Copyright 2021 by Andy Heilveil github/980f via extensive rewrite of stuff origi
 #include "log_api.h"
 
 #include "versioninfo.h"
+
 #define  VL53L0X_NYI(fakeout)   LOG_ERROR(ERROR_NOT_IMPLEMENTED); return fakeout;
 
 #ifdef VL53L0X_LOG_ENABLE
@@ -48,9 +49,9 @@ Copyright 2021 by Andy Heilveil github/980f via extensive rewrite of stuff origi
 
 namespace VL53L0X {
 
-  const Version_t ImplementationVersion  {{VL53L0X_IMPLEMENTATION_VER_MAJOR, VL53L0X_IMPLEMENTATION_VER_MINOR}, VL53L0X_IMPLEMENTATION_VER_SUB,VL53L0X_IMPLEMENTATION_VER_REVISION};
+  const Version_t ImplementationVersion {{VL53L0X_IMPLEMENTATION_VER_MAJOR, VL53L0X_IMPLEMENTATION_VER_MINOR}, VL53L0X_IMPLEMENTATION_VER_SUB, VL53L0X_IMPLEMENTATION_VER_REVISION};
 
-  const Version_t PalSpecVersion { {VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR}, VL53L0X_SPECIFICATION_VER_SUB,VL53L0X_SPECIFICATION_VER_REVISION};
+  const Version_t PalSpecVersion {{VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR}, VL53L0X_SPECIFICATION_VER_SUB, VL53L0X_SPECIFICATION_VER_REVISION};
 
   /* Group PAL General Functions */
   bool Api::measurement_poll_for_completion() {
@@ -157,7 +158,7 @@ namespace VL53L0X {
         return false;
       }
     } else {/* set the standby level1 of power mode */
-      if(PowerMode!=POWERMODE_STANDBY_LEVEL1){
+      if (PowerMode != POWERMODE_STANDBY_LEVEL1) {
         return false;// or perhaps throw
       }
       comm.WrByte(0x80, 0x00);
@@ -238,7 +239,6 @@ namespace VL53L0X {
     comm.RdByte(0xC0, &b);
     // Serial.print("WHOAMI: 0x"); Serial.println(b, HEX);
 
-    /* read WHO_AM_I */
     VL53L0X_SETDEVICESPECIFICPARAMETER(ReadDataFromDeviceDone, 0);//forget we have ever read anything
 
 #ifdef USE_IQC_STATION
@@ -246,24 +246,17 @@ namespace VL53L0X {
     //but do we continue or not?
 #endif
 
-    /* Default value is 1000 for Linearity Corrective Gain */
-    PALDevDataSet(LinearityCorrectiveGain, 1000);
+    PALDevDataSet(LinearityCorrectiveGain, UnityGain);
+    Data.dmaxCal = {400, 1.42f};//(FixPoint1616_t) ((0x00016B85)));             /* 1.42 No Cover Glass*/
 
-    /* Dmax default Parameter */
-    PALDevDataSet(dmaxCal.RangeMilliMeter, 400);
-    PALDevDataSet(dmaxCal.SignalRateRtnMegaCps, 1.42f);//(FixPoint1616_t) ((0x00016B85)));             /* 1.42 No Cover Glass*/
-
-    /* Set Default static parameters
-     * set first temporary values 9.44MHz * 65536 = 618660 */
+    /* Set Default static parameters */
     VL53L0X_SETDEVICESPECIFICPARAMETER(OscFrequencyMHz, 9.44f);//618660);
-
-    /* Set Default XTalkCompensationRateMegaCps to 0  */
     VL53L0X_SETPARAMETERFIELD(XTalkCompensationRateMegaCps, 0.0f);
 
     /* Get default parameters */
     auto CurrentParameters = GetDeviceParameters();
 
-    //failure no longer flows here:
+    //todo: failure no longer flows here:
 //      /* initialize PAL values */
 //      CurrentParameters.DeviceMode = DEVICEMODE_SINGLE_RANGING;
 //      CurrentParameters.HistogramMode = HISTOGRAMMODE_DISABLED;
@@ -283,24 +276,14 @@ namespace VL53L0X {
       auto magic = magicWrapper();
       comm.RdByte(REG_SYSRANGE_stopper, &PALDevDataGet(StopVariable));
     }
-    /* Enable all check */
-    for (unsigned ci = 0; ci < CHECKENABLE_NUMBER_OF_CHECKS; ++ci) {
-      SetLimitCheckEnable(static_cast<CheckEnable>(ci), true);//doh more than half are then cleared by statements outside the loop!
-    }
-
-    /* Disable the following checks */
-    SetLimitCheckEnable(CHECKENABLE_SIGNAL_REF_CLIP, false);
-    SetLimitCheckValue(CHECKENABLE_SIGNAL_REF_CLIP, 35.0F);
-
-    SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
-    SetLimitCheckValue(CHECKENABLE_RANGE_IGNORE_THRESHOLD, 0);
-
-    SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_MSRC, false);
-    SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_PRE_RANGE, false);
-
     /* Limit default values */
-    SetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE, 18.0F);
-    SetLimitCheckValue(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, 0.25F);
+    SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 18.0F});
+    SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.25F});
+    SetLimitCheck(CHECKENABLE_SIGNAL_REF_CLIP, {false, 35.0F});
+    SetLimitCheck(CHECKENABLE_RANGE_IGNORE_THRESHOLD, {false, 0});
+    SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_MSRC, false);//ick: threshold ambiguous
+    SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_PRE_RANGE, false);//ick: threshold ambiguous
+    /** initially all sequence steps are enabled */
     set_SequenceConfig(0xFF, true);
     /* Set PAL state to tell that we are waiting for call to StaticInit */
     PALDevDataSet(PalState, STATE_WAIT_STATICINIT);
@@ -349,7 +332,7 @@ namespace VL53L0X {
 
     /* check NVM value: two known types, 1 and 0, '1' has a max 32 spads, '0' has a max of 12 */
     if (ref.quantity > (ref.isAperture ? 32 : 12)) {//if true then invalid settings so compute correct ones
-      if (!perform_ref_spad_management()) {
+      if (!PerformRefSpadManagement()) {
         return false;
       }
     } else {
@@ -358,17 +341,16 @@ namespace VL53L0X {
       }
     }
 
-    if (!load_tuning_settings(GetTuningSettingBuffer())) {
-      return false;
+    if (auto badbyte = load_tuning_settings(GetTuningSettingBuffer())) {
+      return false;//bad content, comm errors throw.
     }
     /* Set interrupt config to new sample ready */
     if (!SetGpioConfig(0, {DEVICEMODE_SINGLE_RANGING, GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW})) {
       return false;
     }
-    FixPoint<4, 12> fix412 = FFread<FixPoint<4, 12>>(RegSystem(0x84));
+    auto fix412 = FFread<FixPoint<4, 12>>(RegSystem(0x84));
 
     VL53L0X_SETDEVICESPECIFICPARAMETER(OscFrequencyMHz, fix412);//conversion from 412 to 1616 is inferred by compiler
-
 
     /* After static init, some device parameters may be changed, so update them */
     auto CurrentParameters = GetDeviceParameters();
@@ -399,22 +381,19 @@ namespace VL53L0X {
 
   bool Api::ResetDevice() {
     LOG_FUNCTION_START;
-//todo: error handling here is about as worthless as elsewhere
     /* Set reset bit */
     comm.WrByte(REG_SOFT_RESET_GO2_SOFT_RESET_N, 0x00);
+    //todo: if we get comm errors when device resets then we need to catch them here.
     if (!waitOnResetIndicator(true)) {
       return false;
     }
     /* Release reset */
-    comm.WrByte(REG_SOFT_RESET_GO2_SOFT_RESET_N, 0x01);//ick: ignores error
-
+    comm.WrByte(REG_SOFT_RESET_GO2_SOFT_RESET_N, 0x01);
     /* Wait until correct boot-up of the device */
     if (!waitOnResetIndicator(false)) {//ick: former code could hang on comm error, this quits
       return false;
     }
-
     /* Set PAL State to State_POWERDOWN */
-
     PALDevDataSet(PalState, STATE_POWERDOWN);
 
     return true;
@@ -432,8 +411,7 @@ namespace VL53L0X {
     SetOffsetCalibrationDataMicroMeter(pDeviceParameters.RangeOffsetMicroMeters);
 
     for (unsigned i = 0; i < CHECKENABLE_NUMBER_OF_CHECKS; i++) {
-      SetLimitCheckEnable(static_cast<CheckEnable>(i), pDeviceParameters.LimitChecksEnable[i]);
-      SetLimitCheckValue(static_cast<CheckEnable>(i), pDeviceParameters.LimitChecksValue[i]);
+      SetLimitCheck(static_cast<CheckEnable>(i), pDeviceParameters.LimitChecks[i]);
     }
     SetWrapAroundCheckEnable(pDeviceParameters.WrapAroundCheckEnable);
     SetMeasurementTimingBudgetMicroSeconds(pDeviceParameters.MeasurementTimingBudgetMicroSeconds);
@@ -604,73 +582,54 @@ namespace VL53L0X {
     return Data.CurrentParameters.LimitChecksStatus[LimitCheckId];
   } // GetLimitCheckStatus
 
-  bool Api::SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable) {
-    if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
-      THROW(ERROR_INVALID_PARAMS);//bypassed enum
-    }
-
+  void Api::SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable) {
     LOG_FUNCTION_START;
-    LimitCheckEnable = LimitCheckEnable != 0;//in case someone got around compiler checking
-    bool LimitCheckDisable = !LimitCheckEnable;
 
-    FixPoint<9, 7> TempFix1616 = LimitCheckEnable ? VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId) : FixPoint<9, 7>(0);
-
-    switch (LimitCheckId) {
-      case CHECKENABLE_SIGMA_FINAL_RANGE:
-      case CHECKENABLE_SIGNAL_REF_CLIP:
-      case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
-        /* internal computation: */
-        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, LimitCheckEnable);
-        break;
-
-      case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
-        comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, TempFix1616);
-        break;
-
-      case CHECKENABLE_SIGNAL_RATE_MSRC:
-        comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), LimitCheckDisable ? Bitter(1) : 0);//BUG:clear lsb set bit 1
-        break;
-
-      case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-        comm.UpdateBit(REG_MSRC_CONFIG_CONTROL, 4, LimitCheckDisable);
-        break;
-
-      default:
-        THROW(ERROR_INVALID_PARAMS);//bypassed enum
-    } // switch
-
-    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, LimitCheckEnable);
-    return true;
+    LimitTuple limitTuple = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId);
+    limitTuple.enable = LimitCheckEnable;
+    SetLimitCheck(LimitCheckId, limitTuple);
   } // VL53L0X_SetLimitCheckEnable
 
 
   void Api::SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue) {
     LOG_FUNCTION_START;
-    if (VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId)) {
-      switch (LimitCheckId) {
-        case CHECKENABLE_SIGMA_FINAL_RANGE:
-        case CHECKENABLE_SIGNAL_REF_CLIP:
-        case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
-          //these three don't go to the device
-          break;
-        case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
-          comm.WrWord(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
-          break;
-        case CHECKENABLE_SIGNAL_RATE_MSRC:
-        case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-          comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, LimitCheckValue);
-          break;
-        default:
-          THROW (ERROR_INVALID_PARAMS);//bypassed enum
-      } // switch
-    }
-    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId, LimitCheckValue);
+    auto tuple = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId);
+    tuple.value = LimitCheckValue;
+    SetLimitCheck(LimitCheckId, tuple);
   } // VL53L0X_SetLimitCheckValue
 
 
-  void Api::SetLimitCheck(CheckEnable LimitCheckId, Api::LimitTuple limit) {
-    SetLimitCheckEnable(LimitCheckId, limit.enable);
-    SetLimitCheckValue(LimitCheckId, limit.value);
+  void Api::SetLimitCheck(CheckEnable LimitCheckId, LimitTuple limit) {
+    LOG_FUNCTION_START;
+    switch (LimitCheckId) {
+      case CHECKENABLE_SIGMA_FINAL_RANGE:
+      case CHECKENABLE_SIGNAL_REF_CLIP:
+      case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
+        //no special action, must not be tested by device but rather by api or core.
+        break;
+
+      case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
+        comm.Write(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, limit.value);//todo: was this formerly conditional on enable==true?
+        break;
+
+      case CHECKENABLE_SIGNAL_RATE_MSRC:
+        comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), !limit.enable ? Bitter(1) : 0);//BUG:clear lsb set bit 1
+        if (limit.enable) {
+          comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, limit.value);
+        }
+        break;
+
+      case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
+        comm.UpdateBit(REG_MSRC_CONFIG_CONTROL, 4, !limit.enable);
+        if (limit.enable) {
+          comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, limit.value);
+        }
+        break;
+
+      default:
+        THROW(ERROR_INVALID_PARAMS);//bypassed enum
+    } // switch
+    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId, limit);
   }
 
   MegaCps Api::GetLimitCheckCurrent(CheckEnable LimitCheckId) {
@@ -798,11 +757,11 @@ namespace VL53L0X {
       FixPoint1616_t BigEough(255.0F);//was 255 * 65536 which is the same as 255.0
       if ((Threshold.Low > BigEough) || (Threshold.High > BigEough)) {
         if (StartNotStopFlag) {
-          load_tuning_settings(InterruptThresholdSettings);//todo: check error
+          load_compact(InterruptThresholdSettings, sizeof(InterruptThresholdSettings) / sizeof(*InterruptThresholdSettings));
         } else {
-          comm.WrByte(0xFF, 0x04);
+          comm.WrByte(Private_Pager, 0x04);
           comm.WrByte(0x70, 0x00);
-          comm.WrByte(0xFF, 0x00);
+          comm.WrByte(Private_Pager, 0x00);
           comm.WrByte(0x80, 0x00);
         }
       }
@@ -878,7 +837,7 @@ namespace VL53L0X {
     uint8_t InterruptConfig = VL53L0X_GETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality);
 
     if (InterruptConfig == GPIOFUNCTIONALITY_NEW_MEASURE_READY) {
-      auto mask = GetInterruptMaskStatus();
+      auto mask = GetInterruptMaskStatus(false);
       return mask == GPIOFUNCTIONALITY_NEW_MEASURE_READY;//todo: see if magic bits should be masked here
     } else {
       uint8_t SysRangeStatusRegister;
@@ -898,7 +857,7 @@ namespace VL53L0X {
      */
 
     uint8_t localBuffer[12];
-    comm.ReadMulti(0x14, localBuffer, sizeof (localBuffer));
+    comm.ReadMulti(0x14, localBuffer, sizeof(localBuffer));
 
     pRangingMeasurementData.ZoneId = 0;    /* Only one zone */
     pRangingMeasurementData.TimeStamp = 0; /* Not Implemented */
@@ -1111,34 +1070,31 @@ namespace VL53L0X {
   } // GetStopCompletedStatus
 
 /* Group PAL Interrupt Functions */
-  bool Api::ClearInterruptMask(uint32_t InterruptMask) {
+  bool Api::ClearInterruptMask(unsigned int ignored_InterruptMask) {
     LOG_FUNCTION_START;
     /* clear bit 0 range interrupt, bit 1 error interrupt */
     for (unsigned LoopCount = 3; LoopCount-- > 0;) {
-      comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 1);
+      comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 1);//ick: is this a 1<<0 or a boolean?
       comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 0);
-      uint8_t Byte;
-      comm.RdByte(REG_RESULT_INTERRUPT_STATUS, &Byte);
-
-      if (getBits<2, 0>(Byte) == 0) { //ick: elsewhere bits 4,3 are also looked at.
+      uint8_t mask= GetInterruptMaskStatus(false);
+      if (mask == 0) { //ick: elsewhere bits 4,3 are also looked at.
         return true;
       }
     }
     return false;
   } // ClearInterruptMask
 
-  uint8_t Api::GetInterruptMaskStatus() {
+  uint8_t Api::GetInterruptMaskStatus(bool throwRangeErrors) {
     LOG_FUNCTION_START;
     uint8_t mask;
-    fetch(mask, REG_RESULT_INTERRUPT_STATUS);
-//todo: this must be duplicated at each caller's site
-//    if (getBits<4, 3>(mask)) {//if either bit? what are each of them?
-//      return ERROR_RANGE_ERROR;
-//    }
-//    mask &= Mask<2, 0>::places;
-    return mask;
+    comm.Read(REG_RESULT_INTERRUPT_STATUS,mask);
+    if (throwRangeErrors) {
+      if (getBits<4, 3>(mask)) {//if either bit? what are each of them?
+        THROW(ERROR_RANGE_ERROR);
+      }
+    }
+    return getBits<2, 0>(mask);
   } // GetInterruptMaskStatus
-
 
 /* End Group PAL Interrupt Functions */
 
@@ -1206,7 +1162,7 @@ namespace VL53L0X {
     Data.SpadData.enables.clear();
 
     {
-      SysPopper ffer = push(0xFF, 0x01, 0x00);
+      SysPopper ffer = push(Private_Pager, 0x01, 0x00);
       comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
       comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);
     }
@@ -1333,11 +1289,7 @@ namespace VL53L0X {
     wad.RangeOffsetMicroMeters = GetOffsetCalibrationDataMicroMeter();
 
     for (unsigned i = 0; i < CHECKENABLE_NUMBER_OF_CHECKS; ++i) {
-      /* get first the values, then the enables.
-       * GetLimitCheckValue will modify the enable flags
-       */
-      wad.LimitChecksValue[i] = GetLimitCheckValue(static_cast<CheckEnable>(i));
-      wad.LimitChecksEnable[i] = GetLimitCheckEnable(static_cast<CheckEnable>(i));
+      wad.LimitChecks[i] = GetLimitCheck(static_cast<CheckEnable>(i));
     }
     auto wcenable = GetWrapAroundCheckEnable();
 
@@ -1352,10 +1304,11 @@ namespace VL53L0X {
   }
 
   void Api::SetReferenceSpads(SpadCount spad) {
-    VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad,spad);
+    VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, spad);
   }
 
 #if IncludeNotimplemented
+
   bool Api::SetGroupParamHold(uint8_t GroupParamHold) {
     VL53L0X_NYI(false);
   }

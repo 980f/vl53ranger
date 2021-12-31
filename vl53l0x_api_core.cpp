@@ -178,7 +178,7 @@ namespace VL53L0X {
         auto trio = magicWrapper();
         auto yappoper = YAPopper(comm);//sets some bit now, clears it later
 
-        comm.WrByte(0xFF, 0x07);
+        comm.WrByte(Private_Pager, 0x07);
         comm.WrByte(0x81, 0x01);
 // dropped as inconvenient and timings are fixed and predictable. The caller can ask for one group at a time if asking for all of them takes too long.         Error |= PollingDelay();
         {
@@ -202,7 +202,7 @@ namespace VL53L0X {
             ModuleId = packed90<uint8_t>(0x02);
             Revision = packed90<uint8_t>(0x7B);
 
-            //now to unpack 7 bit fields from a series of 32 bit words:
+            //now to big16 7 bit fields from a series of 32 bit words:
             {//indent what might become a function someday
               uint32_t packed(0);//zero init here matters!
               const uint8_t mask7 = Mask<6, 0>::shifted;
@@ -617,9 +617,9 @@ namespace VL53L0X {
   } // VL53L0X_get_measurement_timing_budget_micro_seconds
 
 
-  static uint16_t unpack(const uint8_t *pTuningSettingBuffer, int &Index) {
-    uint8_t msb = pTuningSettingBuffer[Index++];
-    uint8_t lsb = pTuningSettingBuffer[Index++];
+  static uint16_t big16(const uint8_t *&pTuningSettingBuffer) {
+    uint8_t msb = *pTuningSettingBuffer++;
+    uint8_t lsb = *pTuningSettingBuffer++;
     //the above may NOT be inlined as that would get into 'undefined behavior' territory re 'sequence points'.
     return MAKEUINT16(lsb, msb);
   }
@@ -629,40 +629,47 @@ namespace VL53L0X {
    * 0xFF  0..3 msbof16 lsbof16  loads one of 4 fields of PALDevData
    * 0..3 index  number of bytes indicated in first byte  I2C multi byte write.
    * */
-  unsigned Core::load_tuning_settings(const uint8_t *pTuningSettingBuffer) {
+  const uint8_t * Core::load_tuning_settings(const uint8_t *pTuningSettingBuffer) {
     LOG_FUNCTION_START;
-    int Index = 0;//ick: only value over using the pTuning..Buffer as a pointer might be for debug display.
-
-    while (pTuningSettingBuffer[Index]) {
-      uint8_t NumberOfWrites = pTuningSettingBuffer[Index++];
+    while (uint8_t NumberOfWrites = *pTuningSettingBuffer++) {//zero length kicks out here
       if (NumberOfWrites == 0xFF) {
         /* internal parameters */
-        switch (pTuningSettingBuffer[Index++]) {
+        switch (*pTuningSettingBuffer++) {
           case 0: /* uint16_t SigmaEstRefArray -> 2 bytes */
-            PALDevDataSet(SigmaEst.RefArray, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet(SigmaEst.RefArray, big16(pTuningSettingBuffer));
             break;
           case 1: /* uint16_t SigmaEstEffPulseWidth -> 2 bytes */
-            PALDevDataSet(SigmaEst.EffPulseWidth, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet(SigmaEst.EffPulseWidth, big16(pTuningSettingBuffer));
             break;
           case 2: /* uint16_t SigmaEstEffAmbWidth -> 2 bytes */
-            PALDevDataSet(SigmaEst.EffAmbWidth, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet(SigmaEst.EffAmbWidth, big16(pTuningSettingBuffer));
             break;
           case 3: /* uint16_t targetRefRate -> 2 bytes */
-            PALDevDataSet(targetRefRate, unpack(pTuningSettingBuffer, Index));
+            PALDevDataSet(targetRefRate, big16(pTuningSettingBuffer));
             break;
           default: /* invalid parameter */
-            return ~Index;
+            return --pTuningSettingBuffer;//on error point to bad value
         } // switch
       } else if (NumberOfWrites <= 4) { //copy bytes that must be in device endian order.
-        uint8_t Address = pTuningSettingBuffer[Index++];
-        comm.WriteMulti(Address, &pTuningSettingBuffer[Index], NumberOfWrites);
-        Index += NumberOfWrites;
+        uint8_t Address = *pTuningSettingBuffer++;
+        comm.WriteMulti(Address, pTuningSettingBuffer, NumberOfWrites);
+        pTuningSettingBuffer += NumberOfWrites;
       } else {
-        return ~Index;
+        return --pTuningSettingBuffer;
       }
     }
-    return 0;
+    return nullptr;
   } // VL53L0X_load_tuning_settings
+
+  /**
+ * table of index:byte value pairs
+ * */
+  void Core::load_compact(const DeviceByte *bunch,unsigned quantity) {
+    LOG_FUNCTION_START;
+    for(unsigned index = 0;index<quantity;++index){
+      send(bunch[index]);
+    }
+  }
 
   MegaCps Core::get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
     if (VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable)) {
@@ -817,10 +824,10 @@ namespace VL53L0X {
     const uint32_t cAmbientEffectiveWidth_centi_ns {600};
     const FixPoint1616_t cSigmaEstRef {0.001}; /* 0.001 */
     const uint32_t cVcselPulseWidth_ps = 4700;      /* pico secs */
-    //655.5299 looks suspiciciously close to 655.36 and typos:
-    const FixPoint1616_t cSigmaEstMax = 0x028F87AE;//todo: convert items like this to floating point as the conversion to integer will be done at compile time
-    const FixPoint1616_t cSigmaEstRtnMax = 0xF000;// 15/16 ths?
-    const FixPoint1616_t cAmbToSignalRatioMax = 0xF0000000 / cAmbientEffectiveWidth_centi_ns;//ick: may be off by 64k, need some explanation of how you can divide the u32's and get the correct 16.16
+    //655.5299 looks suspiciciously close to 655.35 with a typo:
+    const FixPoint1616_t cSigmaEstMax {655.53};//ick: perhaps should have been 28f'6000? looks like an error// 0x028F'87AE;
+    const FixPoint1616_t cSigmaEstRtnMax{0.9375} ;//= 0xF000;// 15/16 ths? 61440/65536?
+    const FixPoint1616_t cAmbToSignalRatioMax {61440.0F};// 0xF000'0000 / cAmbientEffectiveWidth_centi_ns;//ick: may be off by 64k, need some explanation of how you can divide the u32's and get the correct 16.16
     /* Time Of Flight per mm (6.6 pico secs) */
     const FixPoint1616_t cTOF_per_mm_ps {6.6};//=0x0006999A; //ick: value doesn't seem to match reality, should be closer to 7.0
     const FixPoint1616_t cMaxXTalk_kcps {50.0};//= 0x00320000;
@@ -845,25 +852,20 @@ namespace VL53L0X {
      */
 
     LOG_FUNCTION_START;
-
-
     /*
-     * We work in kcps rather than mcps as this helps keep within the
-     * confines of the 32 Fix1616 type.
+     * We work in kcps rather than mcps as this helps keep within the confines of the 32bit Fix1616 type.
      */
 
     FixPoint1616_t ambientRate_kcps = pRangingMeasurementData.AmbientRateRtnMegaCps.millis();//980f: now rounded instead of truncated
 
-    FixPoint1616_t correctedSignalRate_mcps = pRangingMeasurementData.SignalRateRtnMegaCps;
+    MegaCps correctedSignalRate_mcps = pRangingMeasurementData.SignalRateRtnMegaCps;
 
-    FixPoint1616_t totalSignalRate_mcps = get_total_signal_rate(pRangingMeasurementData);
+    MegaCps totalSignalRate_mcps = get_total_signal_rate(pRangingMeasurementData);
 
-    FixPoint1616_t xTalkCompRate_mcps = //VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
+    MegaCps xTalkCompRate_mcps = //VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
       get_total_xtalk_rate(pRangingMeasurementData);
 
-    /* Signal rate measurement provided by device is the
-     * peak signal rate, not average.
-     */
+    /* Signal rate measurement provided by device is the peak signal rate, not average.  */
     FixPoint1616_t peakSignalRate_kcps = totalSignalRate_mcps.millis();
     uint32_t xTalkCompRate_kcps = min(xTalkCompRate_mcps.raw * 1000, cMaxXTalk_kcps.raw);
 
@@ -1054,20 +1056,22 @@ namespace VL53L0X {
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
       THROW (ERROR_INVALID_PARAMS);//bypassed enum
     }
-    return Data.CurrentParameters.LimitChecksEnable[LimitCheckId];
+    return VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId).enable;
   } // GetLimitCheckEnable
 
   FixPoint<9, 7> Core::GetLimitCheckValue(CheckEnable LimitCheckId) {
     LOG_FUNCTION_START;
     bool EnableZeroValue = false;
 
-    FixPoint<9, 7> limitChecksValue;
+    LimitTuple &tuple = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId);
+    decltype(LimitTuple::value) limitChecksValue;
+
     switch (LimitCheckId) {
       case CHECKENABLE_SIGMA_FINAL_RANGE:
       case CHECKENABLE_SIGNAL_REF_CLIP:
       case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
         /* internal computation: */
-        limitChecksValue = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId);
+        limitChecksValue = tuple.value;
         EnableZeroValue = false;
         break;
 
@@ -1086,16 +1090,14 @@ namespace VL53L0X {
         THROW (ERROR_INVALID_PARAMS);//bypassed enum
     } // switch
 
-    //980f: this seems awful convoluted since only one of the enums sets this true. review original code!
+    //980f: this seems awful convoluted since only one of the enums sets this true. todo: review original code!
     if (EnableZeroValue) {//ick: did 908f refactoring invert this decision?
       if (limitChecksValue.raw == 0) {
         /* disabled: return value from memory */
-        limitChecksValue = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId);
-
-        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, false);
+        limitChecksValue = tuple.value;
+        tuple.enable= false;
       } else {
-        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksValue, LimitCheckId, limitChecksValue);
-        VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksEnable, LimitCheckId, true);
+        tuple= {true,limitChecksValue};
       }
     }
     return limitChecksValue;
@@ -1126,17 +1128,17 @@ namespace VL53L0X {
     /*
      * Check if Sigma limit is enabled, if yes then do comparison with limit value and put the result back into pPalRangeStatus.
      */
-    auto SigmaLimitCheckEnable = GetLimitCheckEnable(CHECKENABLE_SIGMA_FINAL_RANGE);
+    auto SigmaLimitCheck = GetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE);
 
     bool SigmaLimitflag = false;
-    if (SigmaLimitCheckEnable) {
+    if (SigmaLimitCheck.enable) {
       /*
        * compute the Sigma and check with limit
        */
       uint32_t Dmax_mm = 0;
       FixPoint1616_t SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData, Dmax_mm);
       pRangingMeasurementData.RangeDMaxMilliMeter = Dmax_mm;
-      auto SigmaLimitValue = GetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE);
+      auto SigmaLimitValue = SigmaLimitCheck.value;
       if ((SigmaLimitValue.raw > 0) && (SigmaEstimate > SigmaLimitValue)) {//todo: check for factor of 2 error due to refactoring
         /* Limit Fail */
         SigmaLimitflag = true;
@@ -1208,7 +1210,7 @@ namespace VL53L0X {
     /* fill the Limit Check Error */
     bool SignalRateFinalRangeLimitCheckEnable = GetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE);
 //below:  true if not looked at or if looked and was true
-    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGMA_FINAL_RANGE, !SigmaLimitCheckEnable || SigmaLimitflag);
+    VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGMA_FINAL_RANGE, !SigmaLimitCheck.enable || SigmaLimitflag);
     VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, !SignalRateFinalRangeLimitCheckEnable || (DeviceRangeStatusInternal == 4));
     VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_SIGNAL_REF_CLIP, !SignalRefClipLimitCheckEnable || SignalRefClipflag);
     VL53L0X_SETARRAYPARAMETERFIELD(LimitChecksStatus, CHECKENABLE_RANGE_IGNORE_THRESHOLD, !RangeIgnoreThresholdLimitCheckEnable || RangeIgnoreThresholdflag);
@@ -1339,4 +1341,5 @@ namespace VL53L0X {
       PALDevDataSet(SequenceConfig, packed);
     }
   }
+
 } //end namespace

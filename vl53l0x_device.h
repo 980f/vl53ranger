@@ -249,6 +249,26 @@ constexpr  bool valid(GpioFunctionality functionality) {
     return (REG_GLOBAL_CONFIG_SPAD_ENABLES_REF_BASE + which);
   }
 
+// experiment for making tuning table comprehensible
+//  struct RegisterDeclaration {
+//    uint8_t bytes;
+//    RegSystem index;
+//  };
+//
+//  template <typename Scalar> struct RegisterValue {
+//    RegisterDeclaration deckaration;
+//    RegisterValue(RegSystem index): deckaration(sizeof(Scalar),index);
+//    Scalar value;
+//  };
+
+  /** most Reg_ have a fixed size*/
+  template<typename Scalar> struct DeviceValue {
+    uint8_t index;
+    Scalar pattern;
+  };
+
+  using DeviceByte= DeviceValue<uint8_t>;
+
 /** @} VL53L0X_DefineRegisters_group */
 
 /** @} VL53L0X_DevSpecDefines_group */

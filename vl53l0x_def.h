@@ -175,6 +175,11 @@ namespace VL53L0X {
 
 
   using MegaCps =FixPoint1616_t;
+  /** a limit might be disabled but still retain its value */
+  struct LimitTuple {
+    bool enable= false;
+    FixPoint<9, 7> value;
+  };
 
 /** @brief Defines all parameters for the device
  */
@@ -191,9 +196,8 @@ namespace VL53L0X {
     int32_t RangeOffsetMicroMeters; /*!< Range offset adjustment (mm).	*/
 
     //todo: struct and single array.
-    bool LimitChecksEnable[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Limit Check enable for this device. */
+    LimitTuple LimitChecks[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
     bool LimitChecksStatus[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Error of the check linked to last measurement. */
-    FixPoint<9, 7> LimitChecksValue[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
 
     bool WrapAroundCheckEnable; /*!< Tells if Wrap Around Check shall be enable or not */
   };

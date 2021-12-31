@@ -35,9 +35,12 @@
 
 using namespace VL53L0X; //usually bad form but this class is a wrapper for this namespace.
 
-constexpr Version_t Required {1, 0, 1};
+//our version, the first three fields are manually matched to versioninfo in _api.cpp
+constexpr Version_t Required {1, 0, 1,
+#include "buildhash"
+};
 
-//no longer needed as we are no longer trying to mashup strings for debug messages
+//no longer needed as we are no longer trying to mashup #defined strings for debug messages
 //#define STR_HELPER(x) #x     ///< a string helper
 //#define STR(x) STR_HELPER(x) ///< string helper wrapper
 
@@ -76,10 +79,16 @@ Adafruit_VL53L0X::Adafruit_VL53L0X(uint8_t i2c_addr, uint8_t busNumber) : MyDevi
  */
 /**************************************************************************/
 boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
-  static_assert((Required ==  ImplementationVersion),"application source does not match driver version");
+
+  if (!(Required == VL53L0X::ImplementationVersion)) {//#couldn't manage to make this a static_assert, even though fields const and operators constexpr
+    if (debug) {
+      showVersion(F("Found: "), VL53L0X::ImplementationVersion);
+      showVersion(F("Built Against "), Required);
+    }
+    return false;//this is a build issue, we are not comparing to the version from the device itself.
+  }
 
   MyDevice.comm.init();//parameters formerly managed here are now constructor args.
-
 
   MyDevice.DataInit(); // Data initialization in the device itself
 /*980f: this did not make sense, if you init at its default address then you have no basis for knowing what address to use to set its address.
@@ -94,6 +103,7 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
   if (!MyDevice.GetDeviceInfo(DeviceInfo)) {
     if (debug) {
       Serial.println(F("Failed to get Device Info"));
+      printError();
     }
     return false;
   }
@@ -116,8 +126,8 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
     if (debug) {
       Serial.print(F("Error expected cut 1.1 but found "));
       Serial.print(DeviceInfo.ProductRevision.major);
-      Serial.print(',');
-      Serial.println(DeviceInfo.ProductRevision.major);
+      Serial.print('.');
+      Serial.println(DeviceInfo.ProductRevision.minor);
     }
     //980f: might work fine, perhaps set some flag but carry on as if OK.
 //    return false;//Error = ERROR_NOT_SUPPORTED;
@@ -137,10 +147,11 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
     Serial.println(F("VL53L0X: PerformRefSpadManagement"));
   }
   // Device Initialization
-  if (!MyDevice.PerformRefSpadManagement()) {
+  if (!MyDevice.PerformRefSpadManagement()) {//ick: this may have been done in StaticInit and is nontrivial execution. we should add a flag to coerce it in StaticInit process
     //todo: message about not enough receivers to get a good measureenmt.
     return false;
   }
+
   if (debug) {
     auto info = MyDevice.get_reference_spads();
     Serial.print(F("refSpadCount = "));
@@ -153,7 +164,10 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
   }
   if (MyDevice.PerformRefCalibration()) {
     auto calp = MyDevice.get_ref_calibration();
-    //todo: show values to someone?
+    Serial.print(F("vhv = 0x"));
+    Serial.print(calp.VhvSettings,HEX);
+    Serial.print(F(", phasecal = "));
+    Serial.println(calp.PhaseCal);
   } else {
     return false;
   }
@@ -175,27 +189,28 @@ boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
   return true;
 } // Adafruit_VL53L0X::begin
 
-/**************************************************************************/
-/*!
- *   @brief  Change the I2C address of the sensor
- *   @param  newAddr the new address to set the sensor to
- *   @returns True if address was set successfully, False otherwise
- *   NOTE WELL: there is a delay of unknown purpose in this function, consider it to be blockin.
- */
-/**************************************************************************/
-boolean Adafruit_VL53L0X::setAddress(uint8_t newAddr) {
-//gratuitous since we are about to double it:  newAddr &= 0x7F;
-  bool didit = MyDevice.SetDeviceAddress(newAddr * 2); // 7->8 bit
-
-  delay(10);//BUG: evil to do delays instead of returning a value for user to mix in with other delay logic. There should be a description of what needs to be delayed.
-
-//  //980f: moved the following into the API code!
-//  if (Error == ERROR_NONE) {
-//    MyDevice.comm.wirer.devAddr = newAddr; // 7 bit addr
-//    return true;
-//  }
-  return didit;
-} // Adafruit_VL53L0X::setAddress
+//needs an IO pin controlling the hardware reset or is pointless. Will be bring this back via MultiSensor manager.
+///**************************************************************************/
+///*!
+// *   @brief  Change the I2C address of the sensor
+// *   @param  newAddr the new address to set the sensor to
+// *   @returns True if address was set successfully, False otherwise
+// *   NOTE WELL: there is a delay of unknown purpose in this function, consider it to be blockin.
+// */
+///**************************************************************************/
+//boolean Adafruit_VL53L0X::setAddress(uint8_t newAddr) {
+////gratuitous since we are about to double it:  newAddr &= 0x7F;
+//  bool didit = MyDevice.SetDeviceAddress(newAddr * 2); // 7->8 bit
+//
+//  delay(10);//BUG: evil to do delays instead of returning a value for user to mix in with other delay logic. There should be a description of what needs to be delayed.
+//
+////  //980f: moved the following into the API code!
+////  if (Error == ERROR_NONE) {
+////    MyDevice.comm.wirer.devAddr = newAddr; // 7 bit addr
+////    return true;
+////  }
+//  return didit;
+//} // Adafruit_VL53L0X::setAddress
 
 /**************************************************************************/
 /*!
@@ -223,9 +238,9 @@ boolean Adafruit_VL53L0X::configSensor(Sense_config_t vl_config) {
   switch (vl_config) {
     case SENSE_DEFAULT:
       MyDevice.SetLimitCheck(CHECKENABLE_RANGE_IGNORE_THRESHOLD, {true, 1.5 * 0.023});
-      //dropped by 980f:  why would we expect the associated values to be good?
-      //  MyDevice.SetLimitCheckEnable(CHECKENABLE_SIGMA_FINAL_RANGE, true);
-      //  MyDevice.SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, true);
+      //ICK:  why would we expect the associated values to be good? the Api init code does NOT set all thresholds to known values.
+        MyDevice.SetLimitCheckEnable(CHECKENABLE_SIGMA_FINAL_RANGE, true);
+        MyDevice.SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, true);
       break;
     case SENSE_LONG_RANGE:
 //      Serial.println("  SENSE_LONG_RANGE");
@@ -234,7 +249,10 @@ boolean Adafruit_VL53L0X::configSensor(Sense_config_t vl_config) {
       MyDevice.SetMeasurementTimingBudgetMicroSeconds(33000);
       MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_PRE_RANGE, 18);
       MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_FINAL_RANGE, 14);
-      //todo: perform_calibration which was formerly done twice because of the two calls above. I removed it from the calls as running it once is good and proper.
+      //todo: perform_calibration which was formerly done twice because of the two calls above. I removed it from those calls as running it once for both changes is good and proper.
+      if(!MyDevice.PerformRefCalibration()){
+        Serial.println(F("failed to collect data to update for pulse period setup "));
+      }
       break;
     case SENSE_HIGH_SPEED:
       // Serial.println("  SENSE_HIGH_SPEED");

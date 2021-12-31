@@ -31,6 +31,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #define _VL53L0X_TUNING_H_
 
+
+#include "vl53l0x_device.h" //to use symbols below
+
+//NB: if it is unreasonable to ever use this for non 8 bit values we can drop all the 0x01. There are enough of them to matter to a microcontroller program.
 static uint8_t DefaultTuningSettings[] = {
 
     /* update 02/11/2015_v36 */

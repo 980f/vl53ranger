@@ -109,7 +109,7 @@ namespace VL53L0X {
     /** @returns inverse of index of byte causing early exit. 0 if no problems.
      * a nonzero return should probably be responded to by a restart of the interface.
      * */
-    unsigned int load_tuning_settings(const uint8_t *pTuningSettingBuffer);
+    const uint8_t * load_tuning_settings(const uint8_t *pTuningSettingBuffer);
 
     /** ?secondary return via reference to dmm as most if it is computed as a side effect of primary return.
      * */
@@ -151,11 +151,7 @@ namespace VL53L0X {
  */
     FixPoint<9, 7> GetLimitCheckValue(CheckEnable LimitCheckId);
 
-    /** a limit might be disabled but still retain its value */
-    struct LimitTuple {
-      bool enable= false;
-      FixPoint<9, 7> value;
-    };
+
 
     /**
      * @returns the @param LimitCheckId 's enable and value.
@@ -196,13 +192,13 @@ namespace VL53L0X {
 
     /** writes an object after first writing 1 to 0xFF , writing a 0 to FF when done */
     template<typename Intish> void FFwrap(RegSystem index, Intish value) {
-      push(0xFF, 0x01, 0x00);
+      push(Private_Pager, 0x01, 0x00);
       comm.WriteMulti(index, reinterpret_cast<uint8_t *>(&value), sizeof(Intish));
     }
 
     template<typename Intish> Intish FFread(RegSystem index) {
       Intish value;
-      push(0xFF, 0x01, 0x00);
+      push(Private_Pager, 0x01, 0x00);
       comm.ReadMulti(index, reinterpret_cast<uint8_t *>(&value), sizeof(Intish));
       return value;
     }
@@ -214,13 +210,13 @@ namespace VL53L0X {
       uint8_t pop;
     public:
       FFPopper(Physical &comm, uint8_t index, uint8_t push, uint8_t pop) : comm(comm), index(index), pop(pop) {
-        auto popper = SysPopper(comm, 0xFF, 0x01, 0x00);
+        auto popper = SysPopper(comm, Private_Pager, 0x01, 0x00);
         comm.WrByte(index, push);
       }
 
       ~FFPopper() {
         //NB: this won't happen when an Error is thrown
-        auto popper = SysPopper(comm, 0xFF, 0x01, 0x00);
+        auto popper = SysPopper(comm, Private_Pager, 0x01, 0x00);
         comm.WrByte(index, pop);
       }
     };
@@ -239,12 +235,12 @@ namespace VL53L0X {
       Physical &comm;
     public:
       YAPopper(Physical &comm) : comm(comm) {
-        comm.WrByte(0xFF, 0x06);
+        comm.WrByte(Private_Pager, 0x06);
         comm.UpdateBit(0x83, 2, true);
       }
 
       ~YAPopper() {
-        comm.WrByte(0xFF, 0x06);
+        comm.WrByte(Private_Pager, 0x06);
         comm.UpdateBit(0x83, 2, false);
       }
     };
@@ -253,7 +249,7 @@ namespace VL53L0X {
     class MagicDuo: SysPopper {
       SysPopper inner;
     public:
-      MagicDuo(Physical &comm) : SysPopper(comm,0xFF,0x01,0x00),inner(comm,0x00,0x00,0x01) {
+      MagicDuo(Physical &comm) : SysPopper(comm,Private_Pager,0x01,0x00),inner(comm,0x00,0x00,0x01) {
       }
 
       ~MagicDuo() =default;
@@ -380,6 +376,14 @@ namespace VL53L0X {
     uint8_t get_SequenceConfig();
     /** sets the sequence config byte, and if @param andCache is true copies the value to the DeviceParameters place where we often trust has the value */
     void set_SequenceConfig(uint8_t packed, bool andCache);
+
+    void load_compact(const DeviceByte *bunch,unsigned quantity);
+
+    template<typename Scalar>
+    void send(const DeviceValue<Scalar>item){
+      comm.Write(item.index,item.pattern,sizeof(Scalar)>1);
+    }
+
   };
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

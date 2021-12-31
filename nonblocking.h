@@ -15,7 +15,7 @@ namespace VL53L0X {
   class NonBlocking : public VL53L0X::Api {
 
   public:
-    NonBlocking(uint8_t i2c_addr = VL53L0X_I2C_ADDR >> 1, TwoWire &i2c = Wire) : Api({i2c, i2c_addr, 400})
+    NonBlocking(uint8_t i2c_addr = VL53L0X_I2C_ADDR >> 1, uint8_t busNumber=0) : Api({busNumber, i2c_addr, 400})
                                                                                  , theXtalkProcess(*this)
                                                                                  , theOffsetProcess(*this)
                                                                                  , theCalProcess(*this)
@@ -27,7 +27,7 @@ namespace VL53L0X {
       Abandoned = 0   //for state machine reset.
       , forRefCal   //vhv and phase
       , forRate     //rate requests, direct and spad setup
-      , forSpads
+      , forSpads  //part of StaticInit
       , forRange  //prime use, user measurement (single or continuous)
       , forOffset  //50 times
       , forXtalk   //50 times
@@ -37,7 +37,7 @@ namespace VL53L0X {
     enum ProcessRequest {
       Idle
       , InitI2c    //400kHz and if more than one device reset pins and setAddress calls are made
-      , InitStatic
+      , InitStatic //does SetupSpads, some tuning parameters
       , InitData   //includes tuning table and other settings that shouldn't need to change often
       , OneShot
       , Continuous //references 'timed', will use non timed version for sample rate of 0
@@ -45,6 +45,7 @@ namespace VL53L0X {
       , RateTest   //use may wish to evaluate ambient light when deciding upon
       , SetupSpads //part of init data but callable for debug of device
       , Offset
+
     };
 
     enum ProcessResult {
@@ -73,7 +74,23 @@ namespace VL53L0X {
     };
 
     UserAgent *agent=nullptr;//user sets this before calling any methods. todo: add constructor arg as reference?
+  public:
+    /** result of most recent measurement of any type */
+    VL53L0X::RangingMeasurementData_t theRangingMeasurementData;
+    MeasurementAction theLastMeasurement;
 
+  private:
+    MeasurementAction measurementInProgress = Abandoned;
+    struct Waiting {//non exclusive wait
+      uint8_t *tuning;         //tuning table (does items in tranches)
+      unsigned interruptClear; //3 lsbs zero, number of polls for timeout
+      unsigned forStop;        //wait on stop complete,, number of polls for timeout
+      unsigned onStart;        //wait on start acknowledge (10 samples per call), number of polls for timeout
+      unsigned onMeasurement;  //wait on measurement data ready (flag captured by ISR or poll device, 10 polls per call)
+    } waiting;
+
+    bool startMeasurement(MeasurementAction action);
+    void abandonTasks();
 /** call this from your dispatcher, such as loop() in Arduino  or   while(1){WFE(); ... }*/
     void inLoop();
 
@@ -96,12 +113,12 @@ namespace VL53L0X {
      void doMeasurementComplete(bool successful);
 
     void waitForMeasurement(unsigned loops = 250) {
-      waitOnMeasurementComplete = loops;
+      waiting.onMeasurement = loops;
       //if functional rather than virtual here is where we record the action to take on completion.
     }
 
     void waitForStop(unsigned loops = 250) {
-      waitOnStop = loops;
+      waiting.forStop = loops;
       //if functional rather than virtual here is where we record the action to take on completion.
     }
 
@@ -268,22 +285,7 @@ namespace VL53L0X {
     class SpadSetupProcess : public MeasurementProcess {
     };
 
-    /** result of most recent measurement of any type */
-    VL53L0X::RangingMeasurementData_t theRangingMeasurementData;
-    MeasurementAction theLastMeasurement;
 
-  public: //for debug, read only outside of this class.
-    MeasurementAction measurementInProgress = Abandoned;
-    struct Waiting {//non exclusive wait
-      uint8_t *tuning;         //tuning table (does items in tranches)
-      unsigned interruptClear; //3 lsbs zero, number of polls for timeout
-      unsigned forStop;        //wait on stop complete,, number of polls for timeout
-      unsigned onStart;        //wait on start acknowledge (10 samples per call), number of polls for timeout
-      unsigned onMeasurement;  //wait on measurement data ready (flag captured by ISR or poll device, 10 polls per call)
-    };
-
-    bool startMeasurement(MeasurementAction action);
-    void abandonTasks();
   };
 
   /** NYI
@@ -303,6 +305,7 @@ namespace VL53L0X {
         //todo: call set address at base address argument from resetter
         //todo: I2C probe for new address, return whether found
         //the above probe is instead of traditional 10ms delay and hope it worked. We'll see if that works
+        return false;
       }
       static
       void assignAddresses( unsigned tableLength,  Resetter *table ){

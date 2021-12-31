@@ -41,36 +41,37 @@ void NonBlocking::inLoop() {
   auto error =setjmp(comm.wirer.Throw.opaque); // NOLINT(cert-err52-cpp) as exceptions are too expensive on a microcontroller
   switch(error) {
     case ERROR_NONE: {
-      if (waitOnStart) {
+      if (waiting.onStart) {
         uint8_t flags;
         fetch(flags, REG_SYSRANGE_START);
         if (getBit<0>(flags) == 0) {
-          waitOnStart = 0;
+          waiting.onStart = 0;
         } else {
-          if (--waitOnStart == 0) {
+          if (--waiting.onStart == 0) {
             //todo: abandon pending process and measurements
           }
         }
       }
-      if (waitOnMeasurementComplete) {
+      if (waiting.onMeasurement) {
         if (GetMeasurementDataReady()) {
-          waitOnMeasurementComplete = 0;
+          waiting.onMeasurement = 0;
           doMeasurementComplete(true);
         } else {
-          if (--waitOnMeasurementComplete == 0) {
+          if (--waiting.onMeasurement == 0) {
             //todo: log timeout error
             doMeasurementComplete(false);
           }
         }
       }
       //No else here so that the meas complete action can invoke a waitOnStop and get a quick check
-      if (waitOnStop) {
+      if (waiting.forStop) {
         if (GetStopCompletedStatus() == 0x00) {
           auto climask = ClearInterruptMask(GPIOFUNCTIONALITY_NEW_MEASURE_READY);//copied from adafruit copy of st advice
           //todo: deal with climask false.
+          waiting.forStop=0;
           onStopComplete(true);
         } else {
-          if (--waitOnStop == 0) {
+          if (--waiting.forStop == 0) {
             onStopComplete(false);
           }
         }
@@ -139,7 +140,7 @@ void NonBlocking::doMeasurementComplete(bool successful) {
           //todo notify phasecal complete.
         }
         break;
-      case forRefSignal:
+      case forRate:
         break;
     }
   } else {

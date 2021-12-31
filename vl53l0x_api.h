@@ -285,6 +285,7 @@ namespace VL53L0X {
  * to STATE_WAIT_STATICINIT.
  *
  * @note This function Access to the device
+ * @note This function takes more than a millisecond but otherwise does not block
  *
  */
     void DataInit();
@@ -372,7 +373,6 @@ namespace VL53L0X {
  * @note This function Access to the device
  *
  * @param   pDeviceParameters     Pointer to store current device parameters.
- *
  */
     void SetDeviceParameters(const DeviceParameters_t &pDeviceParameters);
 
@@ -683,7 +683,7 @@ namespace VL53L0X {
  * @param   LimitCheckEnable              whether to check limit corresponding to LimitCheckId
  * @return  Success
  */
-    bool SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable);
+    void SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable);
 
 /**
  * @brief  Set a specific limit check value
@@ -1228,10 +1228,10 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   InterruptMask        Mask of interrupts to clear
+ * @param   ignored_InterruptMask        Mask of interrupts to clear
  * @return  Success of issuing command
  */
-    bool ClearInterruptMask(uint32_t InterruptMask);
+    bool ClearInterruptMask(unsigned int ignored_InterruptMask);
 
 /**
  * @brief Return device interrupt status
@@ -1243,15 +1243,10 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @note C code cleared bit 4 and 3, we now let those get returned
+ * @note C code cleared bit 4 and 3, we added a boolean to throw if they are not zero
  *
- * perhaps the bits imply that the interrupt flags are not meaningful?
- * logic removed:
-  if (getBits<4, 3>(mask)) {//if either bit? what are each of them?
-      return ERROR_RANGE_ERROR;
-    }
  */
-    uint8_t GetInterruptMaskStatus();
+    uint8_t GetInterruptMaskStatus(bool throwRangeErrors=true);//todo: check actual default for legacy compatability
 
 /**
  * @brief Configure ranging interrupt reported to system

@@ -267,12 +267,12 @@ static int example3() {
   switch (Thrower tryblock; int(tryblock)) {
     case 0:
       Throw(42);
-      break;
+      return ~1;
     case 42:
       return 42;//something to test compilation
     default:
       tryblock(tryblock);//this is a rethrow
-      break;
+      return ~0;
   }
 }
 

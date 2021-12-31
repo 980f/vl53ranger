@@ -278,7 +278,7 @@ namespace VL53L0X {
      * The good spad map will be applied.
      */
     {
-      SysPopper popper = push(0xFF, 0x01, 0);//bug: prior error handling could leave FF set to 1
+      SysPopper popper = push(Private_Pager, 0x01, 0);//bug: prior error handling could leave FF set to 1
       comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
       comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);//ick: seems to be SpadArray::MaxCount
     }
