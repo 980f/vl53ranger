@@ -283,6 +283,7 @@ namespace VL53L0X {
      * our scheduler should tolerate more than one process active, ordered by this guys needs.
      * */
     class SpadSetupProcess : public MeasurementProcess {
+
     };
 
 

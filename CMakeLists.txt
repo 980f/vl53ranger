@@ -8,6 +8,9 @@ PROJECT(vl53)
 
 SET(CMAKE_CXX_STANDARD 17)
 
+
+set( CMAKE_CXX_FLAGS  -mcpu=cortex-m0)
+
 ADD_COMPILE_DEFINITIONS(
   ARDUINO=10817
   F_CPU=48000000L
@@ -46,6 +49,7 @@ SET(coreSources
 SET(platform
   vl53l0x_i2c_comms.cpp
   vl53l0x_platform.cpp
+  platform_log.cpp
   /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/libraries/Wire/Wire.cpp
   /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/Print.cpp
   /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/USB/CDC.cpp

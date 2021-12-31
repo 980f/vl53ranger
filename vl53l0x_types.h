@@ -164,13 +164,13 @@ const FixPoint1616_t Unity {1.0};
 
 
 //types seen in macros that used to do the conversions:
-using FixPoint97_t = FixPoint<9, 7>;
-using FixPoint88_t = FixPoint<8, 8>;
-using FixPoint412_t = FixPoint<4, 12>;
+//using FixPoint97_t = FixPoint<9, 7>;
+//using FixPoint88_t = FixPoint<8, 8>;
+//using FixPoint412_t = FixPoint<4, 12>;
 using FixPoint313_t = FixPoint<3, 13>;
-using FixPoint102_t = FixPoint<3, 13>;
+//using FixPoint102_t = FixPoint<3, 13>;
 
-using FixPoint08_t = FixPoint<0, 8>;
-using FixPoint53_t = FixPoint<5, 3>;
+//using FixPoint08_t = FixPoint<0, 8>;
+//using FixPoint53_t = FixPoint<5, 3>;
 
 #endif /* VL53L0X_TYPES_H_ */

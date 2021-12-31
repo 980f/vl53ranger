@@ -538,7 +538,7 @@ bool Adafruit_VL53L0X::getLimitCheckEnable(CheckEnable LimitCheckId) {
  */
 /**************************************************************************/
 
-void Adafruit_VL53L0X::setLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue) {
+void Adafruit_VL53L0X::setLimitCheckValue(CheckEnable LimitCheckId, Cps16 LimitCheckValue) {
   MyDevice.SetLimitCheckValue(LimitCheckId, LimitCheckValue);
 }
 

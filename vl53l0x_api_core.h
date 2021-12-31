@@ -149,7 +149,7 @@ namespace VL53L0X {
  * @param   LimitCheckId                  Limit Check ID
  * @return  Limit check Value for a given LimitCheckId
  */
-    FixPoint<9, 7> GetLimitCheckValue(CheckEnable LimitCheckId);
+    Cps16 GetLimitCheckValue(CheckEnable LimitCheckId);
 
 
 

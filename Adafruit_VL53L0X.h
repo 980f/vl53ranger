@@ -114,7 +114,7 @@ public:
 
   void setLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId, bool LimitCheckEnable);
   boolean getLimitCheckEnable(VL53L0X::CheckEnable LimitCheckId);
-  void setLimitCheckValue(VL53L0X::CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
+  void setLimitCheckValue(VL53L0X::CheckEnable LimitCheckId, VL53L0X::Cps16 LimitCheckValue);
   FixPoint<9,7> getLimitCheckValue(VL53L0X::CheckEnable LimitCheckId);
 
 private:

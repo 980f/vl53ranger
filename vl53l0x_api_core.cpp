@@ -1059,7 +1059,7 @@ namespace VL53L0X {
     return VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId).enable;
   } // GetLimitCheckEnable
 
-  FixPoint<9, 7> Core::GetLimitCheckValue(CheckEnable LimitCheckId) {
+  Cps16 Core::GetLimitCheckValue(CheckEnable LimitCheckId) {
     LOG_FUNCTION_START;
     bool EnableZeroValue = false;
 
@@ -1115,14 +1115,14 @@ namespace VL53L0X {
     uint8_t DeviceRangeStatusInternal = getBits<6, 3>(DeviceRangeStatus);
     bool NoneFlag = (DeviceRangeStatusInternal == 0 || DeviceRangeStatusInternal == 5 || DeviceRangeStatusInternal == 7 || DeviceRangeStatusInternal == 12 || DeviceRangeStatusInternal == 13 || DeviceRangeStatusInternal == 14 || DeviceRangeStatusInternal == 15);
 
-    FixPoint<9, 7> tmpWord;
+    Cps16 tmpWord;
     /* LastSignalRefMcps */
     {
       auto pager = push(Private_Pager, 0x01, 0x00);
       fetch(tmpWord.raw, REG_RESULT_PEAK_SIGNAL_RATE_REF);//todo: fix template version of fetch(FixPoint)
     }
 
-    FixPoint<16, 16> LastSignalRefMcps = tmpWord;
+    MegaCps LastSignalRefMcps = tmpWord;
     PALDevDataSet(LastSignalRefMcps, LastSignalRefMcps);
 
     /*

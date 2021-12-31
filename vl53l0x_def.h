@@ -175,10 +175,13 @@ namespace VL53L0X {
 
 
   using MegaCps =FixPoint1616_t;
+  /** megacps in 16 bits*/
+  using Cps16 =FixPoint<9, 7>;
+
   /** a limit might be disabled but still retain its value */
   struct LimitTuple {
     bool enable= false;
-    FixPoint<9, 7> value;
+    Cps16 value;
   };
 
 /** @brief Defines all parameters for the device

@@ -591,7 +591,7 @@ namespace VL53L0X {
   } // VL53L0X_SetLimitCheckEnable
 
 
-  void Api::SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue) {
+  void Api::SetLimitCheckValue(CheckEnable LimitCheckId, Cps16 LimitCheckValue) {
     LOG_FUNCTION_START;
     auto tuple = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId);
     tuple.value = LimitCheckValue;
@@ -869,10 +869,10 @@ namespace VL53L0X {
     pRangingMeasurementData.MeasurementTimeUsec = 0;
 
     /* peak_signal_count_rate_rtn_mcps */
-    MegaCps SignalRate = FixPoint<9, 7>(MAKEUINT16(localBuffer[7], localBuffer[6]));
+    MegaCps SignalRate = Cps16(MAKEUINT16(localBuffer[7], localBuffer[6]));
     pRangingMeasurementData.SignalRateRtnMegaCps = SignalRate;
 
-    pRangingMeasurementData.AmbientRateRtnMegaCps = FixPoint<9, 7>(MAKEUINT16(localBuffer[9], localBuffer[8]));
+    pRangingMeasurementData.AmbientRateRtnMegaCps = Cps16(MAKEUINT16(localBuffer[9], localBuffer[8]));
 
     FixPoint<8, 8> EffectiveSpadRtnCount(MAKEUINT16(localBuffer[3], localBuffer[2]));
     pRangingMeasurementData.EffectiveSpadRtnCount = EffectiveSpadRtnCount;
@@ -1150,7 +1150,7 @@ namespace VL53L0X {
      * quadrant.
      */
 
-    FixPoint<9, 7> //targetRefRate(20.0F);// = 0x0A00; /* 20 MCPS in 9:7 format */ //ick:why init with specific value that is immediately overwritten
+    Cps16 //targetRefRate(20.0F);// = 0x0A00; /* 20 MCPS in 9:7 format */ //ick:why init with specific value that is immediately overwritten
     targetRefRate = PALDevDataGet(targetRefRate);
 
     /*

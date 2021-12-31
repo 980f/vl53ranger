@@ -697,7 +697,7 @@ namespace VL53L0X {
  * @param   LimitCheckId                  Limit Check ID
  * @param   LimitCheckValue               Limit check Value for given LimitCheckId
  */
-    void SetLimitCheckValue(CheckEnable LimitCheckId, FixPoint<9, 7> LimitCheckValue);
+    void SetLimitCheckValue(CheckEnable LimitCheckId, Cps16 LimitCheckValue);
 
     /** convenience to set limit enable and value in one call.
      * we might remove the individual setters.

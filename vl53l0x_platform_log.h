@@ -42,7 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vl53l0x_error.h"
 
 #if VL53L0X_LOG_ENABLE
-
+#include "cstdint"
 class PerformanceTracer {
   const char *location;
   uint32_t starttime;
@@ -53,28 +53,14 @@ class PerformanceTracer {
 //  bool enabled;
 public:
   /** records location and emits start message to log */
-  PerformanceTracer(const char *location) :location(location), starttime(logclock()) {
-    if(enabled){
-      printf("START %s at %ud", location, starttime);
-    }
-  }
+  PerformanceTracer(const char *location);
   //to mate to old system which allowed an additional bit of info on start messages:
-  void operator()(const char *format, ...) {
-    if(*format && enabled) {
-      printf(format);//todo:- vprintf with passed along ... args. There are only two cases and we should just log those separately)
-    }
-  }
-  /** use location and emits start message to log */
-  ~PerformanceTracer() {
-    printf("END %s after %ud", location, logclock() - starttime);
-  }
+  void operator()(const char *format, ...);
 
-  static bool logError(const char *location,VL53L0X::Error error, bool always= false){
-    if(error!=VL53L0X::ERROR_NONE || always) {
-      printf("ERROR from %s at %ud code=%d", location, logclock(), error);//todo:1 appened text form of error
-    }
-    return error!=VL53L0X::ERROR_NONE;
-  }
+  /** use location and emits start message to log */
+  ~PerformanceTracer();
+
+  static bool logError(const char *location,VL53L0X::Error error, bool always= false);
 
 };
 
