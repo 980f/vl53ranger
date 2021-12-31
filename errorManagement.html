@@ -213,13 +213,163 @@
     <ol>
       <li>verify that no new's or mallocs of any kind occur.</li>
       <ol>
-        <li>since the code was received as C not C++we should not have added new's and we can grep for ?alloc</li>
+        <li>since the code was received as C not C++we should not have added new's and we can grep for ?alloc: none present.</li>
       </ol>
       <li>that all RAII 'pop' operations are unnecessary if we throw.</li>
+      <ol>
+        <li>all popper class derivatives are I2C and any throws are hopeless errors.</li>
+        <li>all ~'s inspected and no others are destructors</li>
+      </ol>
     </ol>
     As such we can only THROW for communications errors or errors for which complete reinit of the device is the remedy.<br>
+    All comm errors are hopeless. They are either hw error in realtime or permanent software errors.<br>
+    It would be nice to record the I2C operation attempted. Just knowing the address and length would do most of what is needed.<br>
+    So: record lastIndex, lastLength and then longjmp(commerror).<br>
+    <br>
+    <hr><br>
+    For a blocking implementation every entry point into the api needs a setjmp and error handler.<br>
+    <br>
+    For a non-blocking implementation the state machine has a setjmp at critical places.<br>
+    <br>
+    RAII allows us to make a stack via copying the current jmp_buf values locally, then call setjmp and on method return copy those back.<br>
+    <br>
+    <br>
+    <hr>Procedures<br>
+    <br>
+    <br>
+    SRM&nbsp; (user calls for oneshot mode)<br>
+    &nbsp;&nbsp; psm like but not identical to vhphasecal core<br>
+    Rate<br>
+    &nbsp;&nbsp;&nbsp; SRM<br>
+    spad management<br>
+    &nbsp;&nbsp;&nbsp; rate X 3<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; SRM<br>
+    offset cal<br>
+    &nbsp;&nbsp;&nbsp; 50 X SRM<br>
+    xtalk:<br>
+    &nbsp;&nbsp;&nbsp; 50 X SRM<br>
+    <br>
+    vhvphasecal<br>
+    &nbsp;&nbsp;&nbsp; start/MPC/CLI private copy<br>
     <br>
     <br>
     <br>
+    waiting on completion calls:<br>
+    &nbsp;&nbsp;&nbsp; vhvphasecal process (no values precollected)<br>
+    &nbsp;&nbsp; srm for rate (rate value precollected)<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; user<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; srm for rate in spad<br>
+    &nbsp;&nbsp; srm for user single shot, but callback works for continuous as well if interrupt not used.<br>
+    &nbsp;&nbsp; srm for offset cal<br>
+    &nbsp;&nbsp; srm for xtalk cal<br>
+    <br>
+    starting<br>
+    &nbsp;&nbsp;&nbsp; if already continuous goose<br>
+    &nbsp;&nbsp;&nbsp; else start<br>
+    &nbsp;&nbsp; on started poll completion<br>
+    <br>
+    clearinterruptmask&nbsp; (10 bytes up to 3 times, byte= 10 bits at 400kHz 25us each=&gt; 250us to 750us, not quite a milli.)<br>
+    <br>
+    stopping continuous<br>
+    <br>
+    <hr><br>
+    <br>
+    loading tuning table : (used by checkandloadinterrupt(1))<br>
+    &nbsp;&nbsp;&nbsp; max per call? 75&nbsp; us per triplet, maybe 5 per call. 81/5 = 17 ms instead of 6 ms.12 per call, 7 ms, 30 per call has to be dynamic app choice.<br>
+    &nbsp;&nbsp;&nbsp; pointer for state, init to start of table<br>
+    &nbsp;&nbsp;&nbsp; higher priority than loopers.<br>
+    <br>
+    <br>
+    --<br>
+    SRM: single ranging measurement:<br>
+    set device mode to single<br>
+    perform single measurement<br>
+    getranging data<br>
+    clearinteruptmask(0)<br>
+    <br>
+    <br>
+    --<br>
+    Rate: ref signal measurement:&nbsp; (used by spad stuff a few times)<br>
+    save sequenceConfig shadow<br>
+    set SC to 0xC0<br>
+    single ranging measurement<br>
+    ffread peak singal rate<br>
+    restore sequenceConfig<br>
+    <br>
+    --<br>
+    xtalk calibration (distance):<br>
+    disable xtalkcomp<br>
+    disable range ingore<br>
+    <br>
+    do 50 single ranging measurement (trusts seqconfig)<br>
+    do math and set and enable xtalkcompensation<br>
+    --<br>
+    <br>
+    offset calibration:<br>
+    set offset=0<br>
+    record and clear TCC enable<br>
+    disable range ignore<br>
+    do 50 single ranging measurements<br>
+    <br>
+    do math<br>
+    set and record offsetcaldata<br>
+    restore TCC (if was set).<br>
+    --<br>
+    ref calibration<br>
+    &nbsp; vhv and phase cal<br>
+    &nbsp; 2 X single_ref_calibration<br>
+    --<br>
+    single_ref_calibratoin<br>
+    &nbsp;start=mode_start_stop | vhv of phase cal choice<br>
+    MPC<br>
+    clearinterruptmask 0<br>
+    start=0;<br>
+    --<br>
+    ref spad management:<br>
+    lots of settings<br>
+    perf ref signal measurement<br>
+    &nbsp;&nbsp;&nbsp; maybe change spad type<br>
+    &nbsp;&nbsp;&nbsp; ref signal measuement<br>
+    thnk some more and <br>
+    maybe ref signal measurement<br>
+    <br>
+    <br>
+    --<br>
+    perform single measurement:<br>
+    if device mode is single startmeasurement<br>
+    measurementpollforcompletion &lt;=-is ready, failed, broke.<br>
+    if is in single mode set palstate to idle. (else it is unchanged)<br>
+    <br>
+    --<br>
+    startmeasurement:<br>
+    record device mode<br>
+    record stop code<br>
+    if single<br>
+    &nbsp;&nbsp;&nbsp; start=1<br>
+    &nbsp;&nbsp; wait until it reads back that bit as a zero<br>
+    if continuous<br>
+    &nbsp; checkandloadinterrupt 1&nbsp; 6ms!<br>
+    &nbsp; start=backtoback<br>
+    &nbsp; palstate=running<br>
+    if continuous timed<br>
+    &nbsp; checkandloadinterrupt 1<br>
+    &nbsp; start=modetimed<br>
+    &nbsp; palstate=running<br>
+    <br>
+    --<br>
+    checkandloadinterrupt<br>
+    &nbsp;if cached function&nbsp; is threshold sensing <br>
+    &nbsp;&nbsp; if threshs both &gt;255<br>
+    &nbsp;&nbsp; if starting load tuning settings <br>
+    &nbsp;&nbsp; else 4X3 = 12 =&gt;300us<br>
+    &nbsp;&nbsp; <br>
+    --<br>
+    clear interrupt mask (ignored)<br>
+    try three times-<br>
+    &nbsp;&nbsp;&nbsp; send 1<br>
+    &nbsp;&nbsp;&nbsp; send 0<br>
+    &nbsp;&nbsp;&nbsp; read<br>
+    &nbsp;&nbsp;&nbsp; done of bits&lt;2,0&gt; are all zero.<br>
+    return success
   </body>
 </html>

@@ -35,7 +35,7 @@
 
 using namespace VL53L0X; //usually bad form but this class is a wrapper for this namespace.
 
-constexpr Version_t Required {1, 0, 1};//first field not used.
+constexpr Version_t Required {1, 0, 1};
 
 //no longer needed as we are no longer trying to mashup strings for debug messages
 //#define STR_HELPER(x) #x     ///< a string helper
@@ -59,7 +59,7 @@ void showVersion(const __FlashStringHelper *prefix, const Version_t ver, bool an
 
 //////////////////////////////////////
 //
-Adafruit_VL53L0X::Adafruit_VL53L0X(uint8_t i2c_addr, TwoWire &i2c) : MyDevice({i2c, i2c_addr, 400}) {
+Adafruit_VL53L0X::Adafruit_VL53L0X(uint8_t i2c_addr, uint8_t busNumber) : MyDevice({busNumber, i2c_addr, 400}) {
   //but do not begin or start etc so that we can static init if we wish.
 }
 
@@ -76,16 +76,10 @@ Adafruit_VL53L0X::Adafruit_VL53L0X(uint8_t i2c_addr, TwoWire &i2c) : MyDevice({i
  */
 /**************************************************************************/
 boolean Adafruit_VL53L0X::begin(boolean debug, Sense_config_t vl_config) {
+  static_assert((Required ==  ImplementationVersion),"application source does not match driver version");
+
   MyDevice.comm.init();//parameters formerly managed here are now constructor args.
 
-  if (!(Required == Api::ImplementationVersion)) {
-    if (debug) {
-      showVersion(F("Found: "), Api::ImplementationVersion);
-      showVersion(F("Built Against "), Required);
-    }
-    //try to proceed, should not refuse to work with new models that might support the identical interface.
-    //or perhaps loosen up the compare to only the major/minor
-  }
 
   MyDevice.DataInit(); // Data initialization in the device itself
 /*980f: this did not make sense, if you init at its default address then you have no basis for knowing what address to use to set its address.

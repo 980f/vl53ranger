@@ -30,6 +30,7 @@ Copyright 2021 by Andy Heilveil github/980f via extensive rewrite of stuff origi
 //bug: this is a platform choice, not an api choice. #define USE_I2C_2V8
 //if the above is essential as in devices don't actually work at the lower voltage than that needs to be well documented and the option removed!
 
+#include "bitmanipulators.h"
 #include "vl53l0x_api.h"
 #include "vl53l0x_api_core.h"
 #include "vl53l0x_api_strings.h"  //should get rid of wrapping, only one ever had a concept of error and for that we can return a nullptr.
@@ -38,6 +39,7 @@ Copyright 2021 by Andy Heilveil github/980f via extensive rewrite of stuff origi
 
 #include "log_api.h"
 
+#include "versioninfo.h"
 #define  VL53L0X_NYI(fakeout)   LOG_ERROR(ERROR_NOT_IMPLEMENTED); return fakeout;
 
 #ifdef VL53L0X_LOG_ENABLE
@@ -46,14 +48,11 @@ Copyright 2021 by Andy Heilveil github/980f via extensive rewrite of stuff origi
 
 namespace VL53L0X {
 
-#include "versioninfo.h"
-#include "bitmanipulators.h"
+  const Version_t ImplementationVersion  {{VL53L0X_IMPLEMENTATION_VER_MAJOR, VL53L0X_IMPLEMENTATION_VER_MINOR}, VL53L0X_IMPLEMENTATION_VER_SUB,VL53L0X_IMPLEMENTATION_VER_REVISION};
 
-  const Version_t Api::ImplementationVersion {{VL53L0X_IMPLEMENTATION_VER_MAJOR, VL53L0X_IMPLEMENTATION_VER_MINOR}, VL53L0X_IMPLEMENTATION_VER_SUB,VL53L0X_IMPLEMENTATION_VER_REVISION};
+  const Version_t PalSpecVersion { {VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR}, VL53L0X_SPECIFICATION_VER_SUB,VL53L0X_SPECIFICATION_VER_REVISION};
 
-  const Version_t Api::PalSpecVersion { {VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR}, VL53L0X_SPECIFICATION_VER_SUB,VL53L0X_SPECIFICATION_VER_REVISION};
-
-/* Group PAL General Functions */
+  /* Group PAL General Functions */
   bool Api::measurement_poll_for_completion() {
     LOG_FUNCTION_START;
     for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {

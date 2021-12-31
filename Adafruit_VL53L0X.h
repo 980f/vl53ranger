@@ -25,7 +25,6 @@
 #include "WProgram.h"
 #endif
 
-#include "Wire.h"
 #include "vl53l0x_api.h"
 
 //value is owned by ST so 980F put it into their headers, and they like 8bit address values
@@ -48,14 +47,13 @@ public:
     , SENSE_HIGH_ACCURACY
   } ;
 
-  Adafruit_VL53L0X(uint8_t i2c_addr = VL53L0X_I2C_ADDR>>1, TwoWire &i2c = Wire);
+  Adafruit_VL53L0X(uint8_t i2c_addr = VL53L0X_I2C_ADDR>>1, uint8_t busNumber=0);
 
   boolean begin( boolean debug = false,  Sense_config_t vl_config = SENSE_DEFAULT);
 
-  /** changing the address is only needed if there are multiple sensors on the bus. */
-  boolean setAddress(uint8_t newAddr);
-
-  // uint8_t getAddress(void); // not currently implemented
+// multiSensor support temporarily NYI
+//  /** changing the address is only needed if there are multiple sensors on the bus. */
+//  boolean setAddress(uint8_t newAddr);
 
   /**************************************************************************/
   /*!

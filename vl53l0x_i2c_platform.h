@@ -1,13 +1,13 @@
 // Copyright 2021 by Andy Heilveil (github/980f)
 #pragma once
 /**
- * The implementation of all of these methods return 0.
- *
- * 980F modified the multi() returns to reverse byte order on the fly if count is negative.
+ * Compared to ST's interface  980F modified the multi-read/write()  to reverse byte order on the fly if count is negative.
+ * that is more efficient than reversing the data before calling the driver, likely removing a layer of indirection, and localizes the need so that we can easily quit doing it on bigendian processors
  **/
-#include <Wire.h>
-#include <utility>
 
+//removed this this via 'busNumber'-- #include <Wire.h>
+#include <utility>
+#include <cstdint>
 /**
  * declarations for user supplied interface to i2c or spi bus.
  *
@@ -18,14 +18,14 @@
  * */
 
 struct Arg { //the class name here should be made a bit more specific ;)
-  TwoWire &i2c;
+  uint8_t busNumber;
   uint8_t devAddr;
   uint16_t comms_speed_khz = 400;
 
-  Arg(Arg &&args) : i2c(i2c), devAddr(devAddr), comms_speed_khz(comms_speed_khz) {
+  Arg(Arg &&args) : busNumber(busNumber), devAddr(devAddr), comms_speed_khz(comms_speed_khz) {
   }
 
-  Arg(TwoWire &i2C, uint8_t devAddr, uint16_t commsSpeedKhz) : i2c(i2C), devAddr(devAddr), comms_speed_khz(commsSpeedKhz) {
+  Arg(uint8_t busNumber, uint8_t devAddr, uint16_t commsSpeedKhz) : busNumber(busNumber), devAddr(devAddr), comms_speed_khz(commsSpeedKhz) {
   }
 };
 
@@ -64,9 +64,7 @@ public:
 
   Exceptor Throw;
   WriteOperation tracer;
-  /** one can change the device address, needed for when more than one is on the same i2c link.
-   * you will also have to control a pin and that is getting well out of the scope of this layer */
-  uint8_t changeAddress(uint8_t newAddress);
+  //we are not going to allow the address to change, we use a different access mechanism for managing address changes since there is no need for this whole shebang just to access one bus register.
 // initialize I2C
   void i2c_init();
 /** if @param count is negative then pdata will be byte reversed */
@@ -74,7 +72,7 @@ public:
 /** if @param count is negative then pdata will be byte reversed */
   bool read_multi(uint8_t index, uint8_t *pdata, int count);
 
-  /** writes value from stack, copied into internal buffer  */
+  /** writes value from stack, copied into internal buffer in arduino driver */
   template<typename Scalar> bool Write(uint8_t index, Scalar data, bool swapendians = false) {
     return write_multi(index, reinterpret_cast<uint8_t *>(&data), sizeof(Scalar) * (swapendians ? -1 : 1));
   }

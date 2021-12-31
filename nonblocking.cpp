@@ -14,6 +14,23 @@ template<typename Scalar> Scalar take(Scalar &owner) {
 
 using namespace VL53L0X; //# this file exists to manage entities from this namespace
 
+/**
+ * task priorities:
+ *   tuning table (does items in tranches)
+ *   wait on interrupt clear
+ *   wait on stop complete
+ *   wait on start acknowledge (10 samples per call)
+ *   wait on measurement data ready (flag captured by ISR or poll device, 10 polls per call)
+ *
+ * data ready subsystem
+ *   vhv/phasecal
+ *   rate request
+ *      user
+ *      spad setup
+ *   user measurement (single or continuous)
+ *   offset cal
+ *   xtalk cal
+ * */
 
 void NonBlocking::abandonTasks(){
   onStopComplete(false);

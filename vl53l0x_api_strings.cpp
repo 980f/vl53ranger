@@ -136,14 +136,6 @@ namespace VL53L0X {
     return ifnotfound;
   }
 
-  static Error copyit(const char *text, char *pDeviceErrorString) {
-    if (text) {
-      strcpy(pDeviceErrorString, text);
-      return ERROR_NONE;
-    } else {
-      return ERROR_INVALID_PARAMS;
-    }
-  }
 
   //// new approach, point to it so that printf etc can pick up the data without intermediate buffer or copy
   const char *device_error_string(DeviceError ErrorCode) {
@@ -170,34 +162,43 @@ namespace VL53L0X {
     return scanTable(CHECKENABLE_table, LimitCheckId, VL53L0X_STRING_UNKNOW_ERROR_CODE);
   }
 
-  ////////////////legacy approach: force allocation of receiver and copy
-  void get_device_error_string(DeviceError ErrorCode, char *pDeviceErrorString) {
-    copyit(device_error_string(ErrorCode), pDeviceErrorString);
-  }   // get_device_error_string
+//  ////////////////legacy approach: force allocation of receiver and copy
+//  static Error copyit(const char *text, char *pDeviceErrorString) {
+//    if (text) {
+//      strcpy(pDeviceErrorString, text);
+//      return ERROR_NONE;
+//    } else {
+//      return ERROR_INVALID_PARAMS;
+//    }
+//  }
 
-
-
-  void get_range_status_string(RangeStatus rangeStatus, char *pRangeStatusString) {
-    copyit(range_status_string(rangeStatus), pRangeStatusString);
-  }   // get_range_status_string
-
-
-  void get_pal_error_string(Error PalErrorCode, char *pPalErrorString) {
-    copyit(pal_error_string(PalErrorCode), pPalErrorString);
-  }   // get_pal_error_string
-
-  void get_pal_state_string(State PalStateCode, char *pPalStateString) {
-    copyit(pal_state_string(PalStateCode), pPalStateString);
-  }   // get_pal_state_string
-
-
-  Error get_sequence_steps_info(SequenceStepId SequenceStepId, char *pSequenceStepsString) {
-    return copyit(sequence_steps_info(SequenceStepId), pSequenceStepsString);
-  }   // get_sequence_steps_info
-
-
-  void get_limit_check_info(uint16_t LimitCheckId, char *pLimitCheckString) {
-    copyit(limit_check_info(LimitCheckId), pLimitCheckString);
-  }   // get_limit_check_info
+//  void get_device_error_string(DeviceError ErrorCode, char *pDeviceErrorString) {
+//    copyit(device_error_string(ErrorCode), pDeviceErrorString);
+//  }   // get_device_error_string
+//
+//
+//
+//  void get_range_status_string(RangeStatus rangeStatus, char *pRangeStatusString) {
+//    copyit(range_status_string(rangeStatus), pRangeStatusString);
+//  }   // get_range_status_string
+//
+//
+//  void get_pal_error_string(Error PalErrorCode, char *pPalErrorString) {
+//    copyit(pal_error_string(PalErrorCode), pPalErrorString);
+//  }   // get_pal_error_string
+//
+//  void get_pal_state_string(State PalStateCode, char *pPalStateString) {
+//    copyit(pal_state_string(PalStateCode), pPalStateString);
+//  }   // get_pal_state_string
+//
+//
+//  Error get_sequence_steps_info(SequenceStepId SequenceStepId, char *pSequenceStepsString) {
+//    return copyit(sequence_steps_info(SequenceStepId), pSequenceStepsString);
+//  }   // get_sequence_steps_info
+//
+//
+//  void get_limit_check_info(uint16_t LimitCheckId, char *pLimitCheckString) {
+//    copyit(limit_check_info(LimitCheckId), pLimitCheckString);
+//  }   // get_limit_check_info
 
 } //end namespace

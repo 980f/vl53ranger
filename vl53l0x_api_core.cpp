@@ -91,7 +91,9 @@ namespace VL53L0X {
       bit >>= 2;
     }
 // round:
-    if(num>res) ++res;
+    if (num > res) {
+      ++res;
+    }
     return res;
   } // VL53L0X_isqrt
 
@@ -118,7 +120,7 @@ namespace VL53L0X {
     /* polling with timeout to avoid deadlock*/
     while (trials-- > 0) {
       uint8_t strobe;
-      comm.Read(  Private_Strober, strobe);
+      comm.Read(Private_Strober, strobe);
       if (strobe != 0) {
         return true;
       }
@@ -130,7 +132,7 @@ namespace VL53L0X {
     comm.WrByte(0x94, which);
     Int value;
     if (device_read_strobe()) {
-      comm.Read( 0x90,value );
+      comm.Read(0x90, value);
       return value;
     }
     //todo: probably should throw an error here, ERROR_TIMEOUT
@@ -184,17 +186,16 @@ namespace VL53L0X {
 
           if (getBit<0>(needs)) {
             auto packed = packed90<uint32_t>(0x6b);
-              ReferenceSpad.quantity = getBits<14, 8>(packed);
-              ReferenceSpad.isAperture = getBit<15>(packed);
+            ReferenceSpad.quantity = getBits<14, 8>(packed);
+            ReferenceSpad.isAperture = getBit<15>(packed);
             packed = packed90<uint32_t>(0x24);
-              NvmRefGoodSpadMap[0] = getByte<3>(packed);
-              NvmRefGoodSpadMap[1] = getByte<2>(packed);
-              NvmRefGoodSpadMap[2] = getByte<1>(packed);
-              NvmRefGoodSpadMap[3] = getByte<0>(packed);
+            NvmRefGoodSpadMap[0] = getByte<3>(packed);
+            NvmRefGoodSpadMap[1] = getByte<2>(packed);
+            NvmRefGoodSpadMap[2] = getByte<1>(packed);
+            NvmRefGoodSpadMap[3] = getByte<0>(packed);
             packed = packed90<uint32_t>(0x25);
-              NvmRefGoodSpadMap[4] = getByte<3>(packed);
-              NvmRefGoodSpadMap[5] = getByte<2>(packed);
-
+            NvmRefGoodSpadMap[4] = getByte<3>(packed);
+            NvmRefGoodSpadMap[5] = getByte<2>(packed);
           }
 
           if (getBit<1>(needs)) {
@@ -203,7 +204,7 @@ namespace VL53L0X {
 
             //now to unpack 7 bit fields from a series of 32 bit words:
             {//indent what might become a function someday
-             uint32_t packed(0);//zero init here matters!
+              uint32_t packed(0);//zero init here matters!
               const uint8_t mask7 = Mask<6, 0>::shifted;
               uint8_t pager = 0x77;//first page
               char *prodid = ProductId;//will increment as data is acquired sequentially
@@ -234,7 +235,6 @@ namespace VL53L0X {
 
         }
       }
-
     }
 
     if (ReadDataFromDeviceDone != 7) {
@@ -259,7 +259,7 @@ namespace VL53L0X {
         int32_t OffsetMicroMeters(0);//BUG: was int16, truncating too soon
         if (DistMeasFixed1104_400_mm != 0) {
           int32_t OffsetFixed1104_mm = DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm;//was uint32_t despite being an intrinsically signed value
-          OffsetMicroMeters = -roundedScale((OffsetFixed1104_mm * 1000),4);
+          OffsetMicroMeters = -roundedScale((OffsetFixed1104_mm * 1000), 4);
         }
         PALDevDataSet(Part2PartOffsetAdjustmentNVMMicroMeter, OffsetMicroMeters);
       }
@@ -664,25 +664,23 @@ namespace VL53L0X {
     return 0;
   } // VL53L0X_load_tuning_settings
 
-  FixPoint1616_t Core::get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
-
-    bool xtalkCompEnable = VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
-//todo: lost test value of xtalkCompeEnable
-
-    MegaCps xtalkPerSpadMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);
-
-    /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
-    MegaCps totalXtalkMegaCps = pRangingMeasurementData.EffectiveSpadRtnCount.raw * xtalkPerSpadMegaCps.raw;
-
-    /* FixPoint0824 >> 8 = FixPoint1616 */
-    return totalXtalkMegaCps.shrink(8);//8 compensats for EffectiveSpadRtnCount being scaled by 8
+  MegaCps Core::get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
+    if (VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable)) {
+      MegaCps xtalkPerSpadMegaCps (VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps));
+      /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
+      MegaCps totalXtalkMegaCps (xtalkPerSpadMegaCps.raw * pRangingMeasurementData.EffectiveSpadRtnCount.raw);
+      /* FixPoint0824 >> 8 = FixPoint1616 */
+      return totalXtalkMegaCps.shrink(8);//8 compensats for EffectiveSpadRtnCount being scaled by 8
+    } else  {
+      return 0;
+    }
   } // VL53L0X_get_total_xtalk_rate
 
-  FixPoint1616_t Core::get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
-    LOG_FUNCTION_START;
-    //todo: restore from original code
-//    FixPoint1616_t totalXtalkMegaCps {pRangingMeasurementData.SignalRateRtnMegaCps};//default in case returned error is ignored
-    return get_total_xtalk_rate(pRangingMeasurementData);
+  MegaCps Core::get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
+    auto signal {pRangingMeasurementData.SignalRateRtnMegaCps};//default in case returned error is ignored
+    auto xtalk {get_total_xtalk_rate(pRangingMeasurementData)};
+    signal+=xtalk;
+    return signal;
   } // VL53L0X_get_total_signal_rate
 
   uint32_t Core::calc_dmax(MegaCps totalSignalRate_mcps, MegaCps totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us) {
@@ -1044,7 +1042,7 @@ namespace VL53L0X {
   bool Core::GetSequenceStepEnable(SequenceStepId StepId) {
     LOG_FUNCTION_START;
     auto seqbit = bitFor(StepId);
-    if(seqbit==~0){
+    if (seqbit == ~0) {
       THROW(ERROR_INVALID_PARAMS);//bypassed enum
       return false;
     }
@@ -1137,12 +1135,12 @@ namespace VL53L0X {
        */
       uint32_t Dmax_mm = 0;
       FixPoint1616_t SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData, Dmax_mm);
-        pRangingMeasurementData.RangeDMaxMilliMeter = Dmax_mm;
-        auto SigmaLimitValue = GetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE);
-        if ((SigmaLimitValue.raw > 0) && (SigmaEstimate > SigmaLimitValue)) {//todo: check for factor of 2 error due to refactoring
-          /* Limit Fail */
-          SigmaLimitflag = true;
-        }
+      pRangingMeasurementData.RangeDMaxMilliMeter = Dmax_mm;
+      auto SigmaLimitValue = GetLimitCheckValue(CHECKENABLE_SIGMA_FINAL_RANGE);
+      if ((SigmaLimitValue.raw > 0) && (SigmaEstimate > SigmaLimitValue)) {//todo: check for factor of 2 error due to refactoring
+        /* Limit Fail */
+        SigmaLimitflag = true;
+      }
     }
 
     /*

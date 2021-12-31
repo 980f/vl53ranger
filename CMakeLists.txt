@@ -46,6 +46,12 @@ SET(coreSources
 SET(platform
   vl53l0x_i2c_comms.cpp
   vl53l0x_platform.cpp
+  /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/libraries/Wire/Wire.cpp
+  /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/Print.cpp
+  /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/USB/CDC.cpp
+  /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/USB/PluggableUSB.cpp
+  /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/USB/SAMD21_USBDevice.cpp
+  /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/USB/USBCore.cpp
   )
 
 SET(adafruit
@@ -54,6 +60,7 @@ SET(adafruit
 
 SET(newapi
   nonblocking.cpp
+  trynester.cpp
   )
 
 ADD_EXECUTABLE(vl53 ${platform} ${coreSources} ${adafruit} ${newapi})

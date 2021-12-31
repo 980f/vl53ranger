@@ -76,3 +76,4 @@ static uint8_t DefaultTuningSettings[] = {
 
     0x00, 0x00, 0x00  //end marker, type zero and some zero lengths in case someone ignores the flag.
 };
+//81 triplets, 3 bytes each, 25us per byte 75 us per triplet >6 ms.

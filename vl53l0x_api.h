@@ -33,6 +33,9 @@
 #include "vl53l0x_api_core.h" //extends this
 
 namespace VL53L0X {
+  //for runtime version decisions
+  extern const Version_t ImplementationVersion;
+  extern const Version_t PalSpecVersion;
 
   /** division of Api and Core seems arbitrary. Might make Core a private base to hide it if that was the intent of the orignal API developers. */
   class Api : public Core {
@@ -42,17 +45,6 @@ namespace VL53L0X {
     Api(Arg &&args) : Core(std::forward<Arg>(args)) {
       //do nothing so that we may static construct.
     }
-
-/**
- * @brief Return the VL53L0X PAL Implementation Version
- *
- * @note This function doesn't access to the device
-*/
-    static const Version_t ImplementationVersion;
-
-    static const Version_t PalSpecVersion;
-
-
 
 /** @defgroup cut11_group VL53L0X cut1.1 Function Definition
  *  @brief    VL53L0X cut1.1 Function Definition
@@ -71,8 +63,7 @@ namespace VL53L0X {
  *
  * @note This function Access to the device
  *
- * @param   pDeviceInfo  Pointer to current device info for a given
- *  Device
+ * @param   pDeviceInfo  Pointer to current device info for the Device
  * @return  ERROR_NONE   Success
  * @return  "Other error code"  See ::Error
  */
@@ -396,7 +387,7 @@ namespace VL53L0X {
  * @param   pDeviceParameters     Pointer to store
  * @return  current device parameters.
  */
-  DeviceParameters_t GetDeviceParameters();
+    DeviceParameters_t GetDeviceParameters();
 
 /**
  * @brief  Set a new device mode
@@ -450,8 +441,6 @@ namespace VL53L0X {
  * @return  whether resolution is 1/4 mm or 1 mm
  */
     bool GetFractionEnable();
-
-
 
 /**
  * @brief Set Ranging Timing Budget in microseconds
@@ -821,8 +810,6 @@ namespace VL53L0X {
  */
     bool PerformRefCalibration();
 
-
-
 /**
  * @brief Perform XTalk Calibration
  *
@@ -963,107 +950,107 @@ namespace VL53L0X {
  */
     bool GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData);
 #if IncludeHistogramming
-/**
- * @brief  Set a new Histogram mode
- * @par Function Description
- * Set device to a new Histogram mode
- *
- * @note This function doesn't Access to the device
- *
+    /**
+     * @brief  Set a new Histogram mode
+     * @par Function Description
+     * Set device to a new Histogram mode
+     *
+     * @note This function doesn't Access to the device
+     *
 
- * @param   HistogramMode         New device mode to apply
- *                                Valid values are:
- *                                HISTOGRAMMODE_DISABLED
- *                                DEVICEMODE_SINGLE_HISTOGRAM
- *                                HISTOGRAMMODE_REFERENCE_ONLY
- *                                HISTOGRAMMODE_RETURN_ONLY
- *                                HISTOGRAMMODE_BOTH
- *
- * @return  false
- */
-    bool SetHistogramMode(HistogramModes HistogramMode) {
-      VL53L0X_NYI(false);
-    }
+     * @param   HistogramMode         New device mode to apply
+     *                                Valid values are:
+     *                                HISTOGRAMMODE_DISABLED
+     *                                DEVICEMODE_SINGLE_HISTOGRAM
+     *                                HISTOGRAMMODE_REFERENCE_ONLY
+     *                                HISTOGRAMMODE_RETURN_ONLY
+     *                                HISTOGRAMMODE_BOTH
+     *
+     * @return  false
+     */
+        bool SetHistogramMode(HistogramModes HistogramMode) {
+          VL53L0X_NYI(false);
+        }
 
-/**
- * @brief  Get current new device mode
- * @par Function Description
- * Get current Histogram mode of a Device
- *
- * @note This function doesn't Access to the device
- *
- * @return  histogram mode, which at present is always disabled
- */
-    HistogramModes GetHistogramMode() {
-      return HISTOGRAMMODE_DISABLED;//NYI
-    }
+    /**
+     * @brief  Get current new device mode
+     * @par Function Description
+     * Get current Histogram mode of a Device
+     *
+     * @note This function doesn't Access to the device
+     *
+     * @return  histogram mode, which at present is always disabled
+     */
+        HistogramModes GetHistogramMode() {
+          return HISTOGRAMMODE_DISABLED;//NYI
+        }
 
-/**
- * @brief Retrieve the measurements from device for a given setup
- *
- * @par Function Description
- * Get data from last successful Histogram measurement
- * @warning USER should take care about  @a GetNumberOfROIZones()
- * before get data.
- * PAL will fill a NumberOfROIZones times the corresponding data structure
- * used in the measurement function.
- *
- * @note This function is not Implemented
- *
- * @param   pHistogramMeasurementData   Pointer to the histogram data structure.
- * @return  false
- */
-    bool GetHistogramMeasurementData(HistogramMeasurementData_t &pHistogramMeasurementData) {
-      VL53L0X_NYI(false);
-    }
+    /**
+     * @brief Retrieve the measurements from device for a given setup
+     *
+     * @par Function Description
+     * Get data from last successful Histogram measurement
+     * @warning USER should take care about  @a GetNumberOfROIZones()
+     * before get data.
+     * PAL will fill a NumberOfROIZones times the corresponding data structure
+     * used in the measurement function.
+     *
+     * @note This function is not Implemented
+     *
+     * @param   pHistogramMeasurementData   Pointer to the histogram data structure.
+     * @return  false
+     */
+        bool GetHistogramMeasurementData(HistogramMeasurementData_t &pHistogramMeasurementData) {
+          VL53L0X_NYI(false);
+        }
 
-/**
- * @brief Performs a single histogram measurement and retrieve the histogram measurement data
- *   Is equivalent to PerformSingleMeasurement +  GetHistogramMeasurementData
- *
- * @par Function Description
- * Get data from last successful Ranging measurement.
- * This function will clear the interrupt in case of these are enabled.
- *
- * @note This function is not Implemented
- *
- * @param   pHistogramMeasurementData  Pointer to the data structure to fill up.
- * @return  false
- */
-    bool PerformSingleHistogramMeasurement(HistogramMeasurementData_t &pHistogramMeasurementData) {
-      VL53L0X_NYI(false)
-    }
+    /**
+     * @brief Performs a single histogram measurement and retrieve the histogram measurement data
+     *   Is equivalent to PerformSingleMeasurement +  GetHistogramMeasurementData
+     *
+     * @par Function Description
+     * Get data from last successful Ranging measurement.
+     * This function will clear the interrupt in case of these are enabled.
+     *
+     * @note This function is not Implemented
+     *
+     * @param   pHistogramMeasurementData  Pointer to the data structure to fill up.
+     * @return  false
+     */
+        bool PerformSingleHistogramMeasurement(HistogramMeasurementData_t &pHistogramMeasurementData) {
+          VL53L0X_NYI(false)
+        }
 
-/**
- * @brief Perform XTalk Measurement
- *
- * @details Measures the current cross talk from glass in front
- * of the sensor.
- * This functions performs a histogram measurement and uses the results
- * to measure the crosstalk. For the function to be successful, there
- * must be no target in front of the sensor.
- *
- * @warning This function is a blocking function
- *
- * @warning This function is not supported when the final range
- * vcsel clock period is set below 10 PCLKS.
- *
- * @note This function Access to the device
- *
- * @param   TimeoutMs            Histogram measurement duration.
- * @param   pXtalkPerSpad        Output parameter containing the crosstalk
- * measurement result, in MCPS/Spad. Format fixpoint 16:16.
- * @param   pAmbientTooHigh      Output parameter which indicate that
- * pXtalkPerSpad is not good if the Ambient is too high.
- * @return  ERROR_NONE    Success
- * @return  ERROR_INVALID_PARAMS vcsel clock period not supported
- * for this operation. Must not be less than 10PCLKS.
- * @return  "Other error code"   See ::Error
- */
-    bool PerformXTalkMeasurement(uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad, uint8_t *pAmbientTooHigh) {
-      VL53L0X_NYI(false);
-//similar name but quite different technique from      perform_xtalk_calibration()
-    }
+    /**
+     * @brief Perform XTalk Measurement
+     *
+     * @details Measures the current cross talk from glass in front
+     * of the sensor.
+     * This functions performs a histogram measurement and uses the results
+     * to measure the crosstalk. For the function to be successful, there
+     * must be no target in front of the sensor.
+     *
+     * @warning This function is a blocking function
+     *
+     * @warning This function is not supported when the final range
+     * vcsel clock period is set below 10 PCLKS.
+     *
+     * @note This function Access to the device
+     *
+     * @param   TimeoutMs            Histogram measurement duration.
+     * @param   pXtalkPerSpad        Output parameter containing the crosstalk
+     * measurement result, in MCPS/Spad. Format fixpoint 16:16.
+     * @param   pAmbientTooHigh      Output parameter which indicate that
+     * pXtalkPerSpad is not good if the Ambient is too high.
+     * @return  ERROR_NONE    Success
+     * @return  ERROR_INVALID_PARAMS vcsel clock period not supported
+     * for this operation. Must not be less than 10PCLKS.
+     * @return  "Other error code"   See ::Error
+     */
+        bool PerformXTalkMeasurement(uint32_t TimeoutMs, FixPoint1616_t *pXtalkPerSpad, uint8_t *pAmbientTooHigh) {
+          VL53L0X_NYI(false);
+    //similar name but quite different technique from      perform_xtalk_calibration()
+        }
 #endif
 /**
  * @brief Performs a single ranging measurement and retrieve the ranging measurement data
@@ -1088,56 +1075,56 @@ namespace VL53L0X {
     bool PerformSingleRangingMeasurement(RangingMeasurementData_t &pRangingMeasurementData);
 
 #if HaveRoiZones
-/**
- * @brief Set the number of ROI Zones to be used for a specific Device
- *
- * @par Function Description
- * Set the number of ROI Zones to be used for a specific Device.
- * The programmed value should be less than the max number of ROI Zones given
- * with @a GetMaxNumberOfROIZones().
- * This version of API manage only one zone.
- *
+    /**
+     * @brief Set the number of ROI Zones to be used for a specific Device
+     *
+     * @par Function Description
+     * Set the number of ROI Zones to be used for a specific Device.
+     * The programmed value should be less than the max number of ROI Zones given
+     * with @a GetMaxNumberOfROIZones().
+     * This version of API manage only one zone.
+     *
 
- * @param   NumberOfROIZones              Number of ROI Zones to be used for a
- *  specific Device.
- * @return  ERROR_NONE             Success
- * @return  ERROR_INVALID_PARAMS   This error is returned if
- * NumberOfROIZones != 1
- */
-    bool SetNumberOfROIZones(uint8_t NumberOfROIZones);
+     * @param   NumberOfROIZones              Number of ROI Zones to be used for a
+     *  specific Device.
+     * @return  ERROR_NONE             Success
+     * @return  ERROR_INVALID_PARAMS   This error is returned if
+     * NumberOfROIZones != 1
+     */
+        bool SetNumberOfROIZones(uint8_t NumberOfROIZones);
 
-/**
- * @brief Get the number of ROI Zones managed by the Device
- *
- * @par Function Description
- * Get number of ROI Zones managed by the Device
- * USER should take care about  @a GetNumberOfROIZones()
- * before get data after a perform measurement.
- * PAL will fill a NumberOfROIZones times the corresponding data
- * structure used in the measurement function.
- *
- * @note This function doesn't Access to the device
- *
+    /**
+     * @brief Get the number of ROI Zones managed by the Device
+     *
+     * @par Function Description
+     * Get number of ROI Zones managed by the Device
+     * USER should take care about  @a GetNumberOfROIZones()
+     * before get data after a perform measurement.
+     * PAL will fill a NumberOfROIZones times the corresponding data
+     * structure used in the measurement function.
+     *
+     * @note This function doesn't Access to the device
+     *
 
- * @param   pNumberOfROIZones     Pointer to the Number of ROI Zones value.
- * @return  ERROR_NONE     Success
- */
-    unsigned GetNumberOfROIZones();
+     * @param   pNumberOfROIZones     Pointer to the Number of ROI Zones value.
+     * @return  ERROR_NONE     Success
+     */
+        unsigned GetNumberOfROIZones();
 
-/**
- * @brief Get the Maximum number of ROI Zones managed by the Device
- *
- * @par Function Description
- * Get Maximum number of ROI Zones managed by the Device.
- *
- * @note This function doesn't Access to the device
- *
+    /**
+     * @brief Get the Maximum number of ROI Zones managed by the Device
+     *
+     * @par Function Description
+     * Get Maximum number of ROI Zones managed by the Device.
+     *
+     * @note This function doesn't Access to the device
+     *
 
- * @param   pMaxNumberOfROIZones   Pointer to the Maximum Number
- *  of ROI Zones value.
- * @return  ERROR_NONE      Success
- */
-    unsigned GetMaxNumberOfROIZones();
+     * @param   pMaxNumberOfROIZones   Pointer to the Maximum Number
+     *  of ROI Zones value.
+     * @return  ERROR_NONE      Success
+     */
+        unsigned GetMaxNumberOfROIZones();
 #endif
 
 /** @} measurement_group */
@@ -1218,7 +1205,7 @@ namespace VL53L0X {
  * @param   DeviceMode       ignored, arbitrary default added as most likely choice associated with feature.
  * @return  pair of threshold values
  */
-    RangeWindow GetInterruptThresholds(DeviceModes DeviceMode=DeviceModes::DEVICEMODE_CONTINUOUS_RANGING);
+    RangeWindow GetInterruptThresholds(DeviceModes DeviceMode = DeviceModes::DEVICEMODE_CONTINUOUS_RANGING);
 
 /**
  * @brief Return device stop completion status

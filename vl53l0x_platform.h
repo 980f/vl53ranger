@@ -34,26 +34,9 @@
 #include "vl53l0x_error.h"
 #include "vl53l0x_i2c_platform.h"
 
+
 namespace VL53L0X {
 
-/**
- * @file vl53l0_platform.h
- *
- * @brief All end user OS/platform/application porting
- */
-
-/**
- * @defgroup VL53L0X_platform_group VL53L0 Platform Functions
- * @brief    VL53L0 Platform Functions
- *  @{
- */
-
-/**
- * @struct  VL53L0X_Dev_t
- * @brief    Generic PAL device type that does link between API and platform
- * abstraction layer
- *
- */
 /** In ST's work this guy's fields were embedded in the Device causing unnecessary sharing of information. */
   struct Physical {
 
