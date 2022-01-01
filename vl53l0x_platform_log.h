@@ -40,37 +40,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "build.h"
 #include "vl53l0x_error.h"
-#include "trynester.h"  //replacing PerformanceTracer
+#include "trynester.h"
+
+namespace VL53L0X {
+  void initLogging();
+}
+
 
 #if VL53L0X_LOG_ENABLE
-#include "cstdint"
-class PerformanceTracer {
-  const char *location;
-  uint32_t starttime;
-  //placeholders until we get the logging output defined:
-  static uint32_t logclock();
-  static void printf(const char *format, ...);
-  static bool enabled;//manipulate via debugger.. //todo:init with some compiler defined flag
-//  bool enabled;
-public:
-  /** records location and emits start message to log */
-  PerformanceTracer(const char *location);
-  //to mate to old system which allowed an additional bit of info on start messages:
-  void operator()(const char *format, ...);
-
-  /** use location and emits start message to log */
-  ~PerformanceTracer();
-
-  static bool logError(const char *location,VL53L0X::Error error, bool always= false);
-
-};
 
 #define LOG_FUNCTION_START  TRACE_ENTRY
 
 //todo: write to exception trace but don't throw:
 #define LOG_ERROR(errcode) errcode
 
-//PerformanceTracer::logError(__FUNCTION__,errcode)
 
 #else
 #define LOG_FUNCTION_START

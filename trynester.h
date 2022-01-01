@@ -20,7 +20,6 @@
 
 #include <csetjmp>
 
-#pragma clang diagnostic push
 #pragma ide diagnostic ignored "cert-err52-cpp"   //this file exists to manage lomgjmp when exceptions are too expensive to use.
 
 /** simple stack via linked list, intended to preserve block nesting information when a psuedo exception is thrown.
@@ -109,10 +108,10 @@ public:
     }
   };
 
+  using Ticks = unsigned long; //declspec your timestamp source.
 private:
   const Element &element;
 
-  using Ticks = unsigned long; //declspec your timestamp source.
   Ticks timestamp = 0;
 
 public:// until we have setters your application does assignments to these function pointers:
@@ -142,20 +141,6 @@ public:
     pop(false);
   }
 
-  /** recursive routines don't play nice in this system. We should move the timestamp to the stacker. */
-  static void example(unsigned recurse) {
-    static LocationStack::Element tracer(__FUNCTION__, __FILE__, __LINE__);
-    LocationStack namedoesntmatter(tracer);
-    if (recurse--) {
-      example(recurse);
-    } else {
-      //check:  should see records identical except for timestamp
-      walk([](LocationStack &item) {
-        //item.element.timestamp = ~0;//testing access
-        return true;
-      });
-    }
-  }
 };
 
 #define TRACE_ENTRY    static LocationStack::Element tracer(__FUNCTION__, __FILE__, __LINE__);LocationStack namedoesntmatter(tracer);
@@ -212,13 +197,7 @@ public:
   }
 
   /** throw! (or ignore) */
-  void operator()(int errorcode) {
-    if (stacked) {//using as an 'initialized' boolean
-      longjmp(opaque, errorcode);
-    } else {
-      //unhandled exception handler goes here.
-    }
-  }
+  void operator()(int errorcode);
 
   /** leaving try/catch */
   ~Thrower() {
@@ -226,31 +205,15 @@ public:
   }
 };
 
+//see example in matching cpp file for limitations on using the following macros
+
 #define TRY  switch (Thrower Throw; int(Throw)) { case 0:
 
-//this macro creates a local block scope just like real catches
 #define CATCH(code) } break; case code: {
 
 #define UNCAUGHT  } break; default:
 
+// in case we change our mind (again ;) :
 #define THROW(error) Thrower::Throw(error)
 
-static int example3() {
-  TRACE_ENTRY
-  TRY {
-      Throw(42); //throws to self but use the following
-      THROW(89);  //also throws to self
-      return ~1;
-    CATCH(42)
-      return 42;//something to test compilation
-    CATCH(-42)
-      THROW(99); //throws where it should
-    UNCAUGHT
-      Throw(-42);//this is throw to self
-      return ~0;
-  }
-  return 0;
-}
-
-#pragma clang diagnostic pop
 #endif //VL53_TRYNESTER_H

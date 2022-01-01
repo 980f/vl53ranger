@@ -3,36 +3,25 @@
 #include "vl53l0x_platform_log.h"
 #include <Arduino.h>
 
-
-bool PerformanceTracer::enabled=false;//manipulate via debugger.. //todo:init with some compiler defined flag
-
-//dummied until library with proper printer is in peoject scope
-void PerformanceTracer::printf(const char *format, ...) {
-}
-
-void PerformanceTracer::operator()(const char *format, ...) {
-  if(*format && enabled) {
-    printf(format);//todo:- vprintf with passed along ... args. There are only two cases and we should just log those separately)
+static void elapsedTimeReporter(const LocationStack::Element &loc, LocationStack::Ticks elapsed, bool onException) {
+  Serial.print(loc.function);
+  Serial.print(loc.file);
+  Serial.print(loc.line);
+  Serial.print(elapsed);//todo: millis versus micros
+  if (onException) {
+    auto thrown= int(Thrower::top());
+    Serial.print(thrown);//todo: text rather than number
+    Serial.println(", but shit happened");
+  } else {
+    Serial.println();
   }
 }
 
-PerformanceTracer::PerformanceTracer(const char *location) :location(location), starttime(logclock()) {
-  if(enabled){
-    printf("START %s at %ud", location, starttime);
-  }
+static LocationStack::Ticks stamper() {
+  return micros();
 }
 
-PerformanceTracer::~PerformanceTracer() {
-  printf("END %s after %ud", location, logclock() - starttime);
-}
-
-bool PerformanceTracer::logError(const char *location, VL53L0X::Error error, bool always) {
-  if(error!=VL53L0X::ERROR_NONE || always) {
-    printf("ERROR from %s at %ud code=%d", location, logclock(), error);//todo:1 appened text form of error
-  }
-  return error!=VL53L0X::ERROR_NONE;
-}
-
-uint32_t PerformanceTracer::logclock() {
-  return millis();
+void VL53L0X::initLogging() {
+  LocationStack::reportElapsed = &elapsedTimeReporter;
+  LocationStack::stamper = &stamper;
 }

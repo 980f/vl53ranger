@@ -1,5 +1,6 @@
 /*******************************************************************************
- *  Copyright 2015, STMicroelectronics International N.V.
+ * Copyright 2021 Andrew Heilveil, github/980f massively rewritten starting with content
+ *  Copyright 2014,2015, STMicroelectronics International N.V.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -26,82 +27,24 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ********************************************************************************/
 
-/**
- * @file VL53L0X_i2c.c
- *
- * Copyright (C) 2014 ST MicroElectronics
- *
- * provide variable word size byte/Word/dword VL6180x register access via i2c
- *
- */
 #include "vl53l0x_platform.h"
 #include "vl53l0x_i2c_platform.h"
 
-#include "log_platform.h"
+#include "vl53l0x_platform_log.h"
 
 #include "trynester.h"
 
 namespace VL53L0X {
-/**
- * @def I2C_BUFFER_CONFIG
- *
- * @brief Configure Device register I2C access
- *
- * @li 0 : one GLOBAL buffer \n
- *   Use one global buffer of MAX_I2C_XFER_SIZE byte in data space \n
- *   This solution is not multi-Device compliant nor multi-thread cpu safe \n
- *   It can be the best option for small 8/16 bit MCU without stack and limited
- * ram  (STM8s, 80C51 ...)
- *
- * @li 1 : ON_STACK/local \n
- *   Use local variable (on stack) buffer \n
- *   This solution is multi-thread with use of i2c resource lock or mutex see
- * VL6180x_GetI2CAccess() \n
- *
- * @li 2 : User defined \n
- *    Per Device potentially dynamic allocated. Requires VL6180x_GetI2cBuffer()  //ick: cut and paste error, one that would never have happened with C++ namespaces
- * to be implemented.
- * @ingroup Configuration
- */
-#define I2C_BUFFER_CONFIG 1
+
 /** Maximum buffer size to be used in i2c
  *
  * 32 bit ints: 4
  * SpadArray:   6
- *
+ * Measurement result wad 12
  * */
 #define VL53L0X_MAX_I2C_XFER_SIZE    12
 
-//unused concept:
-//#if I2C_BUFFER_CONFIG == 0
-///* GLOBAL config buffer */
-//uint8_t i2c_global_buffer[VL53L0X_MAX_I2C_XFER_SIZE];
-//
-//#define DECL_I2C_BUFFER
-//#define VL53L0X_GetLocalBuffer( n_byte) i2c_global_buffer
-//
-//#elif I2C_BUFFER_CONFIG == 1
-///* ON STACK */
-//#define DECL_I2C_BUFFER uint8_t LocBuffer[VL53L0X_MAX_I2C_XFER_SIZE];
-//#define VL53L0X_GetLocalBuffer( n_byte) LocBuffer
-//#elif I2C_BUFFER_CONFIG == 2
-///* user define buffer type declare DECL_I2C_BUFFER  as access  via
-// * VL53L0X_GetLocalBuffer */
-//#define DECL_I2C_BUFFER
-//#else
-//#error "invalid I2C_BUFFER_CONFIG "
-//#endif
-
-#define VL53L0X_I2C_USER_VAR /* none but could be for a flag var to get/pass to mutex interruptible  return flags and try again */
-
-//#ifdef THROW
-//#warning "THROW redefined for platform.cpp Physical access"
-//#undef THROW
-//#endif
-//#define THROW(error) Thrower::Throw(error)
-
   void Physical::WriteMulti(uint8_t index, const uint8_t *pdata, int count) {
-    VL53L0X_I2C_USER_VAR //BUG?: not locked like the ReadMulti was, why not?
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
       THROW(ERROR_INVALID_PARAMS);//unlikely: unreasonably large item
     }
@@ -109,7 +52,6 @@ namespace VL53L0X {
   }
 
   void Physical::ReadMulti( uint8_t index, uint8_t *pdata, int count) {
-    VL53L0X_I2C_USER_VAR
     if (count >= VL53L0X_MAX_I2C_XFER_SIZE) {
       THROW( ERROR_INVALID_PARAMS);//unlikely: unreasonably large item
     }
@@ -141,6 +83,8 @@ namespace VL53L0X {
   } // comm.RdDWord
 
   void Physical::UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData) {
+    //todo: use 980F's wire support classes to mutex Read vs Write via repeated start and no stop.
+    //the goal: // start address index repeat-start address read_byte hold repeat-start address index data stop.
     uint8_t data;
     wirer.Read( index, data);
     data = (data & AndData) | OrData;
