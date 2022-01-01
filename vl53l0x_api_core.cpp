@@ -27,12 +27,12 @@ Copyright 2021 Andy Heilveil, github/980F via mutation of source
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************/
 
-#include <Arduino.h>
+#include <cstring>  //strcpy
+#include <algorithm> //min
+
 #include "vl53l0x_api_core.h"
 
 #include "log_api.h"
-#include "vl53l0x_fixpoint.h"
-#include "bitmanipulators.h"
 
 namespace VL53L0X {
 
@@ -353,7 +353,8 @@ namespace VL53L0X {
 
 
 ///////////////////////////////
-  uint32_t Core::get_sequence_step_timeout(SequenceStepId stepId) {////BUG: uses many values even when they were not successfully fetched.
+  uint32_t Core::get_sequence_step_timeout(SequenceStepId stepId) {////BUG: used many values even when they were not successfully fetched.
+    TRACE_ENTRY
     switch (stepId) {
       case SEQUENCESTEP_TCC:
       case SEQUENCESTEP_DSS:
@@ -404,6 +405,7 @@ namespace VL53L0X {
   } // get_sequence_step_timeout
 
   bool Core::set_sequence_step_timeout(const SequenceStepId StepId, const uint32_t TimeOutMicroSecs) {
+    TRACE_ENTRY
     switch (StepId) {
       case SEQUENCESTEP_TCC:
       case SEQUENCESTEP_DSS:
@@ -476,6 +478,7 @@ namespace VL53L0X {
 ////////////////////////////////////////
 
   uint8_t Core::get_vcsel_pulse_period(VcselPeriod VcselPeriodType) {
+    TRACE_ENTRY
     uint8_t vcsel_period_reg;
 
     switch (VcselPeriodType) {
@@ -879,7 +882,7 @@ namespace VL53L0X {
 
     /* Signal rate measurement provided by device is the peak signal rate, not average.  */
     FixPoint1616_t peakSignalRate_kcps = totalSignalRate_mcps.millis();
-    uint32_t xTalkCompRate_kcps = min(xTalkCompRate_mcps.raw * 1000, cMaxXTalk_kcps.raw);
+    uint32_t xTalkCompRate_kcps = std::min(xTalkCompRate_mcps.raw * 1000, cMaxXTalk_kcps.raw);
 
 
     /* Calculate final range macro periods */
@@ -1065,6 +1068,7 @@ namespace VL53L0X {
   }
 
   bool Core::GetLimitCheckEnable(CheckEnable LimitCheckId) {
+    TRACE_ENTRY
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
       THROW (ERROR_INVALID_PARAMS);//bypassed enum
     }

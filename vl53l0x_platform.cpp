@@ -38,6 +38,9 @@
 #include "vl53l0x_i2c_platform.h"
 
 #include "log_platform.h"
+
+#include "trynester.h"
+
 namespace VL53L0X {
 /**
  * @def I2C_BUFFER_CONFIG
@@ -91,11 +94,11 @@ namespace VL53L0X {
 
 #define VL53L0X_I2C_USER_VAR /* none but could be for a flag var to get/pass to mutex interruptible  return flags and try again */
 
-#ifdef THROW
-#warning "THROW redefined for platform.cpp Physical access"
-#undef THROW
-#endif
-#define THROW(error) wirer.Throw(__FUNCTION__ ,__LINE__,error)
+//#ifdef THROW
+//#warning "THROW redefined for platform.cpp Physical access"
+//#undef THROW
+//#endif
+//#define THROW(error) Thrower::Throw(error)
 
   void Physical::WriteMulti(uint8_t index, const uint8_t *pdata, int count) {
     VL53L0X_I2C_USER_VAR //BUG?: not locked like the ReadMulti was, why not?

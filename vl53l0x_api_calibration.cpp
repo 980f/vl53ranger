@@ -42,6 +42,7 @@ namespace VL53L0X {
   const int16_t cOffsetMin = -(cOffsetMask + 1);//most negative value
 
   bool Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance) {
+    TRACE_ENTRY
     if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
       THROW(ERROR_INVALID_PARAMS);//bad user input
     }

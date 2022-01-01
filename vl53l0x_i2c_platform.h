@@ -29,32 +29,34 @@ struct Arg { //the class name here should be made a bit more specific ;)
   }
 };
 
-#include <csetjmp>
+//#include <csetjmp>
+//
+//struct Exceptor {
+//  //written by setjmp:
+//  jmp_buf opaque;
+//  //written by throw:
+//  const char *location = "";
+//  unsigned line = 0;
+//  int errorcode = 0;
+//
+//  /** record source location info and then longjmp.
+//   *
+//   * using operator parens makes for easier replacement by a macro */
+//  void operator()(const char *location, unsigned line, int error) {
+//    this->location = location;
+//    this->line = line;
+//    errorcode = error;
+//    longjmp(opaque, errorcode); // NOLINT(cert-err52-cpp)   exceptions not allowed on our platform
+//  }
+//};
 
-struct Exceptor {
-  //written by setjmp:
-  jmp_buf opaque;
-  //written by throw:
-  const char *location = "";
-  unsigned line = 0;
-  int errorcode = 0;
-
-  /** record source location info and then longjmp.
-   *
-   * using operator parens makes for easier replacement by a macro */
-  void operator()(const char *location, unsigned line, int error) {
-    this->location = location;
-    this->line = line;
-    errorcode = error;
-    longjmp(opaque, errorcode); // NOLINT(cert-err52-cpp)   exceptions not allowed on our platform
-  }
-};
-
+/** union like version, for simple logging. */
 struct WriteOperation {
-  uint8_t index;
   uint8_t count;
+  uint8_t index;
   //the following will be just the first 4 bytes of a longer operation.
   uint32_t value;
+  void clear();
 };
 
 class ArduinoWirer : public Arg { //inheriting as a cheap way to not have to edit as much existing code while still hiding the details of the constructor args list.
@@ -62,8 +64,10 @@ public:
   ArduinoWirer(Arg &&arg) : Arg(std::forward<Arg>(arg)) {
   }
 
-  Exceptor Throw;
   WriteOperation tracer;
+  /** negatives are write errors */
+  int readError;
+
   //we are not going to allow the address to change, we use a different access mechanism for managing address changes since there is no need for this whole shebang just to access one bus register.
 // initialize I2C
   void i2c_init();

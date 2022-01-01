@@ -171,8 +171,9 @@ class Thrower : public Stacked<Thrower> {
   int thrown = 0;
 
 public:
-  static void Throw(int error) {
+  static int Throw(int error) {
     (*top())(error);
+    return error;//appeases compiler, and perhaps we might not actually throw when there is no try block active
   }
 
   /** construction pushes on the exception context stack and runs the setjmp.
@@ -232,17 +233,20 @@ public:
 
 #define UNCAUGHT  } break; default:
 
+#define THROW(error) Thrower::Throw(error)
+
 static int example3() {
   TRACE_ENTRY
   TRY {
-      Throw(42); //throws to self
+      Throw(42); //throws to self but use the following
+      THROW(89);  //also throws to self
       return ~1;
     CATCH(42)
       return 42;//something to test compilation
     CATCH(-42)
-      Thrower::Throw(99);
+      THROW(99); //throws where it should
     UNCAUGHT
-      Throw(-42);//this is also throw to self
+      Throw(-42);//this is throw to self
       return ~0;
   }
   return 0;

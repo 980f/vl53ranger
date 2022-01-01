@@ -576,6 +576,7 @@ namespace VL53L0X {
   }
 
   bool Api::GetLimitCheckStatus(CheckEnable LimitCheckId) {
+    TRACE_ENTRY
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
       THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }
@@ -633,6 +634,7 @@ namespace VL53L0X {
   }
 
   MegaCps Api::GetLimitCheckCurrent(CheckEnable LimitCheckId) {
+    TRACE_ENTRY
     if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
       THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }
@@ -953,6 +955,29 @@ namespace VL53L0X {
 
 /* End Group PAL Measurement Functions */
 
+const DeviceByte gpiooscer[]={
+    { 0xff, 0x01 },
+    { 0x00, 0x00 },
+    { 0xff, 0x00 },
+
+    { 0x80, 0x01 },
+    { 0x85, 0x02 },
+
+    { 0xff, 0x04 },
+    { 0xcd, 0x00 },
+    { 0xcc, 0x11 },
+
+    { 0xff, 0x07 },
+    { 0xbe, 0x00 },
+
+    { 0xff, 0x06 },
+    { 0xcc, 0x09 },
+
+    { 0xff, 0x00 },
+    { 0xff, 0x01 },
+    { 0x00, 0x00 },
+};
+
   bool Api::SetGpioConfig(uint8_t Pin, GpioConfiguration gpioConfig) {
     LOG_FUNCTION_START;
 
@@ -964,34 +989,13 @@ namespace VL53L0X {
       case DEVICEMODE_GPIO_DRIVE:
         comm.WrByte(REG_GPIO_HV_MUX_ACTIVE_HIGH, (gpioConfig.polarity == INTERRUPTPOLARITY_LOW) ? Bitter(4) : 1);//ick: elsewhere does an update
         return true;
-      case DEVICEMODE_GPIO_OSC://todo: convert into a table for tuning parameters.
-
-        comm.WrByte(0xff, 0x01);
-        comm.WrByte(0x00, 0x00);
-        comm.WrByte(0xff, 0x00);
-
-        comm.WrByte(0x80, 0x01);
-        comm.WrByte(0x85, 0x02);
-
-        comm.WrByte(0xff, 0x04);
-        comm.WrByte(0xcd, 0x00);
-        comm.WrByte(0xcc, 0x11);
-
-        comm.WrByte(0xff, 0x07);
-        comm.WrByte(0xbe, 0x00);
-
-        comm.WrByte(0xff, 0x06);
-        comm.WrByte(0xcc, 0x09);
-
-        comm.WrByte(0xff, 0x00);
-        comm.WrByte(0xff, 0x01);
-        comm.WrByte(0x00, 0x00);
+      case DEVICEMODE_GPIO_OSC:
+        load_compact(gpiooscer,sizeof (gpiooscer)/sizeof(gpiooscer[0]));
         return true;
       default:
         if (!valid(gpioConfig.function)) {
           return LOG_ERROR(ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);
         } // switch
-
         comm.WrByte(REG_SYSTEM_INTERRUPT_CONFIG_GPIO, gpioConfig.function);
         comm.UpdateBit(REG_GPIO_HV_MUX_ACTIVE_HIGH, 4, gpioConfig.polarity == INTERRUPTPOLARITY_HIGH);
         VL53L0X_SETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality, gpioConfig.function);
@@ -1000,11 +1004,11 @@ namespace VL53L0X {
   } // VL53L0X_SetGpioConfig
 
   GpioConfiguration Api::GetGpioConfig(uint8_t Pin) {
+    TRACE_ENTRY
     if (Pin != 0) {
       THROW(ERROR_GPIO_NOT_EXISTING);//unlikley bad argument
     }
 
-    LOG_FUNCTION_START;
     /* pDeviceMode not managed by Ewok it return the current mode */
     GpioConfiguration gpio;
     gpio.devMode = GetDeviceMode();

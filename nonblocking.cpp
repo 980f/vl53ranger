@@ -6,8 +6,6 @@
 #include "nonblocking.h"
 #include "trynester.h"
 
-#define THROW(error) nb.comm.wirer.Throw( __FUNCTION__,__LINE__,error);
-
 //from safely/cppext lib:
 template<typename Scalar> Scalar take(Scalar &owner) {
   Scalar taken = owner;
@@ -271,6 +269,7 @@ bool NonBlocking::AveragingProcess::begin() {
 }
 
 bool NonBlocking::AveragingProcess::onMeasurement() {
+  TRACE_ENTRY
   if (nb.agent.theRangingMeasurementData.Range.error == VL53L0X::Range_Valid) {
     sum_ranging += nb.agent.theRangingMeasurementData.Range.MilliMeter;
     sum_fractions += nb.agent.theRangingMeasurementData.Range.FractionalPart;
@@ -282,7 +281,7 @@ bool NonBlocking::AveragingProcess::onMeasurement() {
     }
     /* no valid values found */
     if (total_count == 0) {//ick: really should be a larger number, like 90% success rate
-      nb.comm.wirer.Throw(__FUNCTION__, __LINE__, VL53L0X::ERROR_RANGE_ERROR);
+      THROW( VL53L0X::ERROR_RANGE_ERROR);
       return false;
     }
     sum_ranging += RangeDatum::carry(sum_fractions);//formerly the fractions got tossed, might have been as high as just under 50.

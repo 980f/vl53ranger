@@ -31,7 +31,6 @@
 #define _VL53L0X_API_CORE_H_
 
 #include "vl53l0x_platform.h" //for Dev_t
-#include "vl53l0x_fixpoint.h" //replaces all the inline shifting etc of the original source base
 
 namespace VL53L0X {
   //some device independent functions:

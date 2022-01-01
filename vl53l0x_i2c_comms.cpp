@@ -8,10 +8,12 @@
 #include <Arduino.h>
 
 #define I2C_DEBUG 0
-
-#define THROW(error)  Throw(__FUNCTION__,__LINE__, error);return false
-
 #include <Wire.h>
+
+
+#include "trynester.h" //fancier than Exceptor
+
+
 
 static TwoWire * const busses[]={
 #if WIRE_INTERFACES_COUNT > 0
@@ -40,6 +42,7 @@ bool ArduinoWirer::write_multi(uint8_t index, const uint8_t *pdata, int count) {
   tracer.count = count;
   tracer.index = index;
   tracer.value = *reinterpret_cast<const uint32_t *>(pdata);//sometimes garbage is accessed and stored.
+  readError=0;
   TwoWire &i2c(*busses[busNumber]);
   i2c.beginTransmission(devAddr);///FYI no action takes place until endTransmission
   if (i2c.write(index) != 1) {
@@ -74,9 +77,10 @@ bool ArduinoWirer::write_multi(uint8_t index, const uint8_t *pdata, int count) {
 #if I2C_DEBUG
   Serial.println();
 #endif
-  auto errcode = i2c.endTransmission();//#NB: this here is what takes all the time when sending.
-  if (errcode != 0) {
-    THROW(VL53L0X::ERROR_CONTROL_INTERFACE + errcode);//xmission failure, such as unexpected NAK.
+  readError = i2c.endTransmission();//#NB: this here is what takes all the time when sending.
+  if (readError != 0) {
+    readError=-readError;//mark as a write
+    THROW(VL53L0X::ERROR_CONTROL_INTERFACE);//xmission failure, such as unexpected NAK.
   }
   return true;
 }
@@ -92,7 +96,8 @@ bool ArduinoWirer::read_multi(uint8_t index, uint8_t *pdata, int count) {
   i2c.write(index);
   i2c.endTransmission();
   auto didit = i2c.requestFrom(devAddr, count);
-  if (didit != count) {
+  readError= count-didit;
+  if (readError) {
     THROW(VL53L0X::ERROR_CONTROL_INTERFACE);//wrong sized read
   }
 #if I2C_DEBUG
@@ -131,14 +136,12 @@ void ArduinoWirer::i2c_init() {
   TwoWire &i2c(*busses[busNumber]);
   i2c.begin();
   i2c.setClock(1000 * comms_speed_khz);
+  readError=0;
+  tracer.clear();
 }
 
-//uint32_t PerformanceTracer::logclock() {
-//  return micros();//most actions time are sub millisecond
-//}
-//
-//void PerformanceTracer::printf(const char *format, ...) {
-//}
-//
-//bool PerformanceTracer::enabled = false;  //todo:init with some compiler defined flag
-//
+void WriteOperation::clear() {
+  this->value=0;//keeping it clean, count is all that really matters.
+  this->index=0;//all values are legal, but we'd rather not have garbage
+  this->count=0;//indicates no-op
+}

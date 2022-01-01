@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "build.h"
 #include "vl53l0x_error.h"
+#include "trynester.h"  //replacing PerformanceTracer
 
 #if VL53L0X_LOG_ENABLE
 #include "cstdint"
@@ -64,10 +65,12 @@ public:
 
 };
 
-#define LOG_FUNCTION_START  PerformanceTracer Error(__FUNCTION__)
+#define LOG_FUNCTION_START  TRACE_ENTRY
 
 //todo: write to exception trace but don't throw:
-#define LOG_ERROR(errcode) PerformanceTracer::logError(__FUNCTION__,errcode)
+#define LOG_ERROR(errcode) errcode
+
+//PerformanceTracer::logError(__FUNCTION__,errcode)
 
 #else
 #define LOG_FUNCTION_START

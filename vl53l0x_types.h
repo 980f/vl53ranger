@@ -104,50 +104,7 @@ typedef signed char int8_t;
 
 ////////////////////////////////////
 
-/** @returns value squared
- * might add saturation which is rarely checked at present */
-template<typename Intish> Intish squared(Intish num) {
-  //todo: test for overflow and saturate instead OR extend the return type to twice as many bits
-  return num * num;
-}
-
-/** @returns @param num divided by @param denom, rounded */
-template<typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom) {
-  return (denom != 0) ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
-}
-
-/** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
-template<typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned powerof2) {
-  if (powerof2 == 0) {//avert UB of shift computed as -1
-    return num;
-  }
-  if (powerof2 >= 8 * sizeof(IntishOver)) {//avert UB of shifting more than bits in the datum
-    return 0;
-  }
-  return (num + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
-}
-
-/** @returns @param num divided by 1000, rounded.
- * this is somewhat the reverse of FixPoint millis which multiplies the nominal value by 1000 and rounds to integer */
-template<typename IntishOver> IntishOver kilo(IntishOver num) {
-  return roundedDivide(num, 1000);
-}
-
-/** @returns @param value multiplied by @param shift power of 2*/
-template<typename Intish> constexpr Intish boost(unsigned shift, Intish value) {
-  return value << shift;
-}
-
-/** alters @param value to be no greater than @param max */
-template<typename Intish> constexpr void lessen(Intish &value, Intish max) {
-  if (value > max) {
-    /* Clip to prevent overflow. Will ensure safe max result. */
-    value = max;
-  }
-}
-
-
-#include "vl53l0x_fixpoint.h"
+#include "fixedpoint.h"
 
 
 
