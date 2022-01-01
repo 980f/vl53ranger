@@ -23,9 +23,6 @@ ADD_COMPILE_DEFINITIONS(
   ARDUINO_QTPY_M0
   ADAFRUIT_QTPY_M0
   __SAMD21E18A__
-
-  VL53L0X_LOG_ENABLE=1
-  LOG_GET_TIME=micros
 )
 
 INCLUDE_DIRECTORIES(.
@@ -65,6 +62,12 @@ SET(adafruit
 SET(newapi
   nonblocking.cpp
   trynester.cpp
+  vl53ranger.cpp
   )
 
-ADD_EXECUTABLE(vl53 ${platform} ${coreSources} ${adafruit} ${newapi})
+ADD_EXECUTABLE(vl53
+  ${platform}
+  ${coreSources}
+#  ${adafruit}
+  ${newapi}
+  )

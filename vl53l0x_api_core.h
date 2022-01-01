@@ -106,10 +106,9 @@ namespace VL53L0X {
 
     bool set_measurement_timing_budget_micro_seconds(uint32_t MeasurementTimingBudgetMicroSeconds);
 
-    /** @returns inverse of index of byte causing early exit. 0 if no problems.
-     * a nonzero return should probably be responded to by a restart of the interface.
+    /** @returns number of items successfully sent. you can check against size of your table.
      * */
-    const uint8_t * load_tuning_settings(const uint8_t *pTuningSettingBuffer);
+    unsigned int load_tuning_settings(const uint8_t *pTuningSettingBuffer);
 
     /** ?secondary return via reference to dmm as most if it is computed as a side effect of primary return.
      * */
@@ -384,6 +383,7 @@ namespace VL53L0X {
       comm.Write(item.index,item.pattern,sizeof(Scalar)>1);
     }
 
+    bool oneTuning(const uint8_t *&pTuningSettingBuffer);
   };
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

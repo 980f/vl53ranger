@@ -2,6 +2,7 @@
 //formerly coerced in api.h rather than being a platform option.
 #define USE_I2C_2V8 1
 
+#define VL53L0X_LOG_ENABLE 1
 
 //define to something other than 0 if calibration routines will be needed, else they will be carefully excised from the build to minimize code footprint 
 #define IncludeCalibrators 1

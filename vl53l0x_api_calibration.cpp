@@ -60,8 +60,8 @@ namespace VL53L0X {
         return false;
       }
       /* The range is valid when rangeError = 0 */
-      if (RangingMeasurementData.rangeError == 0) {
-        sum_ranging += RangingMeasurementData.RangeMilliMeter;
+      if (RangingMeasurementData.Range.error == 0) {
+        sum_ranging += RangingMeasurementData.Range.MilliMeter;
         sum_signalRate += RangingMeasurementData.SignalRateRtnMegaCps;
         sum_spads += RangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
         ++total_count;
@@ -134,8 +134,8 @@ namespace VL53L0X {
         return false;//quits on any measurement failing
       }
       /* The range is valid when rangeError = 0 */
-      if (RangingMeasurementData.rangeError == 0) {
-        sum_ranging += RangingMeasurementData.RangeMilliMeter;
+      if (RangingMeasurementData.Range.error == 0) {
+        sum_ranging += RangingMeasurementData.Range.MilliMeter;//ick: fractions ignored, should round at least.
         ++total_count;
       }
     }

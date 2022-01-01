@@ -38,7 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * @brief platform log function definition
  */
 
-
+#include "build.h"
 #include "vl53l0x_error.h"
 
 #if VL53L0X_LOG_ENABLE

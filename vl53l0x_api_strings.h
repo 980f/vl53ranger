@@ -45,27 +45,27 @@ namespace VL53L0X {
   const char *sequence_steps_info(SequenceStepId SequenceStepId);
   const char *limit_check_info(uint16_t LimitCheckId);
 
-  //was in wrong module, is a device function not a stringifying function:
-//  Error get_device_info(VL53L0X_DEV  VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo);
-
-/** all but one of the get__string|info methods used to return ERROR_NONE, and stuff in an error message to the text.
- * changing those to return void allows us to remove gratuitous checks that were most likely not made.
- * */
-  void get_device_error_string(DeviceError ErrorCode, char *pDeviceErrorString);
-
-  void get_range_status_string(RangeStatus rangeStatus, char *pRangeStatusString);
-
-  void get_pal_error_string(Error PalErrorCode, char *pPalErrorString);
-
-  void get_pal_state_string(State PalStateCode, char *pPalStateString);
-
-  void get_limit_check_info(uint16_t LimitCheckId, char *pLimitCheckString);
-
-  /** @returns ERROR_INVALID_PARAMS for unknown step id, else ERROR_NONE. */
-  Error get_sequence_steps_info(SequenceStepId SequenceStepId, char *pSequenceStepsString);
+//  //was in wrong module, is a device function not a stringifying function:
+////  Error get_device_info(VL53L0X_DEV  VL53L0X_DeviceInfo_t *pVL53L0X_DeviceInfo);
+//
+///** all but one of the get__string|info methods used to return ERROR_NONE, and stuff in an error message to the text.
+// * changing those to return void allows us to remove gratuitous checks that were most likely not made.
+// * */
+//  void get_device_error_string(DeviceError ErrorCode, char *pDeviceErrorString);
+//
+//  void get_range_status_string(RangeStatus rangeStatus, char *pRangeStatusString);
+//
+//  void get_pal_error_string(Error PalErrorCode, char *pPalErrorString);
+//
+//  void get_pal_state_string(State PalStateCode, char *pPalStateString);
+//
+//  void get_limit_check_info(uint16_t LimitCheckId, char *pLimitCheckString);
+//
+//  /** @returns ERROR_INVALID_PARAMS for unknown step id, else ERROR_NONE. */
+//  Error get_sequence_steps_info(SequenceStepId SequenceStepId, char *pSequenceStepsString);
 }// end name space
 
 //note: use links in build to bring in the language of interest.
-#include "vl53l0x.text" //moved to cpp file to see who bypassed the interface
+#include "vl53l0x.text.h" //moved to cpp file to see who bypassed the interface
 
 #endif // ifndef VL53L0X_API_STRINGS_H_

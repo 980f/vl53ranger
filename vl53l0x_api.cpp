@@ -420,7 +420,7 @@ namespace VL53L0X {
 
   bool Api::SetDeviceMode(DeviceModes deviceMode) {
     LOG_FUNCTION_START;
-    Error(" %d", deviceMode);//todo: add string
+//    Error(" %d", deviceMode);//todo: add string
 
     switch (deviceMode) {
       case DEVICEMODE_SINGLE_RANGING:
@@ -444,7 +444,7 @@ namespace VL53L0X {
 
   void Api::SetRangeFractionEnable(bool Enable) {
     LOG_FUNCTION_START;
-    Error(" %u", Enable);
+//    Error(" %u", Enable);
     comm.WrByte(REG_SYSTEM_RANGE_CONFIG, Enable);
     PALDevDataSet(RangeFractionalEnable, Enable);
   } // VL53L0X_SetRangeFractionEnable
@@ -874,7 +874,7 @@ namespace VL53L0X {
 
     pRangingMeasurementData.AmbientRateRtnMegaCps = Cps16(MAKEUINT16(localBuffer[9], localBuffer[8]));
 
-    FixPoint<8, 8> EffectiveSpadRtnCount(MAKEUINT16(localBuffer[3], localBuffer[2]));
+    decltype(pRangingMeasurementData.EffectiveSpadRtnCount) EffectiveSpadRtnCount(MAKEUINT16(localBuffer[3], localBuffer[2]));
     pRangingMeasurementData.EffectiveSpadRtnCount = EffectiveSpadRtnCount;
 
     auto DeviceRangeStatus = localBuffer[0];
@@ -890,17 +890,17 @@ namespace VL53L0X {
 
       if (XTalkCompensationEnable) {
         uint16_t XTalkCompensationRateMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);//BUG: loses integer part, perhaps a 9,7 was intended?
-        auto dry = SignalRate.raw - ((XTalkCompensationRateMegaCps * EffectiveSpadRtnCount) >> 8);
+        auto dry = SignalRate.raw - roundedScale(XTalkCompensationRateMegaCps * EffectiveSpadRtnCount ,RangingMeasurementData_t::spadEpsilon);
         RangeMilliMeter = dry > 0 ? (RangeMilliMeter * SignalRate) / dry : (RangeFractionalEnable ? 8888 : (8888 << 2));//bug: magic value
       }
     }
 
     if (RangeFractionalEnable) {
-      pRangingMeasurementData.RangeMilliMeter = (uint16_t) ((RangeMilliMeter) >> 2);
-      pRangingMeasurementData.RangeFractionalPart = RangeMilliMeter << (8 - 2);//ick: former mask was gratuitous along with the cast.
+      pRangingMeasurementData.Range.MilliMeter = (uint16_t) ((RangeMilliMeter) >> 2);
+      pRangingMeasurementData.Range.FractionalPart = RangeMilliMeter << (8 - 2);//ick: former mask was gratuitous along with the cast.
     } else {
-      pRangingMeasurementData.RangeMilliMeter = RangeMilliMeter;
-      pRangingMeasurementData.RangeFractionalPart = 0;
+      pRangingMeasurementData.Range.MilliMeter = RangeMilliMeter;
+      pRangingMeasurementData.Range.FractionalPart = 0;
     }
 
     /*
@@ -910,7 +910,7 @@ namespace VL53L0X {
      * specific function to obtain the right Error.
      */
     auto PalRangeStatus = get_pal_range_status(DeviceRangeStatus, SignalRate, EffectiveSpadRtnCount, pRangingMeasurementData);
-    pRangingMeasurementData.rangeError = PalRangeStatus;
+    pRangingMeasurementData.Range.error = PalRangeStatus;
 
     /* Copy last read data into Dev buffer */
     PALDevDataGet(LastRangeMeasure) = pRangingMeasurementData;

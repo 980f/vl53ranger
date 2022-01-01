@@ -4,6 +4,9 @@
 //
 
 #include "nonblocking.h"
+#include "trynester.h"
+
+#define THROW(error) nb.comm.wirer.Throw( __FUNCTION__,__LINE__,error);
 
 //from safely/cppext lib:
 template<typename Scalar> Scalar take(Scalar &owner) {
@@ -37,10 +40,21 @@ void NonBlocking::abandonTasks(){
   doMeasurementComplete(false);
 }
 
-void NonBlocking::inLoop() {
-  auto error =setjmp(comm.wirer.Throw.opaque); // NOLINT(cert-err52-cpp) as exceptions are too expensive on a microcontroller
-  switch(error) {
+void NonBlocking::loop() {
+  CATCH {
     case ERROR_NONE: {
+      if(waiting.tuning){
+        for(unsigned perpoll=10;perpoll-->0;){
+          if(!oneTuning(waiting.tuning)){//invalid records act as terminators
+            waiting.tuning= nullptr;
+            break;
+          }
+        }
+        if (waiting.tuning) {
+          return;
+        }
+      }
+      /////////////////////////////
       if (waiting.onStart) {
         uint8_t flags;
         fetch(flags, REG_SYSRANGE_START);
@@ -48,10 +62,13 @@ void NonBlocking::inLoop() {
           waiting.onStart = 0;
         } else {
           if (--waiting.onStart == 0) {
-            //todo: abandon pending process and measurements
+            abandonTasks();
+            agent.afterProcess(activeProcess,Failed);
           }
+          return;//come back in later
         }
       }
+      /////////////////////////////////
       if (waiting.onMeasurement) {
         if (GetMeasurementDataReady()) {
           waiting.onMeasurement = 0;
@@ -59,7 +76,7 @@ void NonBlocking::inLoop() {
         } else {
           if (--waiting.onMeasurement == 0) {
             //todo: log timeout error
-            doMeasurementComplete(false);
+            doMeasurementComplete(false);//will abandon process and tasks
           }
         }
       }
@@ -72,13 +89,41 @@ void NonBlocking::inLoop() {
           onStopComplete(true);
         } else {
           if (--waiting.forStop == 0) {
-            onStopComplete(false);
+            onStopComplete(false);//will abandon process and task
           }
         }
       }
+      //////
+      // init should be automatic, can add an overall 'be running' for power management, but not yet.
+      auto palstate=GetPalState();
+      switch(palstate){
+        case STATE_POWERDOWN://must do datainit
+          //if not initialized and not initializing
+          startProcess(InitData);
+          break;
+        case STATE_WAIT_STATICINIT://must do static init
+          startProcess(InitStatic);
+          break;
+        case STATE_STANDBY://power up before doing much of anythng
+        //if any user requests are pending wake up
+          break;
+        case STATE_IDLE:
+          //if measurement requested start one
+          break;
+        case STATE_RUNNING://continoous measurements in progress
+          //recognize continuous measurement
+          break;
+        case STATE_UNKNOWN:
+          break;
+        case STATE_ERROR: //should reset?
+          break;
+      }
+
       //todo: if action request act on it:
-    }
+    }  ///////////////////////////// end of try clause
       break;
+    //////////////////////////////////////
+    /// catch clauses
     case ERROR_MODE_NOT_SUPPORTED:
     case ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED:
     case ERROR_GPIO_NOT_EXISTING:
@@ -91,9 +136,12 @@ void NonBlocking::inLoop() {
       abandonTasks();
       break;
     default:
+      abandonTasks();
       //todo: any stored exit routines that apply
       //todo: debug print the error code.
       break;
+    //// end catches
+    ////////////////////////////
   }
 }
 
@@ -107,6 +155,8 @@ void NonBlocking::doMeasurementComplete(bool successful) {
   }
   if (!successful) {
     //todo: handle failed measurement, most likely abandon all processes and mark 'need init'
+    abandonTasks();
+    return;
   }
   auto measok = GetRangingMeasurementData(theRangingMeasurementData);
   if (measok == VL53L0X::ERROR_NONE) {
@@ -132,6 +182,8 @@ void NonBlocking::doMeasurementComplete(bool successful) {
         return; //already handled prior to switch
       case forRange: //the actual reason this device exists!
         //todo: notify we have a datum
+        agent.afterProcess(activeProcess,ProcessResult::Succeeded);
+        activeProcess=Idle;//todo: if continuous remain in active state.
         break;
       case forRefCal:
         if (theCalProcess.onMeasurement()) {
@@ -141,6 +193,8 @@ void NonBlocking::doMeasurementComplete(bool successful) {
         }
         break;
       case forRate:
+        break;
+      case forSpads:
         break;
     }
   } else {
@@ -157,10 +211,57 @@ bool NonBlocking::startMeasurement(NonBlocking::MeasurementAction action) {
   return true;
 }
 
+void NonBlocking::setup() {
+}
+
+bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
+  if(activeProcess!=Idle){
+    if(activeProcess==process){
+      agent.afterProcess(activeProcess,Busy);
+      return false;
+    }
+
+  }
+  switch (process) {
+    case Idle:
+      agent.afterProcess(activeProcess,ProcessResult::Succeeded);
+      return true;
+    case InitI2c:
+
+      break;
+    case InitStatic:
+      break;
+    case InitData:
+      break;
+    case OneShot:
+      activeProcess=OneShot;
+      SetDeviceMode(DeviceModes::DEVICEMODE_SINGLE_RANGING);
+      StartMeasurement();
+      startMeasurement(forRange);
+      break;
+    case Continuous:
+      activeProcess=Continuous;
+      SetDeviceMode(agent.arg.sampleRate_ms==0?DeviceModes::DEVICEMODE_CONTINUOUS_RANGING:DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
+      StartMeasurement();
+      startMeasurement(forRange);
+      break;
+    case RefCal:
+      break;
+    case RateTest:
+      break;
+    case SetupSpads:
+      break;
+    case Offset:
+      break;
+  }
+  return false;
+}
+
 ////////////////////////////////////////////
 
 bool NonBlocking::AveragingProcess::begin() {
   sum_ranging = 0;
+  sum_fractions=0;
   total_count = 0;
   if (CalDistanceMilliMeter.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero. Most likely a non-zero value is necessary
     measurementRemaining = 0;//COA
@@ -171,8 +272,9 @@ bool NonBlocking::AveragingProcess::begin() {
 }
 
 bool NonBlocking::AveragingProcess::onMeasurement() {
-  if (nb.theRangingMeasurementData.rangeError == VL53L0X::Range_Valid) {
-    sum_ranging += nb.theRangingMeasurementData.RangeMilliMeter;
+  if (nb.theRangingMeasurementData.Range.error == VL53L0X::Range_Valid) {
+    sum_ranging += nb.theRangingMeasurementData.Range.MilliMeter;
+    sum_fractions+=nb.theRangingMeasurementData.Range.FractionalPart;
     sum_signalRate += nb.theRangingMeasurementData.SignalRateRtnMegaCps;
     ++total_count;
     alsoSum();
@@ -275,7 +377,7 @@ bool NonBlocking::OffsetProcess::begin() {
 
 bool NonBlocking::OffsetProcess::finish() {
   /* FixPoint1616_t / uint16_t = FixPoint1616_t */
-  FixPoint1616_t StoredMeanRange(sum_ranging, total_count);
+  FixPoint1616_t StoredMeanRange(sum_ranging + roundedScale(sum_fractions,RangeDatum::epsilon), total_count);
   /* Rounding distances to Whole Number.
    * Note that the cal distance is in mm, therefore no resolution is lost.
    * 980f: but why not retain the fractional part for tracability of the value? Rounding to resolution is unnecessary */

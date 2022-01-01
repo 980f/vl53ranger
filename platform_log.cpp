@@ -1,6 +1,6 @@
 //arduino platform for VL53L0x
-#include "log_platform.h"
-
+//#include "log_platform.h"
+#include "vl53l0x_platform_log.h"
 #include <Arduino.h>
 
 

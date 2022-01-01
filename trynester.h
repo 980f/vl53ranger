@@ -66,7 +66,10 @@ protected:
   /** pop is used when chopping the stack when an exception is thrown, as well as when the stack frame is ended via normal execution.
    * it is idempotent= no matter how many times it is called on an object the stack just pops once. */
   void pop() const {
-    tos = stacked;
+    if (stacked != nullptr) {
+      tos = stacked;
+    }
+    //else it is the root and we shouldn't actually get here.
   }
 
   Stacked() {
@@ -157,33 +160,22 @@ public:
 /** wrap a class around jmp_buf for exception handling via longjmp.
  * There is one of these for each exception source, which is not all that convenient if you have more than one.
  *
- * A statically created one is the top of stack, and is recognized from an actual try by its null tryClause
  * */
 class Thrower : public Stacked<Thrower> {
   jmp_buf opaque; //an array of bytes that magically gets us back to where setjmp was called.
 
   /** for passing the longjmp provided value out of the constructor which contains the setjmp */
   int thrown = 0;
-//
-//  //we wish to stack contexts so each try block creates a thrower which links into a list operating as a stack, and throwers of exceptions use the TOS instance.
-//  Thrower *stacked = nullptr;
-//
-//  void pop() {
-//    tos = stacked;
-//  }
 
 public:
-//  /** all throws should be called on this object:
-//   * if using threads this must be a thread_local
-//   * */
-//  static Thrower *tos = nullptr;
-
+  static void Throw(int error){
+    (*top())(error);
+  }
   /** construction pushes on the exception context stack and runs the setjmp.
   Thrown exceptions appear at the object construction point in the code, but after the execution of allocation of the object.
    */
   Thrower() {
-//    this->stacked = tos;
-//    tos = this;
+    //# base constructor places this on the top of the throw stack before the setjmp is called
     thrown = setjmp(opaque);
     if (thrown) {//then we got here due to a throw on the tos instance, or rarely a "throw to self"
       //we have a design decision to make here, where should exceptions in the exception handlers get handled?
@@ -227,7 +219,6 @@ public:
     pop();
   }
 
-#define Throw  (*reinterpret_cast<Thrower *>(Thrower::tos))
 
   static void example() {
     TRACE_ENTRY
@@ -276,6 +267,7 @@ static int example3() {
   }
 }
 
+#define CATCH  Thrower tryblock; switch (Thrower tryblock; int(tryblock))
 
 #pragma clang diagnostic pop
 #endif //VL53_TRYNESTER_H

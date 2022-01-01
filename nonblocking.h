@@ -15,13 +15,6 @@ namespace VL53L0X {
   class NonBlocking : public VL53L0X::Api {
 
   public:
-    NonBlocking(uint8_t i2c_addr = VL53L0X_I2C_ADDR >> 1, uint8_t busNumber=0) : Api({busNumber, i2c_addr, 400})
-                                                                                 , theXtalkProcess(*this)
-                                                                                 , theOffsetProcess(*this)
-                                                                                 , theCalProcess(*this)
-                                                                                 , theRefSignalProcess(*this) {
-      //do no real actions so that we can statically construct
-    }
 
     enum MeasurementAction : uint8_t {
       Abandoned = 0   //for state machine reset.
@@ -45,21 +38,20 @@ namespace VL53L0X {
       , RateTest   //use may wish to evaluate ambient light when deciding upon
       , SetupSpads //part of init data but callable for debug of device
       , Offset
-
     };
 
     enum ProcessResult {
       Busy        //such a process is in progress
-      , Queued    //accepted, doesn't get initiated until the next inLoop() is called
+      , Queued    //accepted, doesn't get initiated until the next loop() is called
       , Active    //chugging along
       , Succeeded //finished, data will have been delivered via pointers in ProcessArg
       , Failed
     };
 
     struct ProcessArg {
-      uint8_t *tuningTable= nullptr;//if not same as present one then apply it, if null then feature disable (set default)
-      unsigned sampleRate_ms=0;//sample interval for continuous measurement, 0 for untimed
-      unsigned sampleDistance_mm=0; //for offset and xtalk calibrations, 0 may not be valid, suggested is 400mm
+      uint8_t *tuningTable = nullptr;//if not same as present one then apply it, if null then feature disable (set default)
+      unsigned sampleRate_ms = 0;//sample interval for continuous measurement, 0 for untimed
+      unsigned sampleDistance_mm = 0; //for offset and xtalk calibrations, 0 may not be valid, suggested is 400mm
       //data targets
       VL53L0X::MegaCps *rateResult = nullptr;
       VL53L0X::RangingMeasurementData_t *details = nullptr; //if null may get set to temporary union member in api internal data
@@ -70,29 +62,66 @@ namespace VL53L0X {
     class UserAgent {
     public:
       ProcessArg arg;
-      void afterProcess(ProcessRequest process, ProcessResult stage);
-    };
 
-    UserAgent *agent=nullptr;//user sets this before calling any methods. todo: add constructor arg as reference?
+      /** called when data has been generated, or an error has occured while doing so.
+       * might send progress reports once we have enables for doing so.
+       * */
+      virtual void afterProcess(ProcessRequest process, ProcessResult stage) {
+      };
+
+      /** called when something couldn't be handled. Expectation is report to user and a call to reset */
+      virtual void unexpected() {
+      };
+    };//to avoid a lot of null checking
+
+    UserAgent &agent;//user sets this before calling any methods. todo: add constructor arg as reference?
+
+    /** call from Arduino setup. Probably useless*/
+    void setup();
+
+    /** call this from your dispatcher, such as loop() in Arduino  or   while(1){WFE(); ... }*/
+    void loop();
+
+    NonBlocking(UserAgent &agent, uint8_t i2c_addr = VL53L0X_I2C_ADDR >> 1, uint8_t busNumber = 0) : Api({busNumber, i2c_addr, 400})
+                                                                                                     , agent(agent)
+                                                                                                     , theXtalkProcess(*this)
+                                                                                                     , theOffsetProcess(*this)
+                                                                                                     , theCalProcess(*this)
+                                                                                                     , theRefSignalProcess(*this) {
+      //do no real actions so that we can statically construct
+    }
+
   public:
     /** result of most recent measurement of any type */
     VL53L0X::RangingMeasurementData_t theRangingMeasurementData;
-    MeasurementAction theLastMeasurement;
+    MeasurementAction theLastMeasurement = Abandoned;
 
   private:
+    ProcessRequest activeProcess = Idle;
     MeasurementAction measurementInProgress = Abandoned;
-    struct Waiting {//non exclusive wait
-      uint8_t *tuning;         //tuning table (does items in tranches)
+
+    struct Waiting {
+      const uint8_t *tuning;         //tuning table (does items in tranches)
       unsigned interruptClear; //3 lsbs zero, number of polls for timeout
       unsigned forStop;        //wait on stop complete,, number of polls for timeout
       unsigned onStart;        //wait on start acknowledge (10 samples per call), number of polls for timeout
       unsigned onMeasurement;  //wait on measurement data ready (flag captured by ISR or poll device, 10 polls per call)
+
+      void abandonAll() {
+        tuning = nullptr;         //tuning table (does items in tranches)
+        interruptClear = 0; //3 lsbs zero, number of polls for timeout
+        forStop = 0;        //wait on stop complete,, number of polls for timeout
+        onStart = 0;        //wait on start acknowledge (10 samples per call), number of polls for timeout
+        onMeasurement = 0;  //wait on measurement data ready (flag captured by ISR or poll device, 10 polls per call)
+      }
+
+      Waiting() {
+        abandonAll();
+      }
     } waiting;
 
     bool startMeasurement(MeasurementAction action);
     void abandonTasks();
-/** call this from your dispatcher, such as loop() in Arduino  or   while(1){WFE(); ... }*/
-    void inLoop();
 
     /** user sets process parameters in their UserAgent.arg structure then calls this method.
      *
@@ -103,14 +132,12 @@ namespace VL53L0X {
      *
      * TBD: afterProcess(process, reasonForFailure) may be called before this returns false.
      * */
-    bool startProcess(ProcessRequest process){
-      return false;
-    }
+    bool startProcess(ProcessRequest process);
 
   private:
-     void onStopComplete(bool b);
+    void onStopComplete(bool b);
     //placeholder for what to do when a wait on measurement complete is successful
-     void doMeasurementComplete(bool successful);
+    void doMeasurementComplete(bool successful);
 
     void waitForMeasurement(unsigned loops = 250) {
       waiting.onMeasurement = loops;
@@ -121,7 +148,6 @@ namespace VL53L0X {
       waiting.forStop = loops;
       //if functional rather than virtual here is where we record the action to take on completion.
     }
-
 
     /**  */
     bool requestMeasurement(MeasurementAction use) {
@@ -185,6 +211,7 @@ namespace VL53L0X {
     protected:
       unsigned total_count = 0;//ick: former use of 32bit was excessive
       unsigned sum_ranging = 0;//bug: former use of 16 bit begged for integer overflow
+      unsigned sum_fractions = 0;//ick: former ignored fractions, could have lost 25 counts
 
       FixPoint1616_t sum_signalRate = 0;
       //measurement count
@@ -283,40 +310,37 @@ namespace VL53L0X {
      * our scheduler should tolerate more than one process active, ordered by this guys needs.
      * */
     class SpadSetupProcess : public MeasurementProcess {
-
     };
-
-
   };
 
   /** NYI
    *
    * each sensor has to have some reset pin control, typically a GPIO pin but if dealing with 8 or more could be an spi register or an I2C expander.
    * */
-    struct Resetter {
-      //implementation might implement numbers above 64 as located on I2C or SPI expanders
-      uint8_t gpioHandle;
-      uint8_t i2cAddress;
-      uint8_t busNumber;
+  struct Resetter {
+    //implementation might implement numbers above 64 as located on I2C or SPI expanders
+    uint8_t gpioHandle;
+    uint8_t i2cAddress;
+    uint8_t busNumber;
 
-      bool releaseAndDetect(){
-        //todo: release reset pin via gpioHandle
-        //todo: spin for 30 us or some such number
-        //todo: I2C probe for base address, false if not found
-        //todo: call set address at base address argument from resetter
-        //todo: I2C probe for new address, return whether found
-        //the above probe is instead of traditional 10ms delay and hope it worked. We'll see if that works
-        return false;
-      }
-      static
-      void assignAddresses( unsigned tableLength,  Resetter *table ){
-        //todo: apply reset to all
-        //todo: spin for minimum reset time
-        while(tableLength-->0){
-          table[tableLength].releaseAndDetect();
-        }
-      }
-    };
+    bool releaseAndDetect() {
+      //todo: release reset pin via gpioHandle
+      //todo: spin for 30 us or some such number
+      //todo: I2C probe for base address, false if not found
+      //todo: call set address at base address argument from resetter
+      //todo: I2C probe for new address, return whether found
+      //the above probe is instead of traditional 10ms delay and hope it worked. We'll see if that works
+      return false;
+    }
 
+    static
+    void assignAddresses(unsigned tableLength, Resetter *table) {
+      //todo: apply reset to all
+      //todo: spin for minimum reset time
+      while (tableLength-- > 0) {
+        table[tableLength].releaseAndDetect();
+      }
+    }
+  };
 }
 #endif //VL53_NONBLOCKING_H

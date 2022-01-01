@@ -229,27 +229,32 @@ namespace VL53L0X {
     int32_t RetSignalAt0mm;    /*!< intermediate dmax computation value caching */
   };
 
+  /** result with extra detail */
+  struct RangeDatum {
+    uint16_t MilliMeter; /*!< range distance in millimeter. */
+    uint8_t FractionalPart; /*!< Fractional part of range distance. With RangeMilliMeter value is a FixPoint168 value. */
+    RangeStatus error;  /*!< Range Error for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
+    /** negative of power of 2 weight of fractionalpart to millimeter */
+    static const unsigned epsilon=8;
+  };
 /**
  * @struct VL53L0X_RangeData_t
  * @brief Range measurement data.
  */
   struct RangingMeasurementData_t {
-    uint32_t TimeStamp; /*!< 32-bit time stamp. */ //todo: actually set a timestamp value into this!
-    uint32_t MeasurementTimeUsec;     /*!< Give the Measurement time needed by the device to do the measurement.*/
-
-    uint16_t RangeMilliMeter; /*!< range distance in millimeter. */
-
+    uint32_t TimeStamp=0; /*!< 32-bit time stamp. */ //todo: actually set a timestamp value into this!
+    uint32_t MeasurementTimeUsec=0;     /*!< Give the Measurement time needed by the device to do the measurement.*/
     uint16_t RangeDMaxMilliMeter;  /*!< Tells what is the maximum detection distance of the device in current setup and environment conditions (Filled when applicable) */
+    uint8_t ZoneId;  /*!< Denotes which zone and range scheduler stage the range data relates to. */
 
     MegaCps SignalRateRtnMegaCps; /*!< Return signal rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of target reflectance.*/
     MegaCps AmbientRateRtnMegaCps;  /*!< Return ambient rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of the ambient light.*/
 
-    FixPoint<8, 8> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256  (call .rounded()) */
+    static const unsigned int spadEpsilon=8;
+    FixPoint<16-spadEpsilon, spadEpsilon> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256  (call .rounded()) */
 
-    uint8_t ZoneId;  /*!< Denotes which zone and range scheduler stage the range data relates to. */
+    RangeDatum Range;
 
-    uint8_t RangeFractionalPart; /*!< Fractional part of range distance. Final value is a FixPoint168 value. */
-    RangeStatus rangeError;  /*!< Range Error for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
   };
 
 #if IncludeHistogramming

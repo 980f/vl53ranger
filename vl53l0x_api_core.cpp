@@ -624,61 +624,73 @@ namespace VL53L0X {
     return MAKEUINT16(lsb, msb);
   }
 
+  bool Core::oneTuning(const uint8_t *&pTuningSettingBuffer) {
+    uint8_t NumberOfWrites = *pTuningSettingBuffer++;
+    if(NumberOfWrites==0){
+      return false;
+    }
+    if (NumberOfWrites == 0xFF) {
+      /* internal parameters */
+      switch (*pTuningSettingBuffer++) {
+        case 0: /* uint16_t SigmaEstRefArray -> 2 bytes */
+          PALDevDataSet(SigmaEst.RefArray, big16(pTuningSettingBuffer));
+          return true;
+        case 1: /* uint16_t SigmaEstEffPulseWidth -> 2 bytes */
+          PALDevDataSet(SigmaEst.EffPulseWidth, big16(pTuningSettingBuffer));
+          return true;
+        case 2: /* uint16_t SigmaEstEffAmbWidth -> 2 bytes */
+          PALDevDataSet(SigmaEst.EffAmbWidth, big16(pTuningSettingBuffer));
+          return true;
+        case 3: /* uint16_t targetRefRate -> 2 bytes */
+          PALDevDataSet(targetRefRate, big16(pTuningSettingBuffer));
+          return true;
+        default: /* invalid parameter */
+        //todo: maybe THROW(something)
+          return false;
+      } // switch
+    }
+
+    if (NumberOfWrites <= 4) { //copy bytes that must be in device endian order.
+      uint8_t Address = *pTuningSettingBuffer++;
+      comm.WriteMulti(Address, pTuningSettingBuffer, NumberOfWrites);
+      pTuningSettingBuffer += NumberOfWrites;
+      return true;
+    }
+      //todo: maybe THROW(something)
+      return false;
+  }
+
   /**
    * record formats:
    * 0xFF  0..3 msbof16 lsbof16  loads one of 4 fields of PALDevData
    * 0..3 index  number of bytes indicated in first byte  I2C multi byte write.
    * */
-  const uint8_t * Core::load_tuning_settings(const uint8_t *pTuningSettingBuffer) {
+  unsigned int Core::load_tuning_settings(const uint8_t *pTuningSettingBuffer) {
     LOG_FUNCTION_START;
-    while (uint8_t NumberOfWrites = *pTuningSettingBuffer++) {//zero length kicks out here
-      if (NumberOfWrites == 0xFF) {
-        /* internal parameters */
-        switch (*pTuningSettingBuffer++) {
-          case 0: /* uint16_t SigmaEstRefArray -> 2 bytes */
-            PALDevDataSet(SigmaEst.RefArray, big16(pTuningSettingBuffer));
-            break;
-          case 1: /* uint16_t SigmaEstEffPulseWidth -> 2 bytes */
-            PALDevDataSet(SigmaEst.EffPulseWidth, big16(pTuningSettingBuffer));
-            break;
-          case 2: /* uint16_t SigmaEstEffAmbWidth -> 2 bytes */
-            PALDevDataSet(SigmaEst.EffAmbWidth, big16(pTuningSettingBuffer));
-            break;
-          case 3: /* uint16_t targetRefRate -> 2 bytes */
-            PALDevDataSet(targetRefRate, big16(pTuningSettingBuffer));
-            break;
-          default: /* invalid parameter */
-            return --pTuningSettingBuffer;//on error point to bad value
-        } // switch
-      } else if (NumberOfWrites <= 4) { //copy bytes that must be in device endian order.
-        uint8_t Address = *pTuningSettingBuffer++;
-        comm.WriteMulti(Address, pTuningSettingBuffer, NumberOfWrites);
-        pTuningSettingBuffer += NumberOfWrites;
-      } else {
-        return --pTuningSettingBuffer;
-      }
-    }
-    return nullptr;
+    unsigned checkcount=0;
+    while (oneTuning(pTuningSettingBuffer)) ++checkcount;
+
+    return checkcount;
   } // VL53L0X_load_tuning_settings
 
   /**
  * table of index:byte value pairs
  * */
-  void Core::load_compact(const DeviceByte *bunch,unsigned quantity) {
+  void Core::load_compact(const DeviceByte *bunch, unsigned quantity) {
     LOG_FUNCTION_START;
-    for(unsigned index = 0;index<quantity;++index){
+    for (unsigned index = 0; index < quantity; ++index) {
       send(bunch[index]);
     }
   }
 
   MegaCps Core::get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
     if (VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable)) {
-      MegaCps xtalkPerSpadMegaCps (VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps));
-      /* FixPoint1616 * FixPoint 8:8 = FixPoint0824 */
-      MegaCps totalXtalkMegaCps (xtalkPerSpadMegaCps.raw * pRangingMeasurementData.EffectiveSpadRtnCount.raw);
-      /* FixPoint0824 >> 8 = FixPoint1616 */
-      return totalXtalkMegaCps.shrink(8);//8 compensats for EffectiveSpadRtnCount being scaled by 8
-    } else  {
+      MegaCps xtalkPerSpadMegaCps(VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps));
+      /* FixPoint1616 * FixPoint 8:8 = FixPoint0824
+       * then FixPoint0824 >> 8 = FixPoint1616  */
+      MegaCps totalXtalkMegaCps(xtalkPerSpadMegaCps.raw * pRangingMeasurementData.EffectiveSpadRtnCount.raw, RangingMeasurementData_t::spadEpsilon);
+      return totalXtalkMegaCps;
+    } else {
       return 0;
     }
   } // VL53L0X_get_total_xtalk_rate
@@ -686,7 +698,7 @@ namespace VL53L0X {
   MegaCps Core::get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData) {
     auto signal {pRangingMeasurementData.SignalRateRtnMegaCps};//default in case returned error is ignored
     auto xtalk {get_total_xtalk_rate(pRangingMeasurementData)};
-    signal+=xtalk;
+    signal += xtalk;
     return signal;
   } // VL53L0X_get_total_signal_rate
 
@@ -826,7 +838,7 @@ namespace VL53L0X {
     const uint32_t cVcselPulseWidth_ps = 4700;      /* pico secs */
     //655.5299 looks suspiciciously close to 655.35 with a typo:
     const FixPoint1616_t cSigmaEstMax {655.53};//ick: perhaps should have been 28f'6000? looks like an error// 0x028F'87AE;
-    const FixPoint1616_t cSigmaEstRtnMax{0.9375} ;//= 0xF000;// 15/16 ths? 61440/65536?
+    const FixPoint1616_t cSigmaEstRtnMax {0.9375};//= 0xF000;// 15/16 ths? 61440/65536?
     const FixPoint1616_t cAmbToSignalRatioMax {61440.0F};// 0xF000'0000 / cAmbientEffectiveWidth_centi_ns;//ick: may be off by 64k, need some explanation of how you can divide the u32's and get the correct 16.16
     /* Time Of Flight per mm (6.6 pico secs) */
     const FixPoint1616_t cTOF_per_mm_ps {6.6};//=0x0006999A; //ick: value doesn't seem to match reality, should be closer to 7.0
@@ -946,7 +958,7 @@ namespace VL53L0X {
       FixPoint1616_t sigmaEstimateP3(isqrt(vcselTotalEventsRtn * 12) * 2);
 
       /* uint32 * FixPoint1616 = FixPoint1616 */
-      FixPoint1616_t deltaT_ps(pRangingMeasurementData.RangeMilliMeter * cTOF_per_mm_ps.raw);
+      FixPoint1616_t deltaT_ps(pRangingMeasurementData.Range.MilliMeter * cTOF_per_mm_ps.raw);
 
       /*
        * vcselRate - xtalkCompRate
@@ -1095,9 +1107,9 @@ namespace VL53L0X {
       if (limitChecksValue.raw == 0) {
         /* disabled: return value from memory */
         limitChecksValue = tuple.value;
-        tuple.enable= false;
+        tuple.enable = false;
       } else {
-        tuple= {true,limitChecksValue};
+        tuple = {true, limitChecksValue};
       }
     }
     return limitChecksValue;
@@ -1341,5 +1353,4 @@ namespace VL53L0X {
       PALDevDataSet(SequenceConfig, packed);
     }
   }
-
 } //end namespace
