@@ -145,12 +145,12 @@ namespace VL53L0X {
     }
     /* FixPoint1616_t / uint16_t = FixPoint1616_t */
     FixPoint1616_t StoredMeanRange(sum_ranging, total_count);
-    uint32_t StoredMeanRangeAsInt = StoredMeanRange.shrink(16);
+    uint32_t StoredMeanRangeAsInt = StoredMeanRange.shrunk(16);
 
     /* Round Cal Distance to Whole Number.
      * Note that the cal distance is in mm, therefore no resolution
      * is lost.*/
-    uint32_t CalDistanceAsInt_mm = CalDistanceMilliMeter.shrink(16);
+    uint32_t CalDistanceAsInt_mm = CalDistanceMilliMeter.shrunk(16);
     int32_t OffsetMicroMeter = (CalDistanceAsInt_mm - StoredMeanRangeAsInt) * 1000;
 
     /* Apply the calculated offset */

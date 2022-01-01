@@ -103,19 +103,29 @@ typedef signed char int8_t;
 #endif /* _STDINT_H */
 
 ////////////////////////////////////
+
+/** @returns value squared
+ * might add saturation which is rarely checked at present */
+template<typename Intish> Intish squared(Intish num) {
+  //todo: test for overflow and saturate instead OR extend the return type to twice as many bits
+  return num * num;
+}
+
 /** @returns @param num divided by @param denom, rounded */
 template<typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom) {
   return (denom != 0) ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
 }
 
-
-
 /** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
 template<typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned powerof2) {
+  if (powerof2 == 0) {//avert UB of shift computed as -1
+    return num;
+  }
+  if (powerof2 >= 8 * sizeof(IntishOver)) {//avert UB of shifting more than bits in the datum
+    return 0;
+  }
   return (num + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
 }
-
-
 
 /** @returns @param num divided by 1000, rounded.
  * this is somewhat the reverse of FixPoint millis which multiplies the nominal value by 1000 and rounds to integer */
@@ -136,24 +146,9 @@ template<typename Intish> constexpr void lessen(Intish &value, Intish max) {
   }
 }
 
-/** @returns value squared
- * might add saturation which is rarely checked at present */
-template<typename Intish> Intish squared(Intish num) {
-  return num * num;
-}
 
 #include "vl53l0x_fixpoint.h"
 
-/** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
-template<unsigned whole, unsigned fract> auto roundedScale(FixPoint<whole,fract> num, unsigned powerof2) -> typename decltype(num)::RawType{
-  return (num.raw + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
-}
-
-/** @returns @param num divided by @param denom, rounded */
-template<unsigned whole, unsigned fract,typename IntishUnder>
-auto roundedDivide(FixPoint<whole,fract> num, IntishUnder denom) -> typename decltype(num)::RawType {
-  return (denom != 0) ? (num.raw + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
-}
 
 
 using FixPoint1616_t = FixPoint<16, 16>;

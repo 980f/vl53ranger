@@ -1026,7 +1026,7 @@ namespace VL53L0X {
   void Api::set_threshold(RegSystem index, FixPoint1616_t ThresholdLow) {
     /* no dependency on DeviceMode for Ewok
    * Need to divide by 2 because the FW will apply a x2*/
-    uint16_t Threshold16 = ThresholdLow.scaled(17) & Mask<11, 0>::shifted;
+    uint16_t Threshold16 = ThresholdLow.shrink(17) & Mask<11, 0>::shifted;
     comm.WrWord(index, Threshold16);
   }
 

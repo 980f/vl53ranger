@@ -62,6 +62,10 @@ namespace VL53L0X {
     class UserAgent {
     public:
       ProcessArg arg;
+      /** result of most recent measurement of any type */
+      VL53L0X::RangingMeasurementData_t theRangingMeasurementData;
+      /** diagnostic for who asked for the above measurement */
+      MeasurementAction theLastMeasurement = Abandoned;
 
       /** called when data has been generated, or an error has occured while doing so.
        * might send progress reports once we have enables for doing so.
@@ -72,9 +76,10 @@ namespace VL53L0X {
       /** called when something couldn't be handled. Expectation is report to user and a call to reset */
       virtual void unexpected() {
       };
-    };//to avoid a lot of null checking
+    };
 
-    UserAgent &agent;//user sets this before calling any methods. todo: add constructor arg as reference?
+    /** a mixin' set at construction time: */
+    UserAgent &agent;
 
     /** call from Arduino setup. Probably useless*/
     void setup();
@@ -82,7 +87,19 @@ namespace VL53L0X {
     /** call this from your dispatcher, such as loop() in Arduino  or   while(1){WFE(); ... }*/
     void loop();
 
-    NonBlocking(UserAgent &agent, uint8_t i2c_addr = VL53L0X_I2C_ADDR >> 1, uint8_t busNumber = 0) : Api({busNumber, i2c_addr, 400})
+    /** user sets process parameters in their UserAgent.arg structure then calls this method.
+       *
+       * @returns whether request was accepted.
+       * request is not accepted if
+       * - any is in progress that is not abandonable
+       * - system is not initialized
+       *
+       * TBD: afterProcess(process, reasonForFailure) may be called before this returns false.
+       * */
+    bool startProcess(ProcessRequest process);
+
+    /** normally statically constructed */
+    explicit NonBlocking(UserAgent &agent, uint8_t i2c_addr = VL53L0X_I2C_ADDR >> 1, uint8_t busNumber = 0) : Api({busNumber, i2c_addr, 400})
                                                                                                      , agent(agent)
                                                                                                      , theXtalkProcess(*this)
                                                                                                      , theOffsetProcess(*this)
@@ -91,48 +108,24 @@ namespace VL53L0X {
       //do no real actions so that we can statically construct
     }
 
-  public:
-    /** result of most recent measurement of any type */
-    VL53L0X::RangingMeasurementData_t theRangingMeasurementData;
-    MeasurementAction theLastMeasurement = Abandoned;
 
   private:
     ProcessRequest activeProcess = Idle;
     MeasurementAction measurementInProgress = Abandoned;
 
     struct Waiting {
-      const uint8_t *tuning;         //tuning table (does items in tranches)
-      unsigned interruptClear; //3 lsbs zero, number of polls for timeout
-      unsigned forStop;        //wait on stop complete,, number of polls for timeout
-      unsigned onStart;        //wait on start acknowledge (10 samples per call), number of polls for timeout
-      unsigned onMeasurement;  //wait on measurement data ready (flag captured by ISR or poll device, 10 polls per call)
+      const uint8_t *tuning= nullptr;         //tuning table (does items in tranches)
+      unsigned interruptClear=0; //3 lsbs zero, number of polls for timeout
+      unsigned forStop=0;        //wait on stop complete,, number of polls for timeout
+      unsigned onStart=0;        //wait on start acknowledge (10 samples per call), number of polls for timeout
+      unsigned onMeasurement=0;  //wait on measurement data ready (flag captured by ISR or poll device, 10 polls per call)
 
-      void abandonAll() {
-        tuning = nullptr;         //tuning table (does items in tranches)
-        interruptClear = 0; //3 lsbs zero, number of polls for timeout
-        forStop = 0;        //wait on stop complete,, number of polls for timeout
-        onStart = 0;        //wait on start acknowledge (10 samples per call), number of polls for timeout
-        onMeasurement = 0;  //wait on measurement data ready (flag captured by ISR or poll device, 10 polls per call)
-      }
+      void abandonAll();
 
-      Waiting() {
-        abandonAll();
-      }
     } waiting;
 
     bool startMeasurement(MeasurementAction action);
     void abandonTasks();
-
-    /** user sets process parameters in their UserAgent.arg structure then calls this method.
-     *
-     * @returns whether request was accepted.
-     * request is not accepted if
-     * - any is in progress that is not abandonable
-     * - system is not initialized
-     *
-     * TBD: afterProcess(process, reasonForFailure) may be called before this returns false.
-     * */
-    bool startProcess(ProcessRequest process);
 
   private:
     void onStopComplete(bool b);
@@ -211,9 +204,10 @@ namespace VL53L0X {
     protected:
       unsigned total_count = 0;//ick: former use of 32bit was excessive
       unsigned sum_ranging = 0;//bug: former use of 16 bit begged for integer overflow
-      unsigned sum_fractions = 0;//ick: former ignored fractions, could have lost 25 counts
+      //using signed type so that when we round the residual can be negative for rounded up:
+      int sum_fractions = 0;//ick: former ignored fractions, could have lost 25 counts
 
-      FixPoint1616_t sum_signalRate = 0;
+      MegaCps sum_signalRate = 0;
       //measurement count
       unsigned measurementRemaining = 0;
     protected:
@@ -311,6 +305,7 @@ namespace VL53L0X {
      * */
     class SpadSetupProcess : public MeasurementProcess {
     };
+
   };
 
   /** NYI

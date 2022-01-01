@@ -297,7 +297,7 @@ namespace VL53L0X {
   } // sequence_step_enabled
 
   uint32_t decode_timeout(uint16_t encoded_timeout) {
-    return 1 + (uint32_t(encoded_timeout & 0x00FF) << (encoded_timeout >> 8));//ick: former cast of shrink to u32 was silly
+    return 1 + (uint32_t(encoded_timeout & 0x00FF) << (encoded_timeout >> 8));//ick: former cast of shrunk to u32 was silly
   } // VL53L0X_decode_timeout
 
 /* To convert ms into register value */
@@ -719,14 +719,14 @@ namespace VL53L0X {
     FixPoint1616_t SignalAt0mm = dmaxCalRange_mm * dmaxCalSignalRateRtn_mcps.raw;
 
     /* FixPoint1616 >> 8 = FixPoint2408 */
-    SignalAt0mm.shrink(8);
+    SignalAt0mm.shrunk(8);
     SignalAt0mm.raw *= dmaxCalRange_mm;
     FixPoint1616_t minSignalNeeded_p1 {0};
     if (totalCorrSignalRate_mcps.raw > 0) {
 
       /* Shift by 10 bits to increase resolution prior to the
        * division */
-      uint32_t signalRateTemp_mcps = totalSignalRate_mcps.boosted(10);
+      uint32_t signalRateTemp_mcps = totalSignalRate_mcps.shiftup(10);
 
       /*  FixPoint0626/FixPoint1616 = FixPoint2210 */
       minSignalNeeded_p1 = roundedDivide(signalRateTemp_mcps, totalCorrSignalRate_mcps.raw);
@@ -737,17 +737,18 @@ namespace VL53L0X {
       minSignalNeeded_p1.raw *= 3;
 
       /* FixPoint2210 * FixPoint2210 = FixPoint1220 */
-      minSignalNeeded_p1 *= minSignalNeeded_p1;
+      minSignalNeeded_p1.square(16);
 
       /* FixPoint1220 >> 16 = FixPoint2804 */
-      minSignalNeeded_p1 = minSignalNeeded_p1.rounded();
+//      minSignalNeeded_p1.shrunk();
     }
 
     FixPoint1616_t minSignalNeeded_p2 = pwMult.raw * sigmaEstimateP1;
 
-    /* FixPoint1616 >> 16 =	 uint32
-     * then  uint32 * uint32	=  uint32 */
-    minSignalNeeded_p2 = squared(minSignalNeeded_p2.rounded());
+    /* FixPoint1616 >> 16 =	 uint32  */
+    minSignalNeeded_p2.shrunk();//integer value,
+     /* then  uint32 * uint32	=  uint32 */
+    minSignalNeeded_p2.square();
 
     /* Check sigmaEstimateP2
      * If this value is too high there is not enough signal rate
@@ -755,13 +756,12 @@ namespace VL53L0X {
      * a very small dmax.
      */
 
-    FixPoint1616_t sigmaEstP2Tmp = sigmaEstimateP2.rounded();
-    sigmaEstP2Tmp = roundedDivide(sigmaEstP2Tmp, cAmbEffWidthSigmaEst_ns);
+    FixPoint1616_t sigmaEstP2Tmp( sigmaEstimateP2.rounded(), cAmbEffWidthSigmaEst_ns);
     sigmaEstP2Tmp.raw *= cAmbEffWidthDMax_ns;//todo: multiplyByRatio function. Can be given greater range than is easy to achieve inline.
 
     FixPoint1616_t minSignalNeeded_p3;
     if (sigmaEstP2Tmp >= Unity) {// >=1.0
-      minSignalNeeded_p3 = uint32_t(0xfff00000);
+      minSignalNeeded_p3 = 65520.0F;//0xFFF0'0000
     } else {
       /* DMAX uses a different ambient width from sigma, so apply correction.
        * Perform division before multiplication to prevent overflow.
@@ -770,7 +770,7 @@ namespace VL53L0X {
       sigmaEstimateP2.raw *= cAmbEffWidthDMax_ns; //ick: isn't this already computed in sigmaEstP2Tmp?
 
       /* FixPoint1616 >> 16 = uint32 */
-      minSignalNeeded_p3 = squared(sigmaEstimateP2.scaled(16));
+      minSignalNeeded_p3 = squared(sigmaEstimateP2.shrink(16));
     }
 
     /* FixPoint1814 / uint32 = FixPoint1814
@@ -781,7 +781,7 @@ namespace VL53L0X {
     FixPoint1616_t sigmaEstSqTmp = squared(cSigmaEstRef);
 
     /* FixPoint3232 >> 4 = FixPoint0428 */
-    sigmaEstSqTmp = sigmaEstSqTmp.scaled(4);
+    sigmaEstSqTmp = sigmaEstSqTmp.shrink(4);
 
     /* FixPoint0428 - FixPoint0428	= FixPoint0428 */
     sigmaLimitTmp.raw -= sigmaEstSqTmp.raw;
@@ -790,7 +790,7 @@ namespace VL53L0X {
     FixPoint1616_t minSignalNeeded_p4 = 4 * 12 * sigmaLimitTmp.raw;
 
     /* FixPoint0428 >> 14 = FixPoint1814 */
-    minSignalNeeded_p4.shrink(14);
+    minSignalNeeded_p4.shrunk(14);
 
     /* uint32 + uint32 = uint32 */
     FixPoint1616_t minSignalNeeded = minSignalNeeded_p2 + minSignalNeeded_p3;
@@ -799,7 +799,7 @@ namespace VL53L0X {
     minSignalNeeded = roundedDivide(minSignalNeeded, peakVcselDuration_us);
 
     /* uint32 << 14 = FixPoint1814 */
-    minSignalNeeded.boost(14);
+    minSignalNeeded.boosted(14);
 
     /* FixPoint1814 / FixPoint1814 = uint32
      * then FixPoint3200 * FixPoint2804 := FixPoint2804*/
@@ -813,14 +813,14 @@ namespace VL53L0X {
      * i.e. speed of light and pulse widths.
      */
     minSignalNeeded = roundedDivide(minSignalNeeded, 1000U);
-    minSignalNeeded.boost(4);
+    minSignalNeeded.boosted(4);
     minSignalNeeded = roundedDivide(minSignalNeeded, 1000);//BUG: perhaps 980F screwed this up? Rounding each division by 1000 to get to /1000,000 is wrong if rounded twice.
 
     /* FixPoint2408/FixPoint2408 = uint32 */
     FixPoint1616_t dmaxAmbient = isqrt(roundedDivide(SignalAt0mm.raw, minSignalNeeded.raw));
 
     /* FixPoint1616 >> 8 = FixPoint2408 */
-    FixPoint1616_t signalLimitTmp = cSignalLimit.scaled(8);
+    FixPoint1616_t signalLimitTmp = cSignalLimit.shrink(8);
 
     /* FixPoint2408/FixPoint2408 = uint32 */
     FixPoint1616_t dmaxDark = isqrt(roundedDivide(SignalAt0mm.raw, signalLimitTmp.raw));//former check for zero moved into roundedDivide
@@ -904,7 +904,7 @@ namespace VL53L0X {
     peakVcselDuration_us = kilo(peakVcselDuration_us);
 
     /* Fix1616 >> 8 = Fix2408 */
-    totalSignalRate_mcps = totalSignalRate_mcps.shrink(8);
+    totalSignalRate_mcps = totalSignalRate_mcps.shrunk(8);
 
     /* Fix2408 * uint32 = Fix2408
      * then Fix2408 >> 8 = uint32 */
@@ -912,7 +912,7 @@ namespace VL53L0X {
     uint32_t vcselTotalEventsRtn = roundedScale(totalSignalRate_mcps.raw * peakVcselDuration_us, 8);
 
     /* Fix2408 << 8 = Fix1616 = */
-    totalSignalRate_mcps.boost(8);
+    totalSignalRate_mcps.boosted(8);
 
     if (peakSignalRate_kcps.raw == 0) {
 
@@ -950,7 +950,7 @@ namespace VL53L0X {
       FixPoint1616_t sigmaEstimateP1 = cPulseEffectiveWidth_centi_ns;
 
       /* ((FixPoint1616 << 16)* uint32)/uint32 = FixPoint1616 */
-      FixPoint1616_t sigmaEstimateP2(ambientRate_kcps.boost(16), peakSignalRate_kcps.raw);
+      FixPoint1616_t sigmaEstimateP2(ambientRate_kcps.boosted(16), peakSignalRate_kcps.raw);
 
       /* Clip to prevent overflow. Will ensure safe max result. */
       sigmaEstimateP2.lessen(cAmbToSignalRatioMax);
@@ -965,19 +965,19 @@ namespace VL53L0X {
        * (uint32 << 16) - FixPoint1616 = FixPoint1616.
        * Divide result by 1000 to convert to mcps.
        */
-      FixPoint1616_t diff1_mcps(peakSignalRate_kcps.boosted(16) - xTalkCompRate_kcps, 1000, 0);
+      FixPoint1616_t diff1_mcps(peakSignalRate_kcps.shiftup(16) - xTalkCompRate_kcps, 1000, 0);
 
       /* vcselRate + xtalkCompRate */
-      FixPoint1616_t diff2_mcps((peakSignalRate_kcps.boosted(16) + xTalkCompRate_kcps), 1000, 0);
+      FixPoint1616_t diff2_mcps((peakSignalRate_kcps.shiftup(16) + xTalkCompRate_kcps), 1000, 0);
 
       /* Shift by 8 bits to increase resolution prior to the division */
-      diff1_mcps.boost(8);
+      diff1_mcps.boosted(8);
 
       /* FixPoint0824/FixPoint1616 = FixPoint2408 */
       FixPoint1616_t xTalkCorrection = abs(((long long) diff1_mcps.raw / diff2_mcps.raw));
 
       /* FixPoint2408 << 8 = FixPoint1616 */
-      xTalkCorrection.boost(8);
+      xTalkCorrection.boosted(8);
 
       /* FixPoint1616/uint32 = FixPoint1616 */
       FixPoint1616_t pwMult(deltaT_ps.raw, cVcselPulseWidth_ps, 0); /* smaller than 1.0f */ //ick: 980f added rounding
@@ -990,7 +990,7 @@ namespace VL53L0X {
       pwMult.raw *= (Unity.raw - xTalkCorrection.raw);
 
       /* (FixPoint3232 >> 16) = FixPoint1616 */
-      pwMult.shrink(16);//980f: rounded
+      pwMult.shrunk(16);//980f: rounded
 
       /* FixPoint1616 + FixPoint1616 = FixPoint1616 */
       pwMult.raw += Unity.raw;
@@ -998,29 +998,29 @@ namespace VL53L0X {
       /*
        * At this point the value will be 1.xx, therefore if we square
        * the value this will exceed 32 bits. To address this perform
-       * a single shrink to the right before the multiplication.
+       * a single shrunk to the right before the multiplication.
        */
-      pwMult.shrink(1);//980f: rounded
+      pwMult.shrunk(1);//980f: rounded
       /* FixPoint1715 * FixPoint1715 = FixPoint3430 */
       pwMult.square();
 
       /* (FixPoint3430 >> 14) = Fix1616 */
-      pwMult.shrink(14);
+      pwMult.shrunk(14);
 
       /* FixPoint1616 * uint32 = FixPoint1616 */
       FixPoint1616_t sqr1(pwMult.raw * sigmaEstimateP1.raw);
       /* (FixPoint1616 >> 16) = FixPoint3200 */
-      sqr1.shrink(16);
+      sqr1.shrunk(16);
 
       FixPoint1616_t sqr2 = sigmaEstimateP2;
       /* (FixPoint1616 >> 16) = FixPoint3200 */
-      sqr2.shrink(16);
+      sqr2.shrunk(16);
 
       /* SQRT(FixPoin6400) = FixPoint3200 */
       FixPoint1616_t sqrtResult_centi_ns(quadrature_sum(sqr1, sqr2));
 
       /* (FixPoint3200 << 16) = FixPoint1616 */
-      sqrtResult_centi_ns.boost(16);
+      sqrtResult_centi_ns.boosted(16);
 
       /*
        * Note that the Speed Of Light is expressed in um per 1E-10
@@ -1185,7 +1185,7 @@ namespace VL53L0X {
     if (RangeIgnoreThresholdLimitCheckEnable) {
       /* Compute the signal rate per spad */
       //floating point is laboriously averted even though that might retain a literal bit more precision.
-      FixPoint1616_t SignalRatePerSpad = (EffectiveSpadRtnCount != 0) ? SignalRate.boost(8).divideby(EffectiveSpadRtnCount) : FixPoint1616_t(0);//had to cast the 0 to ensure floating point would not be used temporarily even though correct answer would have been achieved.
+      FixPoint1616_t SignalRatePerSpad = (EffectiveSpadRtnCount != 0) ? SignalRate.boosted(8).divideby(EffectiveSpadRtnCount) : FixPoint1616_t(0);//had to cast the 0 to ensure floating point would not be used temporarily even though correct answer would have been achieved.
 
       auto RangeIgnoreThresholdValue = GetLimitCheckValue(CHECKENABLE_RANGE_IGNORE_THRESHOLD);
 

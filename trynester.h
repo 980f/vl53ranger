@@ -52,14 +52,17 @@ public:
   using Visitor = bool (*)(Stacked &);
 
   static void walk(Visitor visitor) {
-    for (Stacked *item = tos; item && visitor(*item); item = item->stacked);
+    for (Stacked *item = tos; item && visitor(*item); item = item->stacked) {
+    }
   }
 
   using Invisitor = bool (*)(Element &);
+
   /** the visitor is given a pointer to what is presumed to be the derived being stacked, but that only works for some such classes.
    * return true if walk is to continue, false to stop it */
   static void walk(Invisitor visitor) {
-    for (Stacked *item = tos; item && visitor(*reinterpret_cast<Element*>(item)); item = item->stacked);
+    for (Stacked *item = tos; item && visitor(*reinterpret_cast<Element *>(item)); item = item->stacked) {
+    }
   }
 
 protected:
@@ -93,11 +96,12 @@ class LocationStack : public Stacked<LocationStack> {
 public:
   class Element {
     friend class LocationStack;
+
   public:
     const char *const function;
     const char *const file;
     const unsigned line;
-  //mutable for debugger based fiddling:
+    //mutable for debugger based fiddling:
     bool reportOnExit = false;
 
     //constructor for static use case:
@@ -123,7 +127,7 @@ private:
   void pop(bool onException = false) {
     if (element.reportOnExit) {
       if (reportElapsed) {
-        reportElapsed(element, stamper() -timestamp, onException);
+        reportElapsed(element, stamper() - timestamp, onException);
       }
     }
     Stacked::pop();
@@ -156,7 +160,6 @@ public:
 
 #define TRACE_ENTRY    static LocationStack::Element tracer(__FUNCTION__, __FILE__, __LINE__);LocationStack namedoesntmatter(tracer);
 
-
 /** wrap a class around jmp_buf for exception handling via longjmp.
  * There is one of these for each exception source, which is not all that convenient if you have more than one.
  *
@@ -168,9 +171,10 @@ class Thrower : public Stacked<Thrower> {
   int thrown = 0;
 
 public:
-  static void Throw(int error){
+  static void Throw(int error) {
     (*top())(error);
   }
+
   /** construction pushes on the exception context stack and runs the setjmp.
   Thrown exceptions appear at the object construction point in the code, but after the execution of allocation of the object.
    */
@@ -194,6 +198,7 @@ public:
   operator int() const {
     return thrown;
   }
+
   /** throw!  This is only called on the tos entity, although one could throw to one's self locally in a try block.
    * if there is no receiver (or particular error code is deemed not worthy of throwing) then we return the passed argument so that you can:
    * return Thrower(exception, returnIfExceptionsDisbled);
@@ -218,56 +223,30 @@ public:
   ~Thrower() {
     pop();
   }
-
-
-  static void example() {
-    TRACE_ENTRY
-    if (Thrower tryblock; tryblock) {  ///could macro Try   from the if to the curly
-      Throw(42);
-    } else            //and macro Catch  else switch (tryblock.throne())
-      switch (tryblock.thrown) {
-        case 42:
-          tryblock.thrown+=2;//something to test compilation
-          break;
-        default:
-          tryblock(tryblock.thrown);//this is a rethrow
-          break;
-      }
-  }
-
-  static void example2() {
-    TRACE_ENTRY
-
-    switch (Thrower tryblock;tryblock.thrown) {
-      case 0:
-        Throw(42);
-        break;
-      case 42:
-        tryblock.thrown+=2;//something to test compilation
-        break;
-      default:
-        tryblock(tryblock.thrown);//this is a rethrow
-        break;
-    }
-  }
 };
+
+#define TRY  switch (Thrower Throw; int(Throw)) { case 0:
+
+//this macro creates a local block scope just like real catches
+#define CATCH(code) } break; case code: {
+
+#define UNCAUGHT  } break; default:
 
 static int example3() {
   TRACE_ENTRY
-  Thrower tryblock;
-  switch (Thrower tryblock; int(tryblock)) {
-    case 0:
-      Throw(42);
+  TRY {
+      Throw(42); //throws to self
       return ~1;
-    case 42:
+    CATCH(42)
       return 42;//something to test compilation
-    default:
-      tryblock(tryblock);//this is a rethrow
+    CATCH(-42)
+      Thrower::Throw(99);
+    UNCAUGHT
+      Throw(-42);//this is also throw to self
       return ~0;
   }
+  return 0;
 }
-
-#define CATCH  Thrower tryblock; switch (Thrower tryblock; int(tryblock))
 
 #pragma clang diagnostic pop
 #endif //VL53_TRYNESTER_H

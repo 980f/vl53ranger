@@ -236,6 +236,13 @@ namespace VL53L0X {
     RangeStatus error;  /*!< Range Error for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
     /** negative of power of 2 weight of fractionalpart to millimeter */
     static const unsigned epsilon=8;
+
+    /** */
+    static unsigned carry(int &sum_fractions){
+      unsigned whole= roundedScale(sum_fractions,epsilon);
+      sum_fractions-=whole<<epsilon;//nominally negative is rounded up, or massively large if not carefully checked. NOLINT(cppcoreguidelines-narrowing-conversions)
+      return whole;
+    }
   };
 /**
  * @struct VL53L0X_RangeData_t
@@ -489,29 +496,29 @@ namespace VL53L0X {
 
 ////todo: remove all these via FixPoint types
 //#define VL53L0X_FIXPOINT1616TOFIXPOINT97(Value)  (uint16_t)((Value >> 9) & 0xFFFF)
-////BUG: (UB) need to cast/convert before shrink, not after
+////BUG: (UB) need to cast/convert before shrunk, not after
 //#define VL53L0X_FIXPOINT97TOFIXPOINT1616(Value) (FixPoint1616_t)((Value) << 9)
 //
 //#define VL53L0X_FIXPOINT1616TOFIXPOINT88(Value)  (uint16_t)((Value >> 8) & 0xFFFF)
-////BUG: (UB) need to cast/convert before shrink, not after
+////BUG: (UB) need to cast/convert before shrunk, not after
 //#define VL53L0X_FIXPOINT88TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
 //
 //#define VL53L0X_FIXPOINT1616TOFIXPOINT412(Value) (uint16_t)((Value >> 4) & 0xFFFF)
 //#define VL53L0X_FIXPOINT412TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 4)
 //
 //#define VL53L0X_FIXPOINT1616TOFIXPOINT313(Value) (FixPoint<3,13>(Value))
-////BUG: (UB) need to cast/convert before shrink, not after
+////BUG: (UB) need to cast/convert before shrunk, not after
 //#define VL53L0X_FIXPOINT313TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 3)
 //
 //#define VL53L0X_FIXPOINT1616TOFIXPOINT08(Value) (uint8_t)((Value >> 8) & 0x00FF)
-////BUG: (UB) need to cast/convert before shrink, not after
+////BUG: (UB) need to cast/convert before shrunk, not after
 //#define VL53L0X_FIXPOINT08TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
 //
 //#define VL53L0X_FIXPOINT1616TOFIXPOINT53(Value)  (uint8_t)((Value >> 13) & 0x00FF)
-////BUG: (UB) need to cast/convert before shrink, not after
+////BUG: (UB) need to cast/convert before shrunk, not after
 //#define VL53L0X_FIXPOINT53TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 13)
 //
-////BUG: rogue tile, shrink should be 12 not 14.
+////BUG: rogue tile, shrunk should be 12 not 14.
 //#define VL53L0X_FIXPOINT1616TOFIXPOINT102(Value)  (uint16_t)((Value >> 14) & 0x0FFF)
 //#define VL53L0X_FIXPOINT102TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 12)
 

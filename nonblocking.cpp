@@ -35,18 +35,17 @@ using namespace VL53L0X; //# this file exists to manage entities from this names
  *   xtalk cal
  * */
 
-void NonBlocking::abandonTasks(){
+void NonBlocking::abandonTasks() {
   onStopComplete(false);
   doMeasurementComplete(false);
 }
 
 void NonBlocking::loop() {
-  CATCH {
-    case ERROR_NONE: {
-      if(waiting.tuning){
-        for(unsigned perpoll=10;perpoll-->0;){
-          if(!oneTuning(waiting.tuning)){//invalid records act as terminators
-            waiting.tuning= nullptr;
+  TRY {
+      if (waiting.tuning) {
+        for (unsigned perpoll = 10; perpoll-- > 0;) {
+          if (!oneTuning(waiting.tuning)) {//invalid records act as terminators
+            waiting.tuning = nullptr;
             break;
           }
         }
@@ -63,7 +62,7 @@ void NonBlocking::loop() {
         } else {
           if (--waiting.onStart == 0) {
             abandonTasks();
-            agent.afterProcess(activeProcess,Failed);
+            agent.afterProcess(activeProcess, Failed);
           }
           return;//come back in later
         }
@@ -85,7 +84,7 @@ void NonBlocking::loop() {
         if (GetStopCompletedStatus() == 0x00) {
           auto climask = ClearInterruptMask(GPIOFUNCTIONALITY_NEW_MEASURE_READY);//copied from adafruit copy of st advice
           //todo: deal with climask false.
-          waiting.forStop=0;
+          waiting.forStop = 0;
           onStopComplete(true);
         } else {
           if (--waiting.forStop == 0) {
@@ -95,8 +94,8 @@ void NonBlocking::loop() {
       }
       //////
       // init should be automatic, can add an overall 'be running' for power management, but not yet.
-      auto palstate=GetPalState();
-      switch(palstate){
+      auto palstate = GetPalState();
+      switch (palstate) {
         case STATE_POWERDOWN://must do datainit
           //if not initialized and not initializing
           startProcess(InitData);
@@ -105,7 +104,7 @@ void NonBlocking::loop() {
           startProcess(InitStatic);
           break;
         case STATE_STANDBY://power up before doing much of anythng
-        //if any user requests are pending wake up
+          //if any user requests are pending wake up
           break;
         case STATE_IDLE:
           //if measurement requested start one
@@ -120,29 +119,23 @@ void NonBlocking::loop() {
       }
 
       //todo: if action request act on it:
-    }  ///////////////////////////// end of try clause
-      break;
-    //////////////////////////////////////
-    /// catch clauses
-    case ERROR_MODE_NOT_SUPPORTED:
-    case ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED:
-    case ERROR_GPIO_NOT_EXISTING:
-    case ERROR_INVALID_PARAMS:
+    CATCH(ERROR_MODE_NOT_SUPPORTED:
+          case ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED :
+          case ERROR_GPIO_NOT_EXISTING :
+          case ERROR_INVALID_PARAMS)
       //todo: developer errors
       abandonTasks();
-      break;
-    case ERROR_CONTROL_INTERFACE: //todo: suberrors
+    CATCH(ERROR_CONTROL_INTERFACE) //todo: suberrors
       //todo: device must be detected and fully reinit
       abandonTasks();
-      break;
-    default:
+    UNCAUGHT
       abandonTasks();
       //todo: any stored exit routines that apply
       //todo: debug print the error code.
-      break;
-    //// end catches
-    ////////////////////////////
+      //// end catches
+      ////////////////////////////
   }
+  //you get here both on TRY and if you don't return inside any CATCH or the UNCAUGHT clauses
 }
 
 void NonBlocking::onStopComplete(bool b) {
@@ -158,10 +151,10 @@ void NonBlocking::doMeasurementComplete(bool successful) {
     abandonTasks();
     return;
   }
-  auto measok = GetRangingMeasurementData(theRangingMeasurementData);
+  auto measok = GetRangingMeasurementData(agent.theRangingMeasurementData);
   if (measok == VL53L0X::ERROR_NONE) {
-    theLastMeasurement = take(measurementInProgress);
-    switch (theLastMeasurement) {
+    agent.theLastMeasurement = take(measurementInProgress);
+    switch (agent.theLastMeasurement) {
       case forXtalk:
         if (theXtalkProcess.onMeasurement()) {
           theXtalkProcess.startNext();
@@ -182,8 +175,8 @@ void NonBlocking::doMeasurementComplete(bool successful) {
         return; //already handled prior to switch
       case forRange: //the actual reason this device exists!
         //todo: notify we have a datum
-        agent.afterProcess(activeProcess,ProcessResult::Succeeded);
-        activeProcess=Idle;//todo: if continuous remain in active state.
+        agent.afterProcess(activeProcess, ProcessResult::Succeeded);
+        activeProcess = Idle;//todo: if continuous remain in active state.
         break;
       case forRefCal:
         if (theCalProcess.onMeasurement()) {
@@ -212,19 +205,25 @@ bool NonBlocking::startMeasurement(NonBlocking::MeasurementAction action) {
 }
 
 void NonBlocking::setup() {
+  //nothing to do so far.
+  //we don't want to delay the loop() for init, we do that with a statemachine in the loop
+  //this would be a place to declare the  mode of our use if it doesn't change dynamically.
+  //usage modes:
+  //  continuous gauge supplying a value stream
+  //  ditto but using a GPIO as data ready indicator
+  //  set thresholds and GPIO is simple "present" detector.
 }
 
 bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
-  if(activeProcess!=Idle){
-    if(activeProcess==process){
-      agent.afterProcess(activeProcess,Busy);
+  if (activeProcess != Idle) {
+    if (activeProcess == process) {//indicate already running
+      agent.afterProcess(activeProcess, Busy);
       return false;
     }
-
   }
   switch (process) {
     case Idle:
-      agent.afterProcess(activeProcess,ProcessResult::Succeeded);
+      agent.afterProcess(activeProcess, ProcessResult::Succeeded);
       return true;
     case InitI2c:
 
@@ -234,14 +233,14 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
     case InitData:
       break;
     case OneShot:
-      activeProcess=OneShot;
+      activeProcess = OneShot;
       SetDeviceMode(DeviceModes::DEVICEMODE_SINGLE_RANGING);
       StartMeasurement();
       startMeasurement(forRange);
       break;
     case Continuous:
-      activeProcess=Continuous;
-      SetDeviceMode(agent.arg.sampleRate_ms==0?DeviceModes::DEVICEMODE_CONTINUOUS_RANGING:DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
+      activeProcess = Continuous;
+      SetDeviceMode(agent.arg.sampleRate_ms == 0 ? DeviceModes::DEVICEMODE_CONTINUOUS_RANGING : DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
       StartMeasurement();
       startMeasurement(forRange);
       break;
@@ -261,7 +260,7 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
 
 bool NonBlocking::AveragingProcess::begin() {
   sum_ranging = 0;
-  sum_fractions=0;
+  sum_fractions = 0;
   total_count = 0;
   if (CalDistanceMilliMeter.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero. Most likely a non-zero value is necessary
     measurementRemaining = 0;//COA
@@ -272,10 +271,10 @@ bool NonBlocking::AveragingProcess::begin() {
 }
 
 bool NonBlocking::AveragingProcess::onMeasurement() {
-  if (nb.theRangingMeasurementData.Range.error == VL53L0X::Range_Valid) {
-    sum_ranging += nb.theRangingMeasurementData.Range.MilliMeter;
-    sum_fractions+=nb.theRangingMeasurementData.Range.FractionalPart;
-    sum_signalRate += nb.theRangingMeasurementData.SignalRateRtnMegaCps;
+  if (nb.agent.theRangingMeasurementData.Range.error == VL53L0X::Range_Valid) {
+    sum_ranging += nb.agent.theRangingMeasurementData.Range.MilliMeter;
+    sum_fractions += nb.agent.theRangingMeasurementData.Range.FractionalPart;
+    sum_signalRate += nb.agent.theRangingMeasurementData.SignalRateRtnMegaCps;
     ++total_count;
     alsoSum();
     if (--measurementRemaining > 0) {
@@ -283,9 +282,10 @@ bool NonBlocking::AveragingProcess::onMeasurement() {
     }
     /* no valid values found */
     if (total_count == 0) {//ick: really should be a larger number, like 90% success rate
-      nb.comm.wirer.Throw( __FUNCTION__,__LINE__,VL53L0X::ERROR_RANGE_ERROR);
+      nb.comm.wirer.Throw(__FUNCTION__, __LINE__, VL53L0X::ERROR_RANGE_ERROR);
       return false;
     }
+    sum_ranging += RangeDatum::carry(sum_fractions);//formerly the fractions got tossed, might have been as high as just under 50.
     finish();
     return false;
   } else {
@@ -307,13 +307,13 @@ bool NonBlocking::XtalkProcess::begin() {
 }
 
 void NonBlocking::XtalkProcess::alsoSum() {
-  sum_spads += nb.theRangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
+  sum_spads += nb.agent.theRangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
 }
 
 bool NonBlocking::XtalkProcess::finish() {
   /* FixPoint1616_t / uint16_t = FixPoint1616_t */
-  FixPoint1616_t StoredMeanSignalRate(sum_signalRate, total_count, 0);//ick: was not rounded prior to 980f
-  FixPoint1616_t StoredMeanRange(sum_ranging, total_count);//round the division
+  MegaCps StoredMeanSignalRate(sum_signalRate, total_count, 0);//ick: was not rounded prior to 980f
+  FixPoint1616_t StoredMeanRange(sum_ranging, total_count);//round the division, also the fractions were merged before this fn was called.
   FixPoint1616_t StoredMeanRtnSpads(sum_spads, total_count);
 
   /* Round Mean Spads to Whole Number.
@@ -321,12 +321,13 @@ bool NonBlocking::XtalkProcess::finish() {
    * therefore any truncation will not result in a significant loss in accuracy.
    * Also, for a grey target at a typical distance of around 400mm, around 220 SPADs will be enabled,
    * therefore any truncation will result in a loss of accuracy of less than 0.5%.
+   * 980F: rounding yields half the error of truncation, making it easier to compare to modeling done with true floating point.
    */
   unsigned StoredMeanRtnSpadsAsInt = roundedScale(StoredMeanRtnSpads, 16);
 
   /* Round Cal Distance to Whole Number.
    * Note that the cal distance is in mm, therefore no resolution is lost.*/
-  unsigned CalDistanceAsInt = roundedScale(CalDistanceMilliMeter, 16);
+  unsigned CalDistanceAsInt = CalDistanceMilliMeter.rounded();
   MegaCps XTalkCompensationRateMegaCps;
 
   if (StoredMeanRtnSpadsAsInt == 0 || CalDistanceAsInt == 0 || StoredMeanRange >= CalDistanceMilliMeter) {
@@ -339,7 +340,7 @@ bool NonBlocking::XtalkProcess::finish() {
 
     /* Complete the calculation for total Signal XTalk per SPAD
      * Fixed1616 * (Fixed1616 - Fixed1616/int) := (2^16 * Fixed1616)     */
-    signalXTalkTotalPerSpad *= (Unity.raw - roundedDivide(StoredMeanRange , CalDistanceAsInt));
+    signalXTalkTotalPerSpad *= (Unity.raw - roundedDivide(StoredMeanRange, CalDistanceAsInt));
 
     /* Round from 2^16 * Fixed1616, to Fixed1616. */
     XTalkCompensationRateMegaCps = roundedScale(signalXTalkTotalPerSpad, 16);
@@ -377,7 +378,7 @@ bool NonBlocking::OffsetProcess::begin() {
 
 bool NonBlocking::OffsetProcess::finish() {
   /* FixPoint1616_t / uint16_t = FixPoint1616_t */
-  FixPoint1616_t StoredMeanRange(sum_ranging + roundedScale(sum_fractions,RangeDatum::epsilon), total_count);
+  FixPoint1616_t StoredMeanRange(sum_ranging + roundedScale(sum_fractions, RangeDatum::epsilon), total_count);
   /* Rounding distances to Whole Number.
    * Note that the cal distance is in mm, therefore no resolution is lost.
    * 980f: but why not retain the fractional part for tracability of the value? Rounding to resolution is unnecessary */
@@ -389,7 +390,7 @@ bool NonBlocking::OffsetProcess::finish() {
 //  nb.logError(VL53L0X::ERROR_NONE, __FUNCTION__);
   /* Restore the TCC */
   if (SequenceStepWasEnabled) {
-     nb.SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
+    nb.SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
   }
   return false;//done
 }
@@ -418,7 +419,7 @@ bool NonBlocking::CalProcess::begin() {
 bool NonBlocking::CalProcess::onMeasurement() {
   if (lastStep) {
     /* if measurement ok */{
-      p= nb.get_ref_calibration();
+      p = nb.get_ref_calibration();
     }
     /* restore the previous Sequence Config */
     nb.set_SequenceConfig(seqConfigCache, true);
@@ -451,11 +452,14 @@ void NonBlocking::RefSignalProcess::startNext() {
   nb.set_SequenceConfig(0xC0, false);
 }
 
-NonBlocking::RefSignalProcess::RefSignalProcess(NonBlocking &dev) :MeasurementProcess(dev),rate(0){
+NonBlocking::RefSignalProcess::RefSignalProcess(NonBlocking &dev) : MeasurementProcess(dev), rate(0) {
   //do nothing here
 }
 
-
-NonBlocking::MeasurementProcess::MeasurementProcess(NonBlocking &dev) : nb(dev),seqConfigCache(0) {
+NonBlocking::MeasurementProcess::MeasurementProcess(NonBlocking &dev) : nb(dev), seqConfigCache(0) {
   //do nothing here
+}
+
+void NonBlocking::Waiting::abandonAll() {
+  *this = {};//sometimes C++ is wonderful. This sets all fields to their constructor defaults.
 }
