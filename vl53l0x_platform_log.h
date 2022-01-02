@@ -52,7 +52,7 @@ namespace VL53L0X {
 #define LOG_FUNCTION_START  TRACE_ENTRY
 
 //todo: write to exception trace but don't throw:
-#define LOG_ERROR(errcode) errcode
+#define LOG_ERROR(errcode, ...) errcode
 
 
 #else

@@ -5,8 +5,6 @@
  * that is more efficient than reversing the data before calling the driver, likely removing a layer of indirection, and localizes the need so that we can easily quit doing it on bigendian processors
  **/
 
-//removed this this via 'busNumber'-- #include <Wire.h>
-#include <utility>
 #include <cstdint>
 /**
  * declarations for user supplied interface to i2c or spi bus.
@@ -29,27 +27,6 @@ struct Arg { //the class name here should be made a bit more specific ;)
   }
 };
 
-//#include <csetjmp>
-//
-//struct Exceptor {
-//  //written by setjmp:
-//  jmp_buf opaque;
-//  //written by throw:
-//  const char *location = "";
-//  unsigned line = 0;
-//  int errorcode = 0;
-//
-//  /** record source location info and then longjmp.
-//   *
-//   * using operator parens makes for easier replacement by a macro */
-//  void operator()(const char *location, unsigned line, int error) {
-//    this->location = location;
-//    this->line = line;
-//    errorcode = error;
-//    longjmp(opaque, errorcode); // NOLINT(cert-err52-cpp)   exceptions not allowed on our platform
-//  }
-//};
-
 /** union like version, for simple logging. */
 struct WriteOperation {
   uint8_t count;
@@ -61,8 +38,7 @@ struct WriteOperation {
 
 class ArduinoWirer : public Arg { //inheriting as a cheap way to not have to edit as much existing code while still hiding the details of the constructor args list.
 public:
-  ArduinoWirer(Arg &&arg) : Arg(std::forward<Arg>(arg)) {
-  }
+  ArduinoWirer(Arg &&arg);
 
   WriteOperation tracer;
   /** negatives are write errors */

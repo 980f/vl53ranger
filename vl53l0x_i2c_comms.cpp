@@ -10,12 +10,11 @@
 #define I2C_DEBUG 0
 #include <Wire.h>
 
-
 #include "trynester.h" //fancier than Exceptor
+#include <utility> //forward
 
 
-
-static TwoWire * const busses[]={
+static TwoWire * const Wires[]={
 #if WIRE_INTERFACES_COUNT > 0
   &Wire
 #endif
@@ -43,7 +42,7 @@ bool ArduinoWirer::write_multi(uint8_t index, const uint8_t *pdata, int count) {
   tracer.index = index;
   tracer.value = *reinterpret_cast<const uint32_t *>(pdata);//sometimes garbage is accessed and stored.
   readError=0;
-  TwoWire &i2c(*busses[busNumber]);
+  TwoWire &i2c(*Wires[busNumber]);
   i2c.beginTransmission(devAddr);///FYI no action takes place until endTransmission
   if (i2c.write(index) != 1) {
     THROW(VL53L0X::ERROR_CONTROL_INTERFACE);//tx buffer overflow
@@ -91,7 +90,7 @@ bool ArduinoWirer::read_multi(uint8_t index, uint8_t *pdata, int count) {
     count = -count;//now positive
     pdata += count;//past end
   }
-  TwoWire &i2c(*busses[busNumber]);
+  TwoWire &i2c(*Wires[busNumber]);
   i2c.beginTransmission(devAddr);
   i2c.write(index);
   i2c.endTransmission();
@@ -133,11 +132,14 @@ bool ArduinoWirer::read_multi(uint8_t index, uint8_t *pdata, int count) {
 }
 
 void ArduinoWirer::i2c_init() {
-  TwoWire &i2c(*busses[busNumber]);
+  TwoWire &i2c(*Wires[busNumber]);
   i2c.begin();
   i2c.setClock(1000 * comms_speed_khz);
   readError=0;
   tracer.clear();
+}
+
+ArduinoWirer::ArduinoWirer(Arg &&arg) : Arg(std::forward<Arg>(arg)) {
 }
 
 void WriteOperation::clear() {

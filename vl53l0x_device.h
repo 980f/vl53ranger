@@ -152,12 +152,14 @@ constexpr  bool valid(GpioFunctionality functionality) {
     REG_SYSRANGE_MODE_BACKTOBACK = (1 << 1)
     , /** bit 2 write 1 in #REG_SYSRANGE_START set timed operation mode */
     REG_SYSRANGE_MODE_TIMED = (1 << 2)
+#if IncludeHistogramming   //hiding this one to aid in compile time detection of attempt to use NYI feature.
     , /** bit 3 write 1 in #REG_SYSRANGE_START set histogram operation mode */
     REG_SYSRANGE_MODE_HISTOGRAM = (1 << 3)
+#endif
     , /** mask existing bit in #REG_SYSRANGE_START*/
     REG_SYSRANGE_MODE_MASK = Mask<3, 0>::places
 
-    //todo: document the other 4 bits in the register. Since the mask is unused one presumes the bits are as well.
+    //todo:M document the other 4 bits in the register. Since the mask is unused one presumes the bits are as well.
     //bit 6 seems to be 'vhv cal'
   };
 

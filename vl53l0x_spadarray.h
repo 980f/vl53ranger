@@ -107,7 +107,7 @@ public:
     }
   }
 
-  bool get(Index bitly) {
+  bool get(Index bitly) const {
     return getBit(bitly.fine, raw[bitly.coarse]);
   }
 
@@ -116,7 +116,7 @@ public:
   }
 
   void enable(Index spadIndex) {
-    set(spadIndex, 1);
+    set(spadIndex, true);
   }
 
   SpadCount count_enabled();
@@ -127,7 +127,7 @@ public:
     return !((*this)==(rhs));
   }
 
-  Index nextSet(Index curr){
+  Index nextSet(Index curr) const{
       while ( curr.isValid()) {
         if (get(curr)) {
           return curr;

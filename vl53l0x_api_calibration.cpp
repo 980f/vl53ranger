@@ -53,7 +53,7 @@ namespace VL53L0X {
     /* Perform 50 measurements and compute the averages */
     unsigned sum_ranging = 0;//bug: former use of 16 bit begs for integer overflow
     unsigned sum_spads = 0;//... which we will tolerate only on processors whose natural int is 16 bits
-    MegaCps sum_signalRate = 0;
+    MegaCps sum_signalRate {0};
     uint32_t total_count = 0;//unsigned is probably adequate
     for (uint8_t xtalk_meas = 0; xtalk_meas < 50; xtalk_meas++) {//ick: buried constant
       RangingMeasurementData_t RangingMeasurementData;
@@ -210,7 +210,7 @@ namespace VL53L0X {
   } // VL53L0X_apply_offset_adjustment
 
 
-  SpadArray::Index Api::enable_ref_spads(SpadCount &req, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset) {
+  SpadArray::Index Api::enable_ref_spads(const SpadCount &req, const SpadArray &goodSpadArray, SpadArray &spadArray, SpadArray::Index offset) {
     /*
      * This function takes in a spad array which may or may not have SPADS
      * already enabled and appends from a given offset a requested number

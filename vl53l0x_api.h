@@ -495,11 +495,12 @@ namespace VL53L0X {
  * @brief Sets the VCSEL pulse period.
  *
  * @par Function Description
- * This function retrieves the VCSEL pulse period for the given period type.
+ * This function sets the VCSEL pulse period for the given period type.
+ * Sometime after this and  before measurements you must call  perform_phase_calibration
+ *
  *
  * @note This function Accesses the device
  *
-
  * @param   VcselPeriodType	      VCSEL period identifier @see VcselPeriod enum
  * @param   VCSELPulsePeriod      VCSEL period value
  * @return              Success
@@ -1246,7 +1247,7 @@ namespace VL53L0X {
  * @note C code cleared bit 4 and 3, we added a boolean to throw if they are not zero
  *
  */
-    uint8_t GetInterruptMaskStatus(bool throwRangeErrors=true);//todo: check actual default for legacy compatability
+    uint8_t GetInterruptMaskStatus(bool throwRangeErrors);
 
 /**
  * @brief Configure ranging interrupt reported to system
@@ -1357,7 +1358,7 @@ namespace VL53L0X {
  *
  * @return  spad count and type
  */
-    SpadCount GetReferenceSpads();//todo: restore from st's code
+    SpadCount GetReferenceSpads();
 
 /** @} SPADfunctions_group */
 
@@ -1395,7 +1396,7 @@ namespace VL53L0X {
     static const unsigned minimumSpadCount = 3;
 
     void initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
-    SpadArray::Index enable_ref_spads(SpadCount &ref, SpadArray goodSpadArray, SpadArray spadArray, SpadArray::Index offset);
+    SpadArray::Index enable_ref_spads(const SpadCount &req, const SpadArray &goodSpadArray, SpadArray &spadArray, SpadArray::Index offset);
 
     bool CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
 

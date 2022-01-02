@@ -276,7 +276,7 @@ namespace VL53L0X {
     public:
       SeqConfigStacker(Core &core, bool restore_config, uint8_t settit) : core(core) {
         mycache = core.get_SequenceConfig();
-        core.set_SequenceConfig(settit, false);//todo: probably should set andCaache true
+        core.set_SequenceConfig(settit, false);//todo:0 probably should set andCache true, else could use the dev cached one instead of our own.
         restore_it = restore_config; //maydo: don't restore if we failed to set.
       }
 
@@ -322,7 +322,7 @@ namespace VL53L0X {
     SchedulerSequenceSteps_t get_sequence_step_enables();
 
     /** @returns an interesting computation that someone should document */
-    uint32_t calc_dmax(FixPoint1616_t totalSignalRate_mcps, FixPoint1616_t totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
+    uint32_t calc_dmax(MegaCps totalSignalRate_mcps, MegaCps totalCorrSignalRate_mcps, FixPoint1616_t pwMult, uint32_t sigmaEstimateP1, FixPoint1616_t sigmaEstimateP2, uint32_t peakVcselDuration_us);
 /**
  * @brief Enable/Disable Cross talk compensation feature
  *
@@ -373,7 +373,7 @@ namespace VL53L0X {
     /** @returns the sequence config byte reading it from the device */
     uint8_t get_SequenceConfig();
     /** sets the sequence config byte, and if @param andCache is true copies the value to the DeviceParameters place where we often trust has the value */
-    void set_SequenceConfig(uint8_t packed, bool andCache);
+    void set_SequenceConfig(uint8_t packed, bool andCache= true);
 
     void load_compact(const DeviceByte *bunch,unsigned quantity);
 

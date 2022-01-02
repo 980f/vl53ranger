@@ -10,8 +10,8 @@
 /** provides type at least large enough for the given bits.
  * This is somewhere in the c++ std library but I am in a hurry
  * */
-template <unsigned size> struct Unsigned {
-  using type=
+template<unsigned size> struct Unsigned {
+  using type =
   typename std::conditional<size <= 8, uint8_t,
     typename std::conditional<size <= 16, uint16_t,
       typename std::conditional<size <= 32, uint32_t,
@@ -21,8 +21,8 @@ template <unsigned size> struct Unsigned {
   >::type;
 };
 
-template <unsigned size> struct Signed {
-  using type=
+template<unsigned size> struct Signed {
+  using type =
   typename std::conditional<size <= 8, int8_t,
     typename std::conditional<size <= 16, int16_t,
       typename std::conditional<size <= 32, int32_t,
@@ -33,10 +33,14 @@ template <unsigned size> struct Signed {
 };
 /////////////////////// utilities
 
-/** @returns value squared
- * might add saturation which is rarely checked at present */
+/** @returns value squared, saturated (if greater than or equal to half as many bits then it would overflow)
+ * */
 template<typename Intish> Intish squared(Intish num) {
-  //todo: test for overflow and saturate instead OR extend the return type to twice as many bits
+  //test for overflow and saturate instead OR extend the return type to twice as many bits
+  if (num >= Intish(1) << (std::numeric_limits<Intish>::digits / 2)) {//32 bit code used >65535 for the check, here we use >=65536
+    //overflowed
+    return std::numeric_limits<Intish>::max();
+  }
   return num * num;
 }
 
@@ -74,7 +78,6 @@ template<typename Intish> constexpr void lessen(Intish &value, Intish max) {
   }
 }
 
-
 /** use where fractional values are expected
  * Formerly the gyrations in here were explicitly repeated in very many places, each having to be checked for rogue tile error.
  * Now we know that adding half the denominator before dividing in order to round always uses the same value for that halving, in one spot it did not!
@@ -92,7 +95,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   using RawType = typename Unsigned<size>::type; //we use unsigned as very few of the numbers are signed and the math really does not depend upon signedness
 
   //for rounding to integer:
-  using WholeType =  typename Unsigned<whole>::type;
+  using WholeType = typename Unsigned<whole>::type;
 
   ////////////////
   RawType raw;
@@ -110,7 +113,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     return float(raw >> fract) + float(raw & mask) / float(unity);
   }
 
-  //todo: this is logically dangerous but matches legacy use. Logically one would expect to assign to the whole part, ie shift up by fract.
+  /** this is logically dangerous but matches legacy use. Logically one would expect to assign to the whole part, ie shift up by fract. */
   FixPoint &operator=(RawType pattern) {
     raw = pattern;
     return *this;
@@ -144,8 +147,13 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     } else if (eff == 0.0) {//frequent enough to special case
       raw = 0;
     } else {
-      raw= RawType(eff*unity);//todo: pick bits rather than actually multiply
+      raw = RawType(eff * unity);//todo:e pick bits rather than actually multiply
     }
+  }
+
+  /** doubles preferentially converted to uint32's instead of floats!*/
+  constexpr FixPoint(double eff) {
+    raw = eff > 0 ? RawType(eff * unity) : 0;
   }
 
   /** @returns nearest integer to nominal value */
@@ -159,7 +167,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   }
 
   /** @returns this after dividing by 2^ @param bits, rounding */
-  FixPoint &shrunk(unsigned bits=fract) {
+  FixPoint &shrunk(unsigned bits = fract) {
     raw = this->shrink(bits);
     return *this;
   }
@@ -175,11 +183,11 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     return *this;
   }
 
-  RawType squared(unsigned reducebits=0) const {
-    return roundedScale(::squared(raw),reducebits);
+  RawType squared(unsigned reducebits = 0) const {
+    return roundedScale(::squared(raw), reducebits);
   }
 
-  FixPoint &square(unsigned reducebits=0) {
+  FixPoint &square(unsigned reducebits = 0) {
     raw = squared(reducebits);
     return *this;
   }

@@ -98,19 +98,11 @@ namespace VL53L0X {
   } // VL53L0X_isqrt
 
   uint32_t quadrature_sum(uint32_t a, uint32_t b) {
-    /*
-     * Implements a quadrature sum
-     *
-     * rea = sqrt(a^2 + b^2)
-     *
-     * Trap overflow case max input value is 65535 (16-bit value)
-     * as internal calc are 32-bit wide
-     *
-     * If overflow then set output to maximum
-     */
-    if (a > 65535 || b > 65535) {
-      return 65535;
+    static constexpr uint32_t toobig= 1<<(std::numeric_limits<decltype(a)>::digits/2);
+    if (a >=toobig || b >=toobig) {//then square overflows 32 bits
+      return std::numeric_limits<uint16_t>::max();//sq root of max 32 bit sum of product.
     }
+    //ick: the sum below can overflow, but that isn't checked
     return isqrt(squared(a) + squared(b));
   } // VL53L0X_quadrature_sum
 
@@ -694,7 +686,7 @@ namespace VL53L0X {
       MegaCps totalXtalkMegaCps(xtalkPerSpadMegaCps.raw * pRangingMeasurementData.EffectiveSpadRtnCount.raw, RangingMeasurementData_t::spadEpsilon);
       return totalXtalkMegaCps;
     } else {
-      return 0;
+      return 0.0;
     }
   } // VL53L0X_get_total_xtalk_rate
 
@@ -719,7 +711,7 @@ namespace VL53L0X {
 
     /* uint32 * FixPoint1616 = FixPoint1616 */
 
-    FixPoint1616_t SignalAt0mm = dmaxCalRange_mm * dmaxCalSignalRateRtn_mcps.raw;
+    FixPoint1616_t SignalAt0mm  {dmaxCalRange_mm * dmaxCalSignalRateRtn_mcps.raw};
 
     /* FixPoint1616 >> 8 = FixPoint2408 */
     SignalAt0mm.shrunk(8);
@@ -746,7 +738,7 @@ namespace VL53L0X {
 //      minSignalNeeded_p1.shrunk();
     }
 
-    FixPoint1616_t minSignalNeeded_p2 = pwMult.raw * sigmaEstimateP1;
+    FixPoint1616_t minSignalNeeded_p2 {pwMult.raw * sigmaEstimateP1};
 
     /* FixPoint1616 >> 16 =	 uint32  */
     minSignalNeeded_p2.shrunk();//integer value,
@@ -778,10 +770,10 @@ namespace VL53L0X {
 
     /* FixPoint1814 / uint32 = FixPoint1814
      * then FixPoint1814 squared = FixPoint3628 := FixPoint0428 */
-    FixPoint1616_t sigmaLimitTmp = squared(roundedDivide(cSigmaLimit << 14, 1000));
+    FixPoint1616_t sigmaLimitTmp {squared(roundedDivide(cSigmaLimit << 14, 1000))};
 
     /* FixPoint1616 * FixPoint1616 = FixPoint3232 */
-    FixPoint1616_t sigmaEstSqTmp = squared(cSigmaEstRef);
+    FixPoint1616_t sigmaEstSqTmp  (cSigmaEstRef.squared());
 
     /* FixPoint3232 >> 4 = FixPoint0428 */
     sigmaEstSqTmp = sigmaEstSqTmp.shrink(4);
@@ -790,13 +782,13 @@ namespace VL53L0X {
     sigmaLimitTmp.raw -= sigmaEstSqTmp.raw;
 
     /* uint32_t * FixPoint0428 = FixPoint0428 */
-    FixPoint1616_t minSignalNeeded_p4 = 4 * 12 * sigmaLimitTmp.raw;
+    FixPoint1616_t minSignalNeeded_p4 (4 * 12 * sigmaLimitTmp.raw);
 
     /* FixPoint0428 >> 14 = FixPoint1814 */
     minSignalNeeded_p4.shrunk(14);
 
     /* uint32 + uint32 = uint32 */
-    FixPoint1616_t minSignalNeeded = minSignalNeeded_p2 + minSignalNeeded_p3;
+    FixPoint1616_t minSignalNeeded (minSignalNeeded_p2 + minSignalNeeded_p3);
 
     /* uint32 / uint32 = uint32 */
     minSignalNeeded = roundedDivide(minSignalNeeded, peakVcselDuration_us);
@@ -820,34 +812,34 @@ namespace VL53L0X {
     minSignalNeeded = roundedDivide(minSignalNeeded, 1000);//BUG: perhaps 980F screwed this up? Rounding each division by 1000 to get to /1000,000 is wrong if rounded twice.
 
     /* FixPoint2408/FixPoint2408 = uint32 */
-    FixPoint1616_t dmaxAmbient = isqrt(roundedDivide(SignalAt0mm.raw, minSignalNeeded.raw));
+    FixPoint1616_t dmaxAmbient  (isqrt(roundedDivide(SignalAt0mm.raw, minSignalNeeded.raw)));
 
     /* FixPoint1616 >> 8 = FixPoint2408 */
-    FixPoint1616_t signalLimitTmp = cSignalLimit.shrink(8);
+    FixPoint1616_t signalLimitTmp  (cSignalLimit.shrink(8));
 
     /* FixPoint2408/FixPoint2408 = uint32 */
-    FixPoint1616_t dmaxDark = isqrt(roundedDivide(SignalAt0mm.raw, signalLimitTmp.raw));//former check for zero moved into roundedDivide
+    FixPoint1616_t dmaxDark (isqrt(roundedDivide(SignalAt0mm.raw, signalLimitTmp.raw)));//former check for zero moved into roundedDivide
 
     dmaxDark.lessen(dmaxAmbient);
     return dmaxDark.raw;
   } // calc_dmax
 
   FixPoint1616_t Core::calc_sigma_estimate(const RangingMeasurementData_t &pRangingMeasurementData, uint32_t &pDmm) {
+    LOG_FUNCTION_START;
     /* Expressed in 100ths of a ns, i.e. centi-ns */
     const uint32_t cPulseEffectiveWidth_centi_ns {800};
     /* Expressed in 100ths of a ns, i.e. centi-ns */
     const uint32_t cAmbientEffectiveWidth_centi_ns {600};
-    const FixPoint1616_t cSigmaEstRef {0.001}; /* 0.001 */
+    const FixPoint1616_t cSigmaEstRef {0.001F}; /* 0.001 */
     const uint32_t cVcselPulseWidth_ps = 4700;      /* pico secs */
     //655.5299 looks suspiciciously close to 655.35 with a typo:
-    const FixPoint1616_t cSigmaEstMax {655.53};//ick: perhaps should have been 28f'6000? looks like an error// 0x028F'87AE;
-    const FixPoint1616_t cSigmaEstRtnMax {0.9375};//= 0xF000;// 15/16 ths? 61440/65536?
+    const FixPoint1616_t cSigmaEstMax {655.53F};//ick: perhaps should have been 28f'6000? looks like an error// 0x028F'87AE;
+    const FixPoint1616_t cSigmaEstRtnMax {0.9375F};//= 0xF000;// 15/16 ths? 61440/65536?
     const FixPoint1616_t cAmbToSignalRatioMax {61440.0F};// 0xF000'0000 / cAmbientEffectiveWidth_centi_ns;//ick: may be off by 64k, need some explanation of how you can divide the u32's and get the correct 16.16
     /* Time Of Flight per mm (6.6 pico secs) */
-    const FixPoint1616_t cTOF_per_mm_ps {6.6};//=0x0006999A; //ick: value doesn't seem to match reality, should be closer to 7.0
-    const FixPoint1616_t cMaxXTalk_kcps {50.0};//= 0x00320000;
+    const FixPoint1616_t cTOF_per_mm_ps {6.6F};//=0x0006999A; //ick: value doesn't seem to match reality, should be closer to 7.0
+    const FixPoint1616_t cMaxXTalk_kcps {50.0F};//= 0x00320000;
     const uint32_t cPllPeriod_ps {1655};
-
 
     /*! \addtogroup calc_sigma_estimate
      * @{
@@ -866,12 +858,12 @@ namespace VL53L0X {
      *	- SigmaEstEffAmbWidth
      */
 
-    LOG_FUNCTION_START;
+
     /*
      * We work in kcps rather than mcps as this helps keep within the confines of the 32bit Fix1616 type.
      */
 
-    FixPoint1616_t ambientRate_kcps = pRangingMeasurementData.AmbientRateRtnMegaCps.millis();//980f: now rounded instead of truncated
+    FixPoint1616_t ambientRate_kcps (pRangingMeasurementData.AmbientRateRtnMegaCps.millis());//980f: now rounded instead of truncated
 
     MegaCps correctedSignalRate_mcps = pRangingMeasurementData.SignalRateRtnMegaCps;
 
@@ -881,7 +873,7 @@ namespace VL53L0X {
       get_total_xtalk_rate(pRangingMeasurementData);
 
     /* Signal rate measurement provided by device is the peak signal rate, not average.  */
-    FixPoint1616_t peakSignalRate_kcps = totalSignalRate_mcps.millis();
+    FixPoint1616_t peakSignalRate_kcps (totalSignalRate_mcps.millis());
     uint32_t xTalkCompRate_kcps = std::min(xTalkCompRate_mcps.raw * 1000, cMaxXTalk_kcps.raw);
 
 
@@ -950,7 +942,7 @@ namespace VL53L0X {
        * (in ps).
        */
 
-      FixPoint1616_t sigmaEstimateP1 = cPulseEffectiveWidth_centi_ns;
+      FixPoint1616_t sigmaEstimateP1  (cPulseEffectiveWidth_centi_ns);
 
       /* ((FixPoint1616 << 16)* uint32)/uint32 = FixPoint1616 */
       FixPoint1616_t sigmaEstimateP2(ambientRate_kcps.boosted(16), peakSignalRate_kcps.raw);
@@ -977,7 +969,7 @@ namespace VL53L0X {
       diff1_mcps.boosted(8);
 
       /* FixPoint0824/FixPoint1616 = FixPoint2408 */
-      FixPoint1616_t xTalkCorrection = abs(((long long) diff1_mcps.raw / diff2_mcps.raw));
+      FixPoint1616_t xTalkCorrection (abs(((long long) diff1_mcps.raw / diff2_mcps.raw)));//BUG: useless increase of precision, too late to matter.
 
       /* FixPoint2408 << 8 = FixPoint1616 */
       xTalkCorrection.boosted(8);
@@ -1015,7 +1007,7 @@ namespace VL53L0X {
       /* (FixPoint1616 >> 16) = FixPoint3200 */
       sqr1.shrunk(16);
 
-      FixPoint1616_t sqr2 = sigmaEstimateP2;
+      FixPoint1616_t sqr2 (sigmaEstimateP2);
       /* (FixPoint1616 >> 16) = FixPoint3200 */
       sqr2.shrunk(16);
 

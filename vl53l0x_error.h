@@ -15,7 +15,7 @@ namespace VL53L0X{
         \a VL53L0X_SetOffsetCalibrationData */
     , ERROR_MIN_CLIPPED /*!< Warning parameter passed was clipped to min before to be applied */
     , ERROR_UNDEFINED /*!< Unqualified error */
-    , ERROR_INVALID_PARAMS  /*!< Parameter passed is invalid or out of range todo: split into illegal and out of range */
+    , ERROR_INVALID_PARAMS  /*!< Parameter passed is invalid or out of range todo:0 split into always illegal and out of present/dynamic range */
     , ERROR_NOT_SUPPORTED  /*!< Function is not supported in current mode or configuration */
     , ERROR_RANGE_ERROR  /*!< Device report a ranging error interrupt status */
     , ERROR_TIME_OUT  /*!< Aborted due to time out */

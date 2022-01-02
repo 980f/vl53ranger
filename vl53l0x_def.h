@@ -118,7 +118,7 @@ namespace VL53L0X {
     InterruptPolarity polarity = INTERRUPTPOLARITY_LOW;
   };
 
-  constexpr bool isValid(DeviceModes modes) {//todo: review old code, may need some context here.
+  constexpr bool isValid(DeviceModes modes) {// may need some context here.
     switch (modes) {
       case DEVICEMODE_SINGLE_RANGING:
         return true;
@@ -198,7 +198,6 @@ namespace VL53L0X {
     MegaCps XTalkCompensationRateMegaCps; /*!< CrossTalk compensation rate in Mega counts per seconds.	*/
     int32_t RangeOffsetMicroMeters; /*!< Range offset adjustment (mm).	*/
 
-    //todo: struct and single array.
     LimitTuple LimitChecks[CHECKENABLE_NUMBER_OF_CHECKS];     /*!< This Array store all the Limit Check value for this device */
     bool LimitChecksStatus[CHECKENABLE_NUMBER_OF_CHECKS]; /*!< This Array store all the Error of the check linked to last measurement. */
 
@@ -249,11 +248,12 @@ namespace VL53L0X {
  * @brief Range measurement data.
  */
   struct RangingMeasurementData_t {
-    uint32_t TimeStamp=0; /*!< 32-bit time stamp. */ //todo: actually set a timestamp value into this!
+#if IncludeNotimplemented
+    uint32_t TimeStamp=0; /*!< 32-bit time stamp. */
     uint32_t MeasurementTimeUsec=0;     /*!< Give the Measurement time needed by the device to do the measurement.*/
     uint16_t RangeDMaxMilliMeter;  /*!< Tells what is the maximum detection distance of the device in current setup and environment conditions (Filled when applicable) */
     uint8_t ZoneId;  /*!< Denotes which zone and range scheduler stage the range data relates to. */
-
+#endif
     MegaCps SignalRateRtnMegaCps; /*!< Return signal rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of target reflectance.*/
     MegaCps AmbientRateRtnMegaCps;  /*!< Return ambient rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of the ambient light.*/
 
@@ -433,7 +433,7 @@ namespace VL53L0X {
         return 7;  //ick: this seems to overlap with wraparound enable
       default:
 //no route        THROW(ERROR_INVALID_PARAMS);
-        return ~0;//todo: deal with lack of access to throw
+        return ~0;//todo:2 deal with lack of access to throw
     } // switch
   }
 
@@ -494,35 +494,7 @@ namespace VL53L0X {
 
 #define VL53L0X_GETDEVICESPECIFICPARAMETER(field)  PALDevDataGet( DeviceSpecificParameters).field
 
-////todo: remove all these via FixPoint types
-//#define VL53L0X_FIXPOINT1616TOFIXPOINT97(Value)  (uint16_t)((Value >> 9) & 0xFFFF)
-////BUG: (UB) need to cast/convert before shrunk, not after
-//#define VL53L0X_FIXPOINT97TOFIXPOINT1616(Value) (FixPoint1616_t)((Value) << 9)
-//
-//#define VL53L0X_FIXPOINT1616TOFIXPOINT88(Value)  (uint16_t)((Value >> 8) & 0xFFFF)
-////BUG: (UB) need to cast/convert before shrunk, not after
-//#define VL53L0X_FIXPOINT88TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
-//
-//#define VL53L0X_FIXPOINT1616TOFIXPOINT412(Value) (uint16_t)((Value >> 4) & 0xFFFF)
-//#define VL53L0X_FIXPOINT412TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 4)
-//
-//#define VL53L0X_FIXPOINT1616TOFIXPOINT313(Value) (FixPoint<3,13>(Value))
-////BUG: (UB) need to cast/convert before shrunk, not after
-//#define VL53L0X_FIXPOINT313TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 3)
-//
-//#define VL53L0X_FIXPOINT1616TOFIXPOINT08(Value) (uint8_t)((Value >> 8) & 0x00FF)
-////BUG: (UB) need to cast/convert before shrunk, not after
-//#define VL53L0X_FIXPOINT08TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 8)
-//
-//#define VL53L0X_FIXPOINT1616TOFIXPOINT53(Value)  (uint8_t)((Value >> 13) & 0x00FF)
-////BUG: (UB) need to cast/convert before shrunk, not after
-//#define VL53L0X_FIXPOINT53TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 13)
-//
-////BUG: rogue tile, shrunk should be 12 not 14.
-//#define VL53L0X_FIXPOINT1616TOFIXPOINT102(Value)  (uint16_t)((Value >> 14) & 0x0FFF)
-//#define VL53L0X_FIXPOINT102TOFIXPOINT1616(Value) (FixPoint1616_t)(Value << 12)
-
-  constexpr uint16_t MAKEUINT16(uint8_t lsb, uint8_t msb) {
+  constexpr uint16_t MAKEUINT16(const uint8_t lsb, const uint8_t msb) {
     return (uint16_t(msb) << 8) + uint16_t(lsb);
   }
 

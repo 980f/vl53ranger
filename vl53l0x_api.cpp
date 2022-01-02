@@ -267,7 +267,7 @@ namespace VL53L0X {
     PALDevDataSet(SigmaEst.RefArray, 100);
     PALDevDataSet(SigmaEst.EffPulseWidth, 900);
     PALDevDataSet(SigmaEst.EffAmbWidth, 500);
-    PALDevDataSet(targetRefRate, 20.0f); /* 20 MCPS in 9:7 format was 0x0A00 */
+    PALDevDataSet(targetRefRate, 20.0F); /* 20 MCPS in 9:7 format was 0x0A00 */
 
     /* Use internal default settings */
     PALDevDataSet(UseInternalTuningSettings, true);
@@ -277,10 +277,10 @@ namespace VL53L0X {
       comm.RdByte(REG_SYSRANGE_stopper, &PALDevDataGet(StopVariable));
     }
     /* Limit default values */
-    SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 18.0F});
-    SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.25F});
-    SetLimitCheck(CHECKENABLE_SIGNAL_REF_CLIP, {false, 35.0F});
-    SetLimitCheck(CHECKENABLE_RANGE_IGNORE_THRESHOLD, {false, 0});
+    SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 18.0});
+    SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.25});
+    SetLimitCheck(CHECKENABLE_SIGNAL_REF_CLIP, {false, 35.0});
+    SetLimitCheck(CHECKENABLE_RANGE_IGNORE_THRESHOLD, {false, 0.0});
     SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_MSRC, false);//ick: threshold ambiguous
     SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_PRE_RANGE, false);//ick: threshold ambiguous
     /** initially all sequence steps are enabled */
@@ -383,7 +383,7 @@ namespace VL53L0X {
     LOG_FUNCTION_START;
     /* Set reset bit */
     comm.WrByte(REG_SOFT_RESET_GO2_SOFT_RESET_N, 0x00);
-    //todo: if we get comm errors when device resets then we need to catch them here.
+    //todo:M if we get comm errors when device resets then we need to catch them here.
     if (!waitOnResetIndicator(true)) {
       return false;
     }
@@ -420,7 +420,6 @@ namespace VL53L0X {
 
   bool Api::SetDeviceMode(DeviceModes deviceMode) {
     LOG_FUNCTION_START;
-//    Error(" %d", deviceMode);//todo: add string
 
     switch (deviceMode) {
       case DEVICEMODE_SINGLE_RANGING:
@@ -433,7 +432,7 @@ namespace VL53L0X {
         return true;
       default:
         /* Unsupported mode */
-        return LOG_ERROR(ERROR_MODE_NOT_SUPPORTED);
+        return LOG_ERROR(ERROR_MODE_NOT_SUPPORTED, deviceMode);
     } // switch
 
   } // VL53L0X_SetDeviceMode
@@ -462,7 +461,6 @@ namespace VL53L0X {
   }
 
   bool Api::SetVcselPulsePeriod(VcselPeriod VcselPeriodType, uint8_t VCSELPulsePeriodPCLK) {
-    //todo:0 depending upon success of following call then call perform_phase_calibration
     return set_vcsel_pulse_period(VcselPeriodType, VCSELPulsePeriodPCLK);
   }
 
@@ -480,19 +478,14 @@ namespace VL53L0X {
     auto SequenceConfig = get_SequenceConfig();
     uint8_t SequenceConfigNew = SequenceConfig;
     setBit(bitnum, SequenceConfigNew, SequenceStepEnabled);
-    if (SequenceStepId == SEQUENCESTEP_DSS) {//legacy weirdness, set bit 5 in tandem wtih bit for DSS
+    if (SequenceStepId == SEQUENCESTEP_DSS) {//legacy weirdness, set bit 5 in tandem with bit for DSS
       setBit<5>(SequenceConfigNew, SequenceStepEnabled);
     }
 
     if (SequenceConfigNew != SequenceConfig) {
-      /* Apply New Setting */
-      comm.WrByte(REG_SYSTEM_SEQUENCE_CONFIG, SequenceConfigNew);
-      PALDevDataSet(SequenceConfig, SequenceConfigNew);
+      set_SequenceConfig( SequenceConfigNew,true);
       /* Recalculate timing budget */
-      PALDevDataSet(SequenceConfig, SequenceConfigNew);
-      uint32_t MeasurementTimingBudgetMicroSeconds = VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds);
-      SetMeasurementTimingBudgetMicroSeconds(MeasurementTimingBudgetMicroSeconds);
-      //todo: check above. IDE scrambled.
+      SetMeasurementTimingBudgetMicroSeconds(VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds));
     }
   } // VL53L0X_SetSequenceStepEnable
 
@@ -610,11 +603,12 @@ namespace VL53L0X {
         break;
 
       case CHECKENABLE_SIGNAL_RATE_FINAL_RANGE:
-        comm.Write(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, limit.value);//todo: was this formerly conditional on enable==true?
+        comm.Write(REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, limit.value);//ick: curiously ignores enable
         break;
 
       case CHECKENABLE_SIGNAL_RATE_MSRC:
-        comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), !limit.enable ? Bitter(1) : 0);//BUG:clear lsb set bit 1
+//was buggy:        comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), !limit.enable ? Bitter(1) : 0);//BUG:clear lsb set bit 1
+        comm.UpdateBit(REG_MSRC_CONFIG_CONTROL,1, !limit.enable);
         if (limit.enable) {
           comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, limit.value);
         }
@@ -656,7 +650,7 @@ namespace VL53L0X {
 
       default:
         THROW(ERROR_INVALID_PARAMS);
-        return 0;//dummy to appease compiler
+        return 0.0;//dummy to appease compiler
     } // switch
 
   } // GetLimitCheckCurrent
@@ -839,8 +833,8 @@ namespace VL53L0X {
     uint8_t InterruptConfig = VL53L0X_GETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality);
 
     if (InterruptConfig == GPIOFUNCTIONALITY_NEW_MEASURE_READY) {
-      auto mask = GetInterruptMaskStatus(false);
-      return mask == GPIOFUNCTIONALITY_NEW_MEASURE_READY;//todo: see if magic bits should be masked here
+      auto mask = GetInterruptMaskStatus(false); //todo:1 see if we should throw Rangerror here, old code ignored it.
+      return mask == GPIOFUNCTIONALITY_NEW_MEASURE_READY;
     } else {
       uint8_t SysRangeStatusRegister;
       fetch(SysRangeStatusRegister, REG_RESULT_RANGE_STATUS);
@@ -892,7 +886,7 @@ namespace VL53L0X {
 
       if (XTalkCompensationEnable) {
         uint16_t XTalkCompensationRateMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);//BUG: loses integer part, perhaps a 9,7 was intended?
-        auto dry = SignalRate.raw - roundedScale(XTalkCompensationRateMegaCps * EffectiveSpadRtnCount ,RangingMeasurementData_t::spadEpsilon);
+        auto dry = SignalRate.raw - roundedScale(XTalkCompensationRateMegaCps * EffectiveSpadRtnCount, RangingMeasurementData_t::spadEpsilon);
         RangeMilliMeter = dry > 0 ? (RangeMilliMeter * SignalRate) / dry : (RangeFractionalEnable ? 8888 : (8888 << 2));//bug: magic value
       }
     }
@@ -955,28 +949,28 @@ namespace VL53L0X {
 
 /* End Group PAL Measurement Functions */
 
-const DeviceByte gpiooscer[]={
-    { 0xff, 0x01 },
-    { 0x00, 0x00 },
-    { 0xff, 0x00 },
+  const DeviceByte gpiooscer[] = {
+    {0xff, 0x01},
+    {0x00, 0x00},
+    {0xff, 0x00},
 
-    { 0x80, 0x01 },
-    { 0x85, 0x02 },
+    {0x80, 0x01},
+    {0x85, 0x02},
 
-    { 0xff, 0x04 },
-    { 0xcd, 0x00 },
-    { 0xcc, 0x11 },
+    {0xff, 0x04},
+    {0xcd, 0x00},
+    {0xcc, 0x11},
 
-    { 0xff, 0x07 },
-    { 0xbe, 0x00 },
+    {0xff, 0x07},
+    {0xbe, 0x00},
 
-    { 0xff, 0x06 },
-    { 0xcc, 0x09 },
+    {0xff, 0x06},
+    {0xcc, 0x09},
 
-    { 0xff, 0x00 },
-    { 0xff, 0x01 },
-    { 0x00, 0x00 },
-};
+    {0xff, 0x00},
+    {0xff, 0x01},
+    {0x00, 0x00},
+  };
 
   bool Api::SetGpioConfig(uint8_t Pin, GpioConfiguration gpioConfig) {
     LOG_FUNCTION_START;
@@ -990,7 +984,7 @@ const DeviceByte gpiooscer[]={
         comm.WrByte(REG_GPIO_HV_MUX_ACTIVE_HIGH, (gpioConfig.polarity == INTERRUPTPOLARITY_LOW) ? Bitter(4) : 1);//ick: elsewhere does an update
         return true;
       case DEVICEMODE_GPIO_OSC:
-        load_compact(gpiooscer,sizeof (gpiooscer)/sizeof(gpiooscer[0]));
+        load_compact(gpiooscer, sizeof(gpiooscer) / sizeof(gpiooscer[0]));
         return true;
       default:
         if (!valid(gpioConfig.function)) {
@@ -1017,7 +1011,7 @@ const DeviceByte gpiooscer[]={
     gpio.function = static_cast<enum GpioFunctionality>(gpioConfig & Mask<2, 0>::places);
 
     if (!valid(gpio.function)) {
-      THROW(ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);//todo: actual nvm failure, should force a valid value into it.
+      THROW(ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);//todo:1 actually nvm failure, should force a valid value into it.
     } // switch
     uint8_t polarity;
     fetch(polarity, REG_GPIO_HV_MUX_ACTIVE_HIGH);
@@ -1080,7 +1074,7 @@ const DeviceByte gpiooscer[]={
     for (unsigned LoopCount = 3; LoopCount-- > 0;) {
       comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 1);//ick: is this a 1<<0 or a boolean?
       comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 0);
-      uint8_t mask= GetInterruptMaskStatus(false);
+      uint8_t mask = GetInterruptMaskStatus(false);
       if (mask == 0) { //ick: elsewhere bits 4,3 are also looked at.
         return true;
       }
@@ -1091,7 +1085,7 @@ const DeviceByte gpiooscer[]={
   uint8_t Api::GetInterruptMaskStatus(bool throwRangeErrors) {
     LOG_FUNCTION_START;
     uint8_t mask;
-    comm.Read(REG_RESULT_INTERRUPT_STATUS,mask);
+    comm.Read(REG_RESULT_INTERRUPT_STATUS, mask);
     if (throwRangeErrors) {
       if (getBits<4, 3>(mask)) {//if either bit? what are each of them?
         THROW(ERROR_RANGE_ERROR);
@@ -1189,7 +1183,7 @@ const DeviceByte gpiooscer[]={
     currentSpadIndex = lastSpadIndex;
 
     auto peakSignalRateRef = perform_ref_signal_measurement(0);
-    if (peakSignalRateRef == 0) {//todo: learn if 0 is acceptible here.
+    if (peakSignalRateRef == 0) {//todo:1 learn if 0 is acceptible here. If so then failure in the above needs to throw rather than return a sentinel value.
       return false;
     }
 
@@ -1214,13 +1208,13 @@ const DeviceByte gpiooscer[]={
         if (peakSignalRateRef > targetRefRate) {
           /* Signal rate still too high after setting the minimum number of APERTURE spads.
            * Can do no more therefore set the min number of aperture spads as the result. */
-          sc = {minimumSpadCount, true};//todo: 1 this seems to already be the state of it.
+          sc = {minimumSpadCount, true};//undo changes done by enable_ref_spads
         }
+      } else {
+        return false;
       }
-    } else {
-//      sc.isAperture = false;//but we ERROR_OUT so why this lingering assign? changed to ref object instead of internal one
-      return false;//todo: check original source
     }
+
     if (peakSignalRateRef < targetRefRate) {
 /* At this point, the minimum number of either aperture or non-aperture spads have been set.
  * Proceed to add spads and perform measurements until the target reference is reached. */
@@ -1282,7 +1276,7 @@ const DeviceByte gpiooscer[]={
       wad.DeviceMode = DeviceMode;
     } else {
       wad.DeviceMode = DEVICEMODE_SINGLE_RANGING;
-      //todo: and send that back to the hardware
+      //todo:1 and send that back to the hardware
     }
 
     wad.InterMeasurementPeriodMilliSeconds = GetInterMeasurementPeriodMilliSeconds();
@@ -1331,6 +1325,11 @@ const DeviceByte gpiooscer[]={
 
   bool Api::EnableInterruptMask(uint8_t InterruptMask) {//ick: prior code used 32 bits when getMask only returns at most 8
     VL53L0X_NYI(false)
+  }
+
+  SpadCount Api::GetReferenceSpads() {
+    LOG_FUNCTION_START
+    return get_reference_spads();
   }
 
 #endif

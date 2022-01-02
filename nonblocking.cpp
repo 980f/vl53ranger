@@ -121,9 +121,9 @@ void NonBlocking::loop() {
           case ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED :
           case ERROR_GPIO_NOT_EXISTING :
           case ERROR_INVALID_PARAMS)
-      //todo: developer errors
+      //todo: report developer errors
       abandonTasks();
-    CATCH(ERROR_CONTROL_INTERFACE) //todo: suberrors
+    CATCH(ERROR_CONTROL_INTERFACE)
       //todo: device must be detected and fully reinit
       abandonTasks();
     UNCAUGHT
@@ -255,6 +255,11 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
 }
 
 ////////////////////////////////////////////
+
+bool NonBlocking::MeasurementProcess::onMeasurement() {
+  return false;
+}
+
 
 bool NonBlocking::AveragingProcess::begin() {
   sum_ranging = 0;

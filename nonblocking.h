@@ -183,7 +183,7 @@ namespace VL53L0X {
       }
 
       virtual void startNext() = 0;
-      bool onMeasurement();
+      virtual bool onMeasurement();
 
       void done() {
         /* restore the previous Sequence Config */
@@ -202,14 +202,14 @@ namespace VL53L0X {
     public:
       FixPoint1616_t CalDistanceMilliMeter;
     protected:
-      unsigned total_count = 0;//ick: former use of 32bit was excessive
-      unsigned sum_ranging = 0;//bug: former use of 16 bit begged for integer overflow
+      unsigned total_count {0};//ick: former use of 32bit was excessive
+      unsigned sum_ranging {0};//bug: former use of 16 bit begged for integer overflow
       //using signed type so that when we round the residual can be negative for rounded up:
-      int sum_fractions = 0;//ick: former ignored fractions, could have lost 25 counts
+      int sum_fractions {0};//ick: former ignored fractions, could have lost 25 counts
 
-      MegaCps sum_signalRate = 0;
+      MegaCps sum_signalRate {0};
       //measurement count
-      unsigned measurementRemaining = 0;
+      unsigned measurementRemaining{0};
     protected:
       explicit AveragingProcess(NonBlocking &dev) : MeasurementProcess(dev) {
       }
@@ -219,7 +219,7 @@ namespace VL53L0X {
       /** begin and onmeasurement will call this, it must start a measurement */
       void startNext() override = 0;
       /** implements receiving measurement,  calls averaging stuff then finish of last measurement */
-      bool onMeasurement();
+      bool onMeasurement() override;
 
       /** @returns whether to continue the process. if not then nb.lastError details why  */
       virtual void alsoSum() {
@@ -307,6 +307,7 @@ namespace VL53L0X {
     };
 
   };
+
 
   /** NYI
    *

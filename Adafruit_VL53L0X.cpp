@@ -249,7 +249,7 @@ boolean Adafruit_VL53L0X::configSensor(Sense_config_t vl_config) {
       MyDevice.SetMeasurementTimingBudgetMicroSeconds(33000);
       MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_PRE_RANGE, 18);
       MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_FINAL_RANGE, 14);
-      //todo: perform_calibration which was formerly done twice because of the two calls above. I removed it from those calls as running it once for both changes is good and proper.
+      //perform_calibration which was formerly done twice because of the two calls above. I removed it from those calls as running it once for both changes is good and proper.
       if(!MyDevice.PerformRefCalibration()){
         Serial.println(F("failed to collect data to update for pulse period setup "));
       }

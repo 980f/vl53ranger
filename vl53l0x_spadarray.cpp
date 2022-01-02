@@ -11,9 +11,9 @@ SpadCount SpadArray::count_enabled( ) {
    * We init the array to all zeroes and looking at 4 unused bits cost a few extra iterations, which costs less than starting up a second loop.
    */
   for (unsigned byteIndex = 0; byteIndex < SpadArray::NumberOfBytes; ++byteIndex) {
-    uint8_t tempByte = raw[byteIndex];
+    uint8_t onebyte = raw[byteIndex];
     for (unsigned bitIndex = 0; bitIndex <= 8; ++bitIndex) {
-      if (getBit(bitIndex,tempByte)) {
+      if (getBit(bitIndex, onebyte)) {
         if (!sc.quantity++) {//if we found first one then its index tells us its type:
           sc.isAperture =  (byteIndex >= 2) || (bitIndex >= 4);
         }
