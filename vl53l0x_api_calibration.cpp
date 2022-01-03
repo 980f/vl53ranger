@@ -43,9 +43,10 @@ namespace VL53L0X {
 
   bool Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance) {
     TRACE_ENTRY
-    if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
-      THROW(ERROR_INVALID_PARAMS);//bad user input
-    }
+    //checked in public method, this is the internal one.
+//    if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
+//      THROW(ERROR_INVALID_PARAMS);//bad user input (for blocking procedure)
+//    }
     /* Disable the XTalk compensation */
     SetXTalkCompensationEnable(false);
     /* Disable the RIT */
@@ -62,7 +63,7 @@ namespace VL53L0X {
       }
       /* The range is valid when rangeError = 0 */
       if (RangingMeasurementData.Range.error == 0) {
-        sum_ranging += RangingMeasurementData.Range.MilliMeter;
+        sum_ranging += RangingMeasurementData.Range.milliMeter;
         sum_signalRate += RangingMeasurementData.SignalRateRtnMegaCps;
         sum_spads += RangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
         ++total_count;
@@ -116,9 +117,9 @@ namespace VL53L0X {
   } // VL53L0X_perform_xtalk_calibration
 
   bool Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter) {
-    if (CalDistanceMilliMeter.raw <= 0) {//ick,unsigned numbers are never negative, todo: need a maximum check here.
-      return LOG_ERROR(ERROR_INVALID_PARAMS);
-    }
+//    if (CalDistanceMilliMeter.raw <= 0) {//ick,unsigned numbers are never negative, todo: need a maximum check here.
+//      return LOG_ERROR(ERROR_INVALID_PARAMS);
+//    }
     SetOffsetCalibrationDataMicroMeter(0);
     /* Get the value of the TCC */
     bool SequenceStepWasEnabled = GetSequenceStepEnable(SEQUENCESTEP_TCC);
@@ -136,7 +137,7 @@ namespace VL53L0X {
       }
       /* The range is valid when rangeError = 0 */
       if (RangingMeasurementData.Range.error == 0) {
-        sum_ranging += RangingMeasurementData.Range.MilliMeter;//ick: fractions ignored, should round at least.
+        sum_ranging += RangingMeasurementData.Range.milliMeter;//ick: fractions ignored, should round at least.
         ++total_count;
       }
     }

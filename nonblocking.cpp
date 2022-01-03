@@ -219,38 +219,47 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
       return false;
     }
   }
+  activeProcess = process;//but we may terminate it before returning
   switch (process) {
     case Idle:
+      abandonTasks();
+      //todo: defer if Stoptask is activated
       agent.afterProcess(activeProcess, ProcessResult::Succeeded);
       return true;
     case InitI2c:
-
-      break;
-    case InitStatic:
       break;
     case InitData:
+      requesting.dataInit= true;
+//      [[fallthrough]]
+    case InitStatic:
+      requesting.staticInit=true;
+      requesting.spads=true;
+//      [[fallthrough]]
+    case CalVhvPhase:
+      requesting.vhv=true;
+    case CalPhase:
+      requesting.phase=true;
       break;
     case OneShot:
-      activeProcess = OneShot;
       SetDeviceMode(DeviceModes::DEVICEMODE_SINGLE_RANGING);
-      StartMeasurement();
       startMeasurement(forRange);
       break;
     case Continuous:
-      activeProcess = Continuous;
       SetDeviceMode(agent.arg.sampleRate_ms == 0 ? DeviceModes::DEVICEMODE_CONTINUOUS_RANGING : DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
-      StartMeasurement();
       startMeasurement(forRange);
       break;
-    case RefCal:
-      break;
     case RateTest:
+      startMeasurement(forRate);
       break;
     case SetupSpads:
+
       break;
     case Offset:
       break;
+    case CrossTalk:
+      break;
   }
+  //software defect!
   return false;
 }
 
@@ -276,7 +285,7 @@ bool NonBlocking::AveragingProcess::begin() {
 bool NonBlocking::AveragingProcess::onMeasurement() {
   TRACE_ENTRY
   if (nb.agent.theRangingMeasurementData.Range.error == VL53L0X::Range_Valid) {
-    sum_ranging += nb.agent.theRangingMeasurementData.Range.MilliMeter;
+    sum_ranging += nb.agent.theRangingMeasurementData.Range.milliMeter;
     sum_fractions += nb.agent.theRangingMeasurementData.Range.FractionalPart;
     sum_signalRate += nb.agent.theRangingMeasurementData.SignalRateRtnMegaCps;
     ++total_count;

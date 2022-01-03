@@ -191,8 +191,7 @@ namespace VL53L0X {
   bool Api::SetLinearityCorrectiveGain(uint16_t LinearityCorrectiveGain) {
     LOG_FUNCTION_START;
     if (!validGain(LinearityCorrectiveGain)) {
-      LOG_ERROR(ERROR_INVALID_PARAMS);
-      return false;
+      return LOG_ERROR(ERROR_INVALID_PARAMS);
     }
     PALDevDataSet(LinearityCorrectiveGain, LinearityCorrectiveGain);
 
@@ -510,7 +509,7 @@ namespace VL53L0X {
     if (!SetMeasurementTimingBudgetMicroSeconds(MeasurementTimingBudgetMicroSeconds)) {
       //budget failed to restore prior value, and have to rerun budget because of its potential side effects
       set_sequence_step_timeout(SequenceStepId, OldTimeOutMicroSeconds);
-      SetMeasurementTimingBudgetMicroSeconds(MeasurementTimingBudgetMicroSeconds);
+      SetMeasurementTimingBudgetMicroSeconds(OldTimeOutMicroSeconds);//todo:x check original source, it might have a bug here
       return false;
     }
     return true;
@@ -543,8 +542,6 @@ namespace VL53L0X {
     }
     return ratio;
   } // GetInterMeasurementPeriodMilliSeconds
-
-
 
   void Api::SetRefCalibration(CalibrationParameters p) {
     LOG_FUNCTION_START;
@@ -733,13 +730,21 @@ namespace VL53L0X {
     return perform_ref_calibration();
   }
 
-  bool Api::PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance) {
+  bool Api::PerformXTalkCalibration(MilliMeter XTalkCalDistance) {
     LOG_FUNCTION_START;
+    if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
+      THROW(ERROR_INVALID_PARAMS);//bad user input (for blocking procedure)
+      return false;
+    }
     return perform_xtalk_calibration(XTalkCalDistance);
   }
 
-  bool Api::PerformOffsetCalibration(FixPoint1616_t CalDistanceMilliMeter) {
+  bool Api::PerformOffsetCalibration(MilliMeter CalDistanceMilliMeter) {
     LOG_FUNCTION_START;
+    if (CalDistanceMilliMeter.raw <= 0) {//ick,unsigned numbers are never negative, todo: need a maximum check here.
+      THROW(ERROR_INVALID_PARAMS);//bad user input (for blocking procedure)
+      return false;
+    }
     return perform_offset_calibration(CalDistanceMilliMeter);
   }
 
@@ -854,7 +859,7 @@ namespace VL53L0X {
 
     uint8_t localBuffer[12];
     comm.ReadMulti(0x14, localBuffer, sizeof(localBuffer));
-
+#if IncludeNotimplemented
     pRangingMeasurementData.ZoneId = 0;    /* Only one zone */
     pRangingMeasurementData.TimeStamp = 0; /* Not Implemented */
 
@@ -863,6 +868,7 @@ namespace VL53L0X {
      */
 
     pRangingMeasurementData.MeasurementTimeUsec = 0;
+#endif
 
     /* peak_signal_count_rate_rtn_mcps */
     MegaCps SignalRate = Cps16(MAKEUINT16(localBuffer[7], localBuffer[6]));
@@ -892,10 +898,10 @@ namespace VL53L0X {
     }
 
     if (RangeFractionalEnable) {
-      pRangingMeasurementData.Range.MilliMeter = (uint16_t) ((RangeMilliMeter) >> 2);
+      pRangingMeasurementData.Range.milliMeter = (uint16_t) ((RangeMilliMeter) >> 2);
       pRangingMeasurementData.Range.FractionalPart = RangeMilliMeter << (8 - 2);//ick: former mask was gratuitous along with the cast.
     } else {
-      pRangingMeasurementData.Range.MilliMeter = RangeMilliMeter;
+      pRangingMeasurementData.Range.milliMeter = RangeMilliMeter;
       pRangingMeasurementData.Range.FractionalPart = 0;
     }
 
@@ -987,7 +993,7 @@ namespace VL53L0X {
         load_compact(gpiooscer, sizeof(gpiooscer) / sizeof(gpiooscer[0]));
         return true;
       default:
-        if (!valid(gpioConfig.function)) {
+        if (!isValid(gpioConfig.function)) {
           return LOG_ERROR(ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);
         } // switch
         comm.WrByte(REG_SYSTEM_INTERRUPT_CONFIG_GPIO, gpioConfig.function);
@@ -1010,7 +1016,7 @@ namespace VL53L0X {
     fetch(gpioConfig, REG_SYSTEM_INTERRUPT_CONFIG_GPIO);
     gpio.function = static_cast<enum GpioFunctionality>(gpioConfig & Mask<2, 0>::places);
 
-    if (!valid(gpio.function)) {
+    if (!isValid(gpio.function)) {
       THROW(ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);//todo:1 actually nvm failure, should force a valid value into it.
     } // switch
     uint8_t polarity;

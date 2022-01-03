@@ -140,19 +140,19 @@ namespace VL53L0X {
   }
 
 #if IncludeHistogramming
-/** @defgroup VL53L0X_define_HistogramModes_group Defines Histogram modes
- *	Defines all possible Histogram modes for the device
- *	@{
- */
-  enum HistogramModes : uint8_t {
-    HISTOGRAMMODE_DISABLED = 0 /*!< Histogram Disabled */
-    , HISTOGRAMMODE_REFERENCE_ONLY /*!< Histogram Reference array only */
-    , HISTOGRAMMODE_RETURN_ONLY /*!< Histogram Return array only */
-    , HISTOGRAMMODE_BOTH  /*!< Histogram both Reference and Return Arrays */
+  /** @defgroup VL53L0X_define_HistogramModes_group Defines Histogram modes
+   *	Defines all possible Histogram modes for the device
+   *	@{
+   */
+    enum HistogramModes : uint8_t {
+      HISTOGRAMMODE_DISABLED = 0 /*!< Histogram Disabled */
+      , HISTOGRAMMODE_REFERENCE_ONLY /*!< Histogram Reference array only */
+      , HISTOGRAMMODE_RETURN_ONLY /*!< Histogram Return array only */
+      , HISTOGRAMMODE_BOTH  /*!< Histogram both Reference and Return Arrays */
 
-/* ... Modes to be added depending on device */
-/** @} VL53L0X_define_HistogramModes_group */
-  };
+  /* ... Modes to be added depending on device */
+  /** @} VL53L0X_define_HistogramModes_group */
+    };
 
 #endif
 
@@ -174,13 +174,13 @@ namespace VL53L0X {
   };
 
 
-  using MegaCps =FixPoint1616_t;
+  using MegaCps = FixPoint1616_t;
   /** megacps in 16 bits*/
-  using Cps16 =FixPoint<9, 7>;
+  using Cps16 = FixPoint<9, 7>;
 
   /** a limit might be disabled but still retain its value */
   struct LimitTuple {
-    bool enable= false;
+    bool enable = false;
     Cps16 value;
   };
 
@@ -228,59 +228,68 @@ namespace VL53L0X {
     int32_t RetSignalAt0mm;    /*!< intermediate dmax computation value caching */
   };
 
+  /** millimeter values with fractional part */
+  using MilliMeter = FixPoint1616_t;
+
   /** result with extra detail */
   struct RangeDatum {
-    uint16_t MilliMeter; /*!< range distance in millimeter. */
+    uint16_t milliMeter; /*!< range distance in millimeter. */
     uint8_t FractionalPart; /*!< Fractional part of range distance. With RangeMilliMeter value is a FixPoint168 value. */
     RangeStatus error;  /*!< Range Error for the current measurement. This is device dependent. Value = 0 means value is valid. 	See \ref RangeStatusPage */
     /** negative of power of 2 weight of fractionalpart to millimeter */
-    static const unsigned epsilon=8;
+    static constexpr unsigned epsilon = 8;
 
-    /** */
-    static unsigned carry(int &sum_fractions){
-      unsigned whole= roundedScale(sum_fractions,epsilon);
-      sum_fractions-=whole<<epsilon;//nominally negative is rounded up, or massively large if not carefully checked. NOLINT(cppcoreguidelines-narrowing-conversions)
+    /** who knows why they used a 16,9 fp number? */
+    MilliMeter distance()const {
+      return {FractionalPart+milliMeter << std::numeric_limits<decltype(FractionalPart)>::digits,1,epsilon};
+    }
+    /** given an integer sum of fractional values return in essence the net carryout of the summation, and remove that from the give sum of fractions
+     * all because someone wanted to save a byte by using a 16+8 pair instead of a 16+16 pair.
+     * soon 980F will use a 16:16 here (or maybe a 16:8 to see if that works!) */
+    static unsigned carry(int &sum_fractions) {
+      unsigned whole = roundedScale(sum_fractions, epsilon);
+      sum_fractions -= whole << epsilon;//nominally negative is rounded up, or massively large if not carefully checked. NOLINT(cppcoreguidelines-narrowing-conversions)
       return whole;
     }
   };
+
 /**
  * @struct VL53L0X_RangeData_t
  * @brief Range measurement data.
  */
   struct RangingMeasurementData_t {
 #if IncludeNotimplemented
-    uint32_t TimeStamp=0; /*!< 32-bit time stamp. */
-    uint32_t MeasurementTimeUsec=0;     /*!< Give the Measurement time needed by the device to do the measurement.*/
-    uint16_t RangeDMaxMilliMeter;  /*!< Tells what is the maximum detection distance of the device in current setup and environment conditions (Filled when applicable) */
+    uint32_t TimeStamp = 0; /*!< 32-bit time stamp. */
+    uint32_t MeasurementTimeUsec = 0;     /*!< Give the Measurement time needed by the device to do the measurement.*/
     uint8_t ZoneId;  /*!< Denotes which zone and range scheduler stage the range data relates to. */
 #endif
+    uint16_t RangeDMaxMilliMeter;  /*!< Tells what is the maximum detection distance of the device in current setup and environment conditions (Filled when applicable) */
     MegaCps SignalRateRtnMegaCps; /*!< Return signal rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of target reflectance.*/
     MegaCps AmbientRateRtnMegaCps;  /*!< Return ambient rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of the ambient light.*/
 
-    static const unsigned int spadEpsilon=8;
-    FixPoint<16-spadEpsilon, spadEpsilon> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256  (call .rounded()) */
+    static const unsigned int spadEpsilon = 8;
+    FixPoint<16 - spadEpsilon, spadEpsilon> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256  (call .rounded()) */
 
     RangeDatum Range;
-
   };
 
 #if IncludeHistogramming
 #define VL53L0X_HISTOGRAM_BUFFER_SIZE 24
 
-/**
- * @struct VL53L0X_HistogramData_t
- * @brief Histogram measurement data.
- */
-  struct HistogramMeasurementData_t {  /* Histogram Measurement data */
-    uint32_t HistogramData[VL53L0X_HISTOGRAM_BUFFER_SIZE];  /*!< Histogram data */
-    uint8_t HistogramType; /*!< Indicate the types of histogram data :  Return only, Reference only, both Return and Reference */
-    uint8_t FirstBin;      /*!< First Bin value */
-    uint8_t BufferSize;    /*!< Buffer Size - Set by the user.*/
-    uint8_t NumberOfBins;  /*!< Number of bins filled by the histogram measurement */
+  /**
+   * @struct VL53L0X_HistogramData_t
+   * @brief Histogram measurement data.
+   */
+    struct HistogramMeasurementData_t {  /* Histogram Measurement data */
+      uint32_t HistogramData[VL53L0X_HISTOGRAM_BUFFER_SIZE];  /*!< Histogram data */
+      uint8_t HistogramType; /*!< Indicate the types of histogram data :  Return only, Reference only, both Return and Reference */
+      uint8_t FirstBin;      /*!< First Bin value */
+      uint8_t BufferSize;    /*!< Buffer Size - Set by the user.*/
+      uint8_t NumberOfBins;  /*!< Number of bins filled by the histogram measurement */
 
-    DeviceError ErrorStatus;  /*!< Error status of the current measurement. \n
+      DeviceError ErrorStatus;  /*!< Error status of the current measurement. \n
     see @a ::VL53L0X_DeviceError @a VL53L0X_GetStatusErrorString() */
-  };
+    };
 #endif
 
   /**

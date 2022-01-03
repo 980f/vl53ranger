@@ -101,13 +101,18 @@ namespace VL53L0X {
     , //future checks go here
     CHECKENABLE_NUMBER_OF_CHECKS
   };
+
 /** @}  end of VL53L0X_CheckEnable_group */
+  constexpr bool isValid(CheckEnable LimitCheckId) {
+    return LimitCheckId < CHECKENABLE_NUMBER_OF_CHECKS;
+  }
 
 /** @defgroup VL53L0X_GpioFunctionality_group Gpio Functionality
  *  @brief Defines the different functionalities for the device GPIO(s)
  *  @{
  */
   enum GpioFunctionality : uint8_t {
+    //## these values are those required by the hardware.
     GPIOFUNCTIONALITY_OFF = 0 /*!< NO Interrupt  */
     , GPIOFUNCTIONALITY_THRESHOLD_CROSSED_LOW /*!< Level Low (value < thresh_low)  */
     , GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH /*!< Level High (value > thresh_high) */
@@ -116,7 +121,7 @@ namespace VL53L0X {
 
   };
 
-constexpr  bool valid(GpioFunctionality functionality) {
+  constexpr bool isValid(GpioFunctionality functionality) {
     return functionality <= GPIOFUNCTIONALITY_NEW_MEASURE_READY;
   }
 
@@ -152,11 +157,12 @@ constexpr  bool valid(GpioFunctionality functionality) {
     REG_SYSRANGE_MODE_BACKTOBACK = (1 << 1)
     , /** bit 2 write 1 in #REG_SYSRANGE_START set timed operation mode */
     REG_SYSRANGE_MODE_TIMED = (1 << 2)
+
 #if IncludeHistogramming   //hiding this one to aid in compile time detection of attempt to use NYI feature.
     , /** bit 3 write 1 in #REG_SYSRANGE_START set histogram operation mode */
     REG_SYSRANGE_MODE_HISTOGRAM = (1 << 3)
 #endif
-    , /** mask existing bit in #REG_SYSRANGE_START*/
+    , /** mask existing bits in #REG_SYSRANGE_START, but often those are set to zero */
     REG_SYSRANGE_MODE_MASK = Mask<3, 0>::places
 
     //todo:M document the other 4 bits in the register. Since the mask is unused one presumes the bits are as well.
@@ -173,7 +179,7 @@ constexpr  bool valid(GpioFunctionality functionality) {
  */
   enum RegSystem : uint8_t {//the original defines had 16 bit constants, but hardware only has 8.
     REG_SYSRANGE_START = 0
-      ,REG_SYSRANGE_stopper = 0x91      //980f guess, and needs MagicTrio wrapper
+    , REG_SYSRANGE_stopper = 0x91      //980f guess, and needs MagicTrio wrapper
     , REG_SYSTEM_SEQUENCE_CONFIG = 0x01  //msb is wrap around enable
     , REG_SYSTEM_THRESH_HIGH = 0x0C
     , REG_SYSTEM_THRESH_LOW = 0x0E
@@ -269,7 +275,7 @@ constexpr  bool valid(GpioFunctionality functionality) {
     Scalar pattern;
   };
 
-  using DeviceByte= DeviceValue<uint8_t>;
+  using DeviceByte = DeviceValue<uint8_t>;
 
 /** @} VL53L0X_DefineRegisters_group */
 

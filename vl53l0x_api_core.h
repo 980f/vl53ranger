@@ -109,9 +109,10 @@ namespace VL53L0X {
      * */
     unsigned int load_tuning_settings(const uint8_t *pTuningSettingBuffer);
 
-    /** ?secondary return via reference to dmm as most if it is computed as a side effect of primary return.
+    /** formerly returned a value that was then written to a member of the RMD parameter, whose value is never queried by the driver.
+     * @returns sigma estimate, udpates RangeDMaxMillimeter as a side effect of the computation.
      * */
-    FixPoint1616_t calc_sigma_estimate(const RangingMeasurementData_t &pRangingMeasurementData, uint32_t &dmm);
+    FixPoint1616_t calc_sigma_estimate(RangingMeasurementData_t &pRangingMeasurementData);
 
     MegaCps get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
@@ -149,8 +150,6 @@ namespace VL53L0X {
  */
     Cps16 GetLimitCheckValue(CheckEnable LimitCheckId);
 
-
-
     /**
      * @returns the @param LimitCheckId 's enable and value.
      * */
@@ -163,10 +162,10 @@ namespace VL53L0X {
 
     /**
      * An instance of this class ensures that a matching operation such as clearing a pause bit in the device occurs even when a procedure bails out early.
-     * You may see otherwise extraneous {} surround code to control the timing of the second operation.
+     * You may see otherwise extraneous {} surround code to control the timing of that second operation.
      *
-     * Since exceptions are disabled any exception leaves the device in an unknown state.
-     * Since the exceptions are (except for a few we may remove) due to communications failure doing a complete restart on any error makes sense.
+     * Since we are using longjmp instead of exceptions for hopeless errors 'throw' leaves the device in an unknown state.
+     * Since the (psuedo) exceptions are (but for a few that we may remove) due to communications failure doing a complete restart on any error makes sense.
      * */
     class SysPopper {
     protected:
@@ -243,14 +242,13 @@ namespace VL53L0X {
       }
     };
 
-
-    class MagicDuo: SysPopper {
+    class MagicDuo : SysPopper {
       SysPopper inner;
     public:
-      MagicDuo(Physical &comm) : SysPopper(comm,Private_Pager,0x01,0x00),inner(comm,0x00,0x00,0x01) {
+      MagicDuo(Physical &comm) : SysPopper(comm, Private_Pager, 0x01, 0x00), inner(comm, 0x00, 0x00, 0x01) {
       }
 
-      ~MagicDuo() =default;
+      ~MagicDuo() = default;
     };
 
     class MagicTrio {
@@ -260,7 +258,7 @@ namespace VL53L0X {
       MagicTrio(Physical &comm) : eighty(comm, 0x80, 0x01, 0x00), duo(comm) {
       }
 
-      ~MagicTrio() =default;
+      ~MagicTrio() = default;
     };
 
     /** RAII widget that surrounds some fetches. */
@@ -307,9 +305,9 @@ namespace VL53L0X {
     void setPhasecalLimit(uint8_t value);
 
   protected: //some of this functionality was in api.cpp but used by core.cpp
-      /** spin until a particular byte is non-zero.
-       * @returns whether that occurred, false on a timeout set by @param trials loop count */
-      bool device_read_strobe(unsigned trials=VL53L0X_DEFAULT_MAX_LOOP);
+    /** spin until a particular byte is non-zero.
+     * @returns whether that occurred, false on a timeout set by @param trials loop count */
+    bool device_read_strobe(unsigned trials = VL53L0X_DEFAULT_MAX_LOOP);
 
     /** read and return up to 4 bytes from 0x90 after selecting which at 0x94
      * NB: source for templates can be in the CPP if not used outside that module :) */
@@ -366,20 +364,20 @@ namespace VL53L0X {
  *
  * @return  xtalk comp rate in megacps
  */
-    MegaCps GetXTalkCompensationRateMegaCps( );
+    MegaCps GetXTalkCompensationRateMegaCps();
 
     void set_ref_spad_map(SpadArray &refSpadArray);//writes to device
     void get_ref_spad_map(SpadArray &refSpadArray);//read from device
     /** @returns the sequence config byte reading it from the device */
     uint8_t get_SequenceConfig();
     /** sets the sequence config byte, and if @param andCache is true copies the value to the DeviceParameters place where we often trust has the value */
-    void set_SequenceConfig(uint8_t packed, bool andCache= true);
+    void set_SequenceConfig(uint8_t packed, bool andCache = true);
 
-    void load_compact(const DeviceByte *bunch,unsigned quantity);
+    void load_compact(const DeviceByte *bunch, unsigned quantity);
 
     template<typename Scalar>
-    void send(const DeviceValue<Scalar>item){
-      comm.Write(item.index,item.pattern,sizeof(Scalar)>1);
+    void send(const DeviceValue<Scalar> item) {
+      comm.Write(item.index, item.pattern, sizeof(Scalar) > 1);
     }
 
     bool oneTuning(const uint8_t *&pTuningSettingBuffer);

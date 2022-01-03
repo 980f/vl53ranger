@@ -13,7 +13,7 @@
 #define HaveRoiZones 0
 
 //set to zero for compile time notification of a function that is not implemented
-#define IncludeNotimplemented 1
+#define IncludeNotimplemented 0
 
 #ifdef UseEmptyStrings
 #error "the empty strings option is now implemented by setting a file link from vl53l0x.empty.text to vl53l0x.text"

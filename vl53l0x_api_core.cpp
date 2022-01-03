@@ -824,7 +824,7 @@ namespace VL53L0X {
     return dmaxDark.raw;
   } // calc_dmax
 
-  FixPoint1616_t Core::calc_sigma_estimate(const RangingMeasurementData_t &pRangingMeasurementData, uint32_t &pDmm) {
+  FixPoint1616_t Core::calc_sigma_estimate(RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START;
     /* Expressed in 100ths of a ns, i.e. centi-ns */
     const uint32_t cPulseEffectiveWidth_centi_ns {800};
@@ -953,7 +953,7 @@ namespace VL53L0X {
       FixPoint1616_t sigmaEstimateP3(isqrt(vcselTotalEventsRtn * 12) * 2);
 
       /* uint32 * FixPoint1616 = FixPoint1616 */
-      FixPoint1616_t deltaT_ps(pRangingMeasurementData.Range.MilliMeter * cTOF_per_mm_ps.raw);
+      FixPoint1616_t deltaT_ps(pRangingMeasurementData.Range.milliMeter * cTOF_per_mm_ps.raw);
 
       /*
        * vcselRate - xtalkCompRate
@@ -1041,8 +1041,7 @@ namespace VL53L0X {
       if ((peakSignalRate_kcps.raw < 1) || (vcselTotalEventsRtn < 1) || (sigmaEstimate.raw > cSigmaEstMax.raw)) {
         sigmaEstimate = cSigmaEstMax;
       }
-
-      pDmm = calc_dmax(totalSignalRate_mcps, correctedSignalRate_mcps, pwMult, sigmaEstimateP1, sigmaEstimateP2, peakVcselDuration_us);
+      pRangingMeasurementData.RangeDMaxMilliMeter =  calc_dmax(totalSignalRate_mcps, correctedSignalRate_mcps, pwMult, sigmaEstimateP1, sigmaEstimateP2, peakVcselDuration_us);
       PALDevDataSet(SigmaEstimate, sigmaEstimate);
       return sigmaEstimate;
     }
@@ -1143,9 +1142,8 @@ namespace VL53L0X {
       /*
        * compute the Sigma and check with limit
        */
-      uint32_t Dmax_mm = 0;
-      FixPoint1616_t SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData, Dmax_mm);
-      pRangingMeasurementData.RangeDMaxMilliMeter = Dmax_mm;
+      FixPoint1616_t SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData);
+
       auto SigmaLimitValue = SigmaLimitCheck.value;
       if ((SigmaLimitValue.raw > 0) && (SigmaEstimate > SigmaLimitValue)) {//todo: check for factor of 2 error due to refactoring
         /* Limit Fail */

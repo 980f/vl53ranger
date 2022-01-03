@@ -30,14 +30,16 @@ namespace VL53L0X {
     enum ProcessRequest {
       Idle
       , InitI2c    //400kHz and if more than one device reset pins and setAddress calls are made
-      , InitStatic //does SetupSpads, some tuning parameters
       , InitData   //includes tuning table and other settings that shouldn't need to change often
+      , InitStatic //does SetupSpads, some tuning parameters
+      , SetupSpads //part of init data but callable for debug of device
+      , CalVhvPhase    // call when ???
+      , CalPhase      //call when vcsel pulse width changes, save and restore from nvm?
       , OneShot
       , Continuous //references 'timed', will use non timed version for sample rate of 0
-      , RefCal     //vhv phasecal, call when vcsel pulse width changes, save and restore from nvm?
       , RateTest   //use may wish to evaluate ambient light when deciding upon
-      , SetupSpads //part of init data but callable for debug of device
       , Offset
+      , CrossTalk
     };
 
     enum ProcessResult {
@@ -48,22 +50,26 @@ namespace VL53L0X {
       , Failed
     };
 
+    /** data shared by background processing and the user application */
     struct ProcessArg {
       uint8_t *tuningTable = nullptr;//if not same as present one then apply it, if null then feature disable (set default)
       unsigned sampleRate_ms = 0;//sample interval for continuous measurement, 0 for untimed
+      unsigned gpioPin=~0;//~0 is clearly not a legitimate Arduino pin designation
       unsigned sampleDistance_mm = 0; //for offset and xtalk calibrations, 0 may not be valid, suggested is 400mm
       //data targets
       VL53L0X::MegaCps *rateResult = nullptr;
       VL53L0X::RangingMeasurementData_t *details = nullptr; //if null may get set to temporary union member in api internal data
       CalibrationParameters *refCal = nullptr;
+      //program statistics, updated by processes but not used by them
+      unsigned measurements=0;//incremented each time data is acquired for any purpose
     };
 
-    /** user may wish to extend this actual entities for the items pointed at in ProcessArg */
+    /** collation of call backs and their arguments, as well as process request arguments */
     class UserAgent {
     public:
       ProcessArg arg;
       /** result of most recent measurement of any type */
-      VL53L0X::RangingMeasurementData_t theRangingMeasurementData;
+      VL53L0X::RangingMeasurementData_t theRangingMeasurementData;//arg.details often points to this
       /** diagnostic for who asked for the above measurement */
       MeasurementAction theLastMeasurement = Abandoned;
 
@@ -110,6 +116,33 @@ namespace VL53L0X {
 
 
   private:
+    //#using bit fields instead of booleans for atomicity, guard against future multithreading
+#if MultiThreaded
+#define RQBIT(rq) unsigned rq:1
+#else
+#define RQBIT(rq) bool rq
+#endif
+    /** these are inspected when no activity is in progress, usually set by startProcess, cleared by the related process finishing */
+    struct Requesting {
+      RQBIT(vhv);   //periodically for drift compensation, powerup
+      RQBIT(phase); //periodically for drift compensation, powerup
+      RQBIT(rate);  //spad, diagnostics,
+      RQBIT(spads); //powerup, diagnostics
+      RQBIT(range); //oneshot, sticks on for continuous, xtalk, offset
+      RQBIT(staticInit);//error recovery, powerup
+      RQBIT(dataInit);  //error recovery, powerup
+      RQBIT(resetSoft); //error recovery, powerup
+      RQBIT(resetHard);//error recovery, powerup
+    } requesting;
+
+    /** some state bits */
+    struct Allowing {
+      bool gpioAsReadyBit=false;//set when configured
+      bool measurements=false;//set when inits are completed enough to invoke acquisition,
+      bool ranging=false; //can do range measurements, cleared when any calprocess is invoked, set when completed.
+      //note: when ranging is enabled app must check desired ranging mode and parameters against actual and request action which might temporarily clear it
+    } allowing;
+
     ProcessRequest activeProcess = Idle;
     MeasurementAction measurementInProgress = Abandoned;
 
@@ -275,7 +308,7 @@ namespace VL53L0X {
 
     public:
       /** the result of the process */
-      CalibrationParameters p;
+      CalibrationParameters p;//UserAgent args will often point to this
     public:
       bool begin() override;
       /** @returns whether to continue the process. if not then nb.lastError details why  */

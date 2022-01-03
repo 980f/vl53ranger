@@ -140,7 +140,6 @@
             Write: buffer overflow<br>
             theoretically:<br>
             <div id="wikitext">
-              <meta http-equiv="content-type" content="text/html; charset=utf-8">
               <ul>
                 <li>0:success </li>
                 <li>1:data too long to fit in transmit buffer </li>
@@ -231,7 +230,36 @@
     <br>
     For a non-blocking implementation the state machine has a setjmp at critical places.<br>
     <br>
-    RAII allows us to make a stack via copying the current jmp_buf values locally, then call setjmp and on method return copy those back.<br>
+    RAII allows us to make a stack via copying the current jmp_buf values locally, then call setjmp and on method return copy those back. On longjmp we truncate the stack back to the longjmp reception point.<br>
+    <hr>State machine <br>
+    <br>
+    analyzed from Adafruit begin() method<br>
+    <br>
+    If no communications:<br>
+    i2c.begin() to get i2c bus up and set to 400kHz, <br>
+    Datainit, might take more than 1ms but is not blocking.<br>
+    Leaves PalState in "WAIT_STATIC_INIT" which we might force on other errors<br>
+    <br>
+    If PalState=="WAIT_STATIC_INIT"<br>
+    conditionally invoke PerforRefSpad<br>
+    <br>
+    PerformeRefSPad:<br>
+    plays with enables, tests rate and repeats until in range or hopeless.<br>
+    on completion conditionally do tail end of Static_Init.<br>
+    <br>
+    PerformRefCal: periodically by time to deal with drift due to changes in ambient conditions<br>
+    invokes VHV<br>
+    invokes PhaseCal<br>
+    when done might set deivce mode &amp; config measurement preferences<br>
+    <br>
+    Config measurement prefs:<br>
+    might invoke PhaseCal.<br>
+    on phase cal done ready to measure.<br>
+    <br>
+    Perform Rate measurement:<br>
+    called in loop by refspad<br>
+    might be called diagnostically<br>
+    <br>
     <br>
     <br>
     <hr>Procedures<br>
@@ -242,7 +270,7 @@
     Rate<br>
     &nbsp;&nbsp;&nbsp; SRM<br>
     spad management<br>
-    &nbsp;&nbsp;&nbsp; rate X 3<br>
+    &nbsp;&nbsp;&nbsp; rate in loop<br>
     &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; SRM<br>
     offset cal<br>
     &nbsp;&nbsp;&nbsp; 50 X SRM<br>

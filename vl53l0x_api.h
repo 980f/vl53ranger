@@ -811,6 +811,7 @@ namespace VL53L0X {
  */
     bool PerformRefCalibration();
 
+
 /**
  * @brief Perform XTalk Calibration
  *
@@ -832,7 +833,7 @@ namespace VL53L0X {
  * @param   XTalkCalDistance     CalDistanceMilliMeter value used for the XTalk measurement
  * @return    Success
  */
-    bool PerformXTalkCalibration(FixPoint1616_t XTalkCalDistance);
+    bool PerformXTalkCalibration(MilliMeter XTalkCalDistance);
 
 /**
  * @brief Perform Offset Calibration
@@ -855,7 +856,7 @@ namespace VL53L0X {
  * @return  whether process completed.
  * if so then the value of interest will be in VL53L0X_GETPARAMETERFIELD(RangeOffsetMicroMeters)
  */
-    bool PerformOffsetCalibration(FixPoint1616_t CalDistanceMilliMeter);
+    bool PerformOffsetCalibration(MilliMeter CalDistanceMilliMeter);
 
 /**
  * @brief Start device measurement
@@ -1249,6 +1250,7 @@ namespace VL53L0X {
  */
     uint8_t GetInterruptMaskStatus(bool throwRangeErrors);
 
+#if IncludeNotimplemented
 /**
  * @brief Configure ranging interrupt reported to system
  *
@@ -1259,6 +1261,7 @@ namespace VL53L0X {
  * @return  ERROR_NOT_IMPLEMENTED   Not implemented
  */
     bool EnableInterruptMask(uint8_t InterruptMask);
+#endif
 
 /** @} interrupt_group */
 
