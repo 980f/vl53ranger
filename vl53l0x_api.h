@@ -905,6 +905,7 @@ namespace VL53L0X {
  */
     bool GetMeasurementDataReady();
 
+#if IncludeBlockers
     /** formerly declared in core.h but implemented in api.cpp
      * @returns false on timeout */
     bool measurement_poll_for_completion();
@@ -919,6 +920,7 @@ namespace VL53L0X {
  * @return  false
  */
     bool WaitDeviceReadyForNewMeasurement(unsigned MaxLoop);
+#endif
 
 /**
  * @brief Retrieve the Reference Signal after a measurements
@@ -1384,9 +1386,6 @@ namespace VL53L0X {
 
     bool apply_offset_adjustment();
 
-    bool set_reference_spads(SpadCount ref);
-
-    bool perform_phase_calibration(bool restore_config);
     bool perform_ref_calibration();
 
     void set_ref_calibration(CalibrationParameters p, bool setv, bool setp);
@@ -1399,7 +1398,12 @@ namespace VL53L0X {
     static const unsigned minimumSpadCount = 3;
 
     void initRanger(VcselPeriod periodType, SequenceStepId stepId, DeviceSpecificParameters_t::RangeSetting &ranger);
-    SpadArray::Index enable_ref_spads(const SpadCount &req, const SpadArray &goodSpadArray, SpadArray &spadArray, SpadArray::Index offset);
+    /** @returns one past the index of the last added spad.
+     * req is both the type and the number desired.
+     * goodSpadArray is the available ones (not marked by the factory as bad)
+     * spadArray is the set being built,
+     * scanner  is the start of the search, and is set to next search start */
+    bool enable_ref_spads(SpadCount req, const SpadArray &goodSpadArray, SpadArray &spadArray, SpadArray::Index &scanner);
 
     bool CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
 
@@ -1419,6 +1423,8 @@ namespace VL53L0X {
 
     void set_threshold(RegSystem index, FixPoint1616_t ThresholdLow);
     FixPoint1616_t get_threshold(RegSystem index);
+    bool set_reference_spads(SpadCount ref);
+    bool perform_phase_calibration(bool restore_config);
   };
 }//end namespace
 #endif /* __H_ */

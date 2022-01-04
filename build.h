@@ -15,6 +15,9 @@
 //set to zero for compile time notification of a function that is not implemented
 #define IncludeNotimplemented 0
 
+//wehther to include blocking versions of processes. Initially done for side-by-side comparison with ST's original code.
+#define IncludeBlockers 1
+
 #ifdef UseEmptyStrings
 #error "the empty strings option is now implemented by setting a file link from vl53l0x.empty.text to vl53l0x.text"
 #endif

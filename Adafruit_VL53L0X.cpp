@@ -246,7 +246,7 @@ boolean Adafruit_VL53L0X::configSensor(Sense_config_t vl_config) {
 //      Serial.println("  SENSE_LONG_RANGE");
       MyDevice.SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.1});
       MyDevice.SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 60.0F});
-      MyDevice.SetMeasurementTimingBudgetMicroSeconds(33000);
+      setMeasurementTimingBudgetMicroSeconds(33000);
       MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_PRE_RANGE, 18);
       MyDevice.SetVcselPulsePeriod(VCSEL_PERIOD_FINAL_RANGE, 14);
       //perform_calibration which was formerly done twice because of the two calls above. I removed it from those calls as running it once for both changes is good and proper.
@@ -258,7 +258,7 @@ boolean Adafruit_VL53L0X::configSensor(Sense_config_t vl_config) {
       // Serial.println("  SENSE_HIGH_SPEED");
       MyDevice.SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.25});
       MyDevice.SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 32.0});
-      MyDevice.SetMeasurementTimingBudgetMicroSeconds(30000);//hmm: isn't 20,000 possible?
+      setMeasurementTimingBudgetMicroSeconds(30000);//hmm: isn't 20,000 possible?
 
       break;
     case SENSE_HIGH_ACCURACY:

@@ -53,6 +53,7 @@ namespace VL53L0X {
 
   const Version_t PalSpecVersion {{VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR}, VL53L0X_SPECIFICATION_VER_SUB, VL53L0X_SPECIFICATION_VER_REVISION};
 
+#if IncludeBlockers
   /* Group PAL General Functions */
   bool Api::measurement_poll_for_completion() {
     LOG_FUNCTION_START;
@@ -65,6 +66,7 @@ namespace VL53L0X {
     }
     return LOG_ERROR(ERROR_TIME_OUT);
   } // VL53L0X_measurement_poll_for_completion
+#endif
 
 
   bool Api::check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo) {
@@ -699,6 +701,8 @@ namespace VL53L0X {
 
 /* End Group PAL Parameters Functions */
 
+#if IncludeBlockers
+
 /* Group PAL Measurement Functions */
   bool Api::PerformSingleMeasurement() {
     LOG_FUNCTION_START;
@@ -723,6 +727,7 @@ namespace VL53L0X {
       return false;
     }
   } // VL53L0X_PerformSingleMeasurement
+#endif
 
 
   bool Api::PerformRefCalibration() {
@@ -897,22 +902,13 @@ namespace VL53L0X {
       }
     }
 
-    if (RangeFractionalEnable) {
-      pRangingMeasurementData.Range.milliMeter = (uint16_t) ((RangeMilliMeter) >> 2);
-      pRangingMeasurementData.Range.FractionalPart = RangeMilliMeter << (8 - 2);//ick: former mask was gratuitous along with the cast.
-    } else {
-      pRangingMeasurementData.Range.milliMeter = RangeMilliMeter;
-      pRangingMeasurementData.Range.FractionalPart = 0;
-    }
+    pRangingMeasurementData.Range.assign(RangeMilliMeter,RangeFractionalEnable);
 
     /*
-     * For a standard definition of rangeError, this should
-     * return 0 in case of good result after a ranging
-     * The range status depends on the device so call a device
-     * specific function to obtain the right Error.
+     * For a standard definition of rangeError, this should return 0 in case of good result after a ranging
+     * The range status depends on the device so call a device specific function to obtain the right Error.
      */
-    auto PalRangeStatus = get_pal_range_status(DeviceRangeStatus, SignalRate, EffectiveSpadRtnCount, pRangingMeasurementData);
-    pRangingMeasurementData.Range.error = PalRangeStatus;
+    pRangingMeasurementData.Range.error = get_pal_range_status(DeviceRangeStatus, SignalRate, EffectiveSpadRtnCount, pRangingMeasurementData);
 
     /* Copy last read data into Dev buffer */
     PALDevDataGet(LastRangeMeasure) = pRangingMeasurementData;
@@ -1081,7 +1077,7 @@ namespace VL53L0X {
       comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 1);//ick: is this a 1<<0 or a boolean?
       comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 0);
       uint8_t mask = GetInterruptMaskStatus(false);
-      if (mask == 0) { //ick: elsewhere bits 4,3 are also looked at.
+      if (mask == 0) {
         return true;
       }
     }
@@ -1129,7 +1125,8 @@ namespace VL53L0X {
 /*****************************************************************************
 * Internal functions
 *****************************************************************************/
-//todo: nonblocking version
+#if IncludeBlockers
+
   bool Api::perform_ref_spad_management() {
 
     /*
@@ -1182,11 +1179,10 @@ namespace VL53L0X {
     SpadArray::Index currentSpadIndex = 0;
 
     SpadCount sc {minimumSpadCount, false};
-    auto lastSpadIndex = enable_ref_spads(sc, Data.SpadData.goodones, Data.SpadData.enables, currentSpadIndex);
-    if (!lastSpadIndex.isValid()) {
+
+    if (!enable_ref_spads(sc, Data.SpadData.goodones, Data.SpadData.enables, currentSpadIndex)) {
       return false;
     }
-    currentSpadIndex = lastSpadIndex;
 
     auto peakSignalRateRef = perform_ref_signal_measurement(0);
     if (peakSignalRateRef == 0) {//todo:1 learn if 0 is acceptible here. If so then failure in the above needs to throw rather than return a sentinel value.
@@ -1200,13 +1196,8 @@ namespace VL53L0X {
       while (currentSpadIndex.isValid() && !(startSelect + currentSpadIndex).is_aperture()) {
         ++currentSpadIndex;
       }
-
       sc = {minimumSpadCount, true};
-
-      lastSpadIndex = enable_ref_spads(sc, Data.SpadData.goodones, Data.SpadData.enables, currentSpadIndex);
-
-      if (lastSpadIndex.isValid()) {
-        currentSpadIndex = lastSpadIndex;
+      if (enable_ref_spads(sc, Data.SpadData.goodones, Data.SpadData.enables, currentSpadIndex)) {
         peakSignalRateRef = perform_ref_signal_measurement(0);
         if (peakSignalRateRef == 0) {
           return false;
@@ -1272,6 +1263,7 @@ namespace VL53L0X {
 
     return true;
   }
+#endif
 
   DeviceParameters_t Api::GetDeviceParameters() {
     LOG_FUNCTION_START;
@@ -1301,11 +1293,12 @@ namespace VL53L0X {
     wad.MeasurementTimingBudgetMicroSeconds = GetMeasurementTimingBudgetMicroSeconds();
     return wad;
   }
-
+#if IncludeBlockers
   bool Api::PerformRefSpadManagement() {
     LOG_FUNCTION_START;
     return perform_ref_spad_management();
   }
+#endif
 
   void Api::SetReferenceSpads(SpadCount spad) {
     VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, spad);

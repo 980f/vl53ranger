@@ -11,4 +11,7 @@ public:
   VL53Ranger() noexcept;
 
   void afterProcess(ProcessRequest process, ProcessResult stage) override;
+  /** called when we are waiting for a measurement and have been told to configure the VL53 signal and so on.*/
+   bool gpioSignal() override;
+
 };

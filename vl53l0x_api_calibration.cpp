@@ -211,10 +211,10 @@ namespace VL53L0X {
   } // VL53L0X_apply_offset_adjustment
 
 
-  SpadArray::Index Api::enable_ref_spads(const SpadCount &req, const SpadArray &goodSpadArray, SpadArray &spadArray, SpadArray::Index offset) {
+  bool Api::enable_ref_spads(SpadCount req, const SpadArray &goodSpadArray, SpadArray &spadArray, SpadArray::Index &scanner) {
     /*
      * This function takes in a spad array which may or may not have SPADS
-     * already enabled and appends from a given offset a requested number
+     * already enabled and appends from a given scanner a requested number
      * of new SPAD enables. The 'good spad map' is applied to
      * determine the next SPADs to enable.
      *
@@ -222,32 +222,33 @@ namespace VL53L0X {
      * Checks are performed to ensure this.
      */
 
-    const SpadArray::Index badSpad(~0);//sentinel return value
-    SpadArray::Index currentSpad = offset;
-    while (currentSpad.isValid()) {
+    SpadArray::Index currentSpad = scanner;
+    while (req.quantity>0) {
+      if(!currentSpad.isValid()){
+        return false;
+      }
       auto nextGoodSpad = goodSpadArray.nextSet(currentSpad);
       if (!nextGoodSpad.isValid()) {
-        return badSpad;//seems excessive, we just went past the last
+        return false;//seems excessive, we just went past the last
       }
-      /* Confirm that the next good SPAD is non-aperture */
+      /* Confirm that the next good SPAD is of the desired aperture type */
       if (nextGoodSpad.is_aperture() != req.isAperture) {
-        /* if we can't get the required number of good aperture
-         * spads from the current quadrant then this is an error
-         */
-        return badSpad;
+        /* if we can't get the required number of good spads from the current quadrant then this is an error */
+        return false;
       }
       spadArray.enable(nextGoodSpad);
       currentSpad = ++nextGoodSpad;//without the incr we would spin forever
     }
+
     set_ref_spad_map(spadArray);
 
     SpadArray checkSpadArray;
     get_ref_spad_map(checkSpadArray);
     /* Compare spad maps. If not equal report error. */
     if (spadArray != checkSpadArray) {
-      return badSpad;
+      return false;
     }
-    return currentSpad;
+    return false;
   } // enable_ref_spads
 
   uint16_t Api::perform_ref_signal_measurement(uint16_t iffails) {
@@ -286,8 +287,7 @@ namespace VL53L0X {
     }
     comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
 
-    auto ignoredvalue = enable_ref_spads(ref, Data.SpadData.goodones, Data.SpadData.enables, currentSpadIndex);
-    if (!ignoredvalue.isValid()) {
+    if (!enable_ref_spads(ref, Data.SpadData.goodones, Data.SpadData.enables, currentSpadIndex)) {
       return false;
     }
     VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, true);
@@ -307,6 +307,7 @@ namespace VL53L0X {
     return VL53L0X_GETDEVICESPECIFICPARAMETER(ReferenceSpad);
   } // VL53L0X_get_reference_spads
 
+#if IncludeBlockers
   bool Api::perform_single_ref_calibration(uint8_t vhv_init_byte) {
     push(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | vhv_init_byte, 0);//980f: write the zero to _start regardless of measurement success
     if (measurement_poll_for_completion()) {
@@ -316,6 +317,7 @@ namespace VL53L0X {
     }
     return false;
   } // VL53L0X_perform_single_ref_calibration
+#endif
 
   const decltype(Api::CalibrationParameters::PhaseCal) phaseMask = Mask<6, 0>::places;
 
@@ -337,7 +339,7 @@ namespace VL53L0X {
     p.PhaseCal &= phaseMask; // was 0xEF, ~(1 << 4);//ick: kill bit 4, but elsewhere it is always bit 7 that we prune away
     return p;
   }
-
+#if IncludeBlockers
   bool Api::perform_item_calibration(bool vElseP, const bool restore_config) {
     /* store the value of the sequence config, this will be reset after the end of the function */
     SeqConfigStacker popper(*this, restore_config, Bitter(vElseP ? 0 : 1));
@@ -357,5 +359,6 @@ namespace VL53L0X {
     //todo: shouldn't we push seq config here? Logically yes, but then we would have to repeat something else
     return perform_vhv_calibration(false) && perform_phase_calibration(false);
   } // VL53L0X_perform_ref_calibration
+#endif
 
 }

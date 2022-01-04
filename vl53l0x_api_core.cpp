@@ -663,8 +663,9 @@ namespace VL53L0X {
   unsigned int Core::load_tuning_settings(const uint8_t *pTuningSettingBuffer) {
     LOG_FUNCTION_START;
     unsigned checkcount=0;
-    while (oneTuning(pTuningSettingBuffer)) ++checkcount;
-
+    while (oneTuning(pTuningSettingBuffer)) {
+      ++checkcount;
+    }
     return checkcount;
   } // VL53L0X_load_tuning_settings
 
@@ -1122,14 +1123,7 @@ namespace VL53L0X {
     uint8_t DeviceRangeStatusInternal = getBits<6, 3>(DeviceRangeStatus);
     bool NoneFlag = (DeviceRangeStatusInternal == 0 || DeviceRangeStatusInternal == 5 || DeviceRangeStatusInternal == 7 || DeviceRangeStatusInternal == 12 || DeviceRangeStatusInternal == 13 || DeviceRangeStatusInternal == 14 || DeviceRangeStatusInternal == 15);
 
-    Cps16 tmpWord;
-    /* LastSignalRefMcps */
-    {
-      auto pager = push(Private_Pager, 0x01, 0x00);
-      fetch(tmpWord.raw, REG_RESULT_PEAK_SIGNAL_RATE_REF);//todo: fix template version of fetch(FixPoint)
-    }
-
-    MegaCps LastSignalRefMcps = tmpWord;
+    MegaCps LastSignalRefMcps = Cps16 {FFread<typename Cps16::RawType>(REG_RESULT_PEAK_SIGNAL_RATE_REF)};
     PALDevDataSet(LastSignalRefMcps, LastSignalRefMcps);
 
     /*

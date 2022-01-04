@@ -240,9 +240,22 @@ namespace VL53L0X {
     static constexpr unsigned epsilon = 8;
 
     /** who knows why they used a 16,9 fp number? */
-    MilliMeter distance()const {
-      return {FractionalPart+milliMeter << std::numeric_limits<decltype(FractionalPart)>::digits,1,epsilon};
+    MilliMeter distance() const {
+      return {FractionalPart + milliMeter << std::numeric_limits<decltype(FractionalPart)>::digits, 1, epsilon};
     }
+
+    MilliMeter assign(uint16_t fromdevice, bool fractionEnabled) {
+      if (fractionEnabled) {
+        milliMeter = fromdevice >> 2;
+        //2 lsbs to the msbs of fraction
+        FractionalPart = fromdevice << (8 - 2);
+      } else {
+        milliMeter = fromdevice;
+        FractionalPart = 0;
+      }
+      return distance();
+    }
+
     /** given an integer sum of fractional values return in essence the net carryout of the summation, and remove that from the give sum of fractions
      * all because someone wanted to save a byte by using a 16+8 pair instead of a 16+16 pair.
      * soon 980F will use a 16:16 here (or maybe a 16:8 to see if that works!) */
@@ -378,7 +391,7 @@ namespace VL53L0X {
     SigmaEstimates SigmaEst;
 
     uint8_t StopVariable;     /*!< StopVariable used during the stop sequence */
-    FixPoint<9, 7> targetRefRate;     /*!< Target Ambient Rate for Ref spad management */
+    Cps16 targetRefRate;     /*!< Target Ambient Rate for Ref spad management */
     FixPoint1616_t SigmaEstimate;     /*!< Sigma Estimate - based on ambient & VCSEL rates and signal_total_events */
     FixPoint1616_t SignalEstimate;     /*!< Signal Estimate - based on ambient & VCSEL rates and cross talk */
     MegaCps LastSignalRefMcps;     /*!< Latest Signal ref in Mcps */

@@ -5,6 +5,11 @@
 #include "nonblocking.h" // the driver
 #include "vl53ranger.h"  // this basic demo application
 
+
+//#ifndef ARDUINO  //then dummy up the interface so that we can compile
+unsigned  digitalRead(unsigned ){ return 0;}
+//#endif
+
 using namespace VL53L0X;
 
 VL53Ranger api;
@@ -44,17 +49,17 @@ void VL53Ranger::afterProcess(NonBlocking::ProcessRequest process, NonBlocking::
   }
 }
 
-
+bool VL53Ranger::gpioSignal() {
+  return digitalRead(arg.gpioPin)==0;//hard coding low active until we have configuration for it through the layers
+}
 
 
 /////////////////////////////
 
 void setup(){
-  api.agent.arg.sampleRate_ms=33;// a leaisurely rate. Since it is nonzero continuous measurement will be initiated when the device is capable of it
+  api.agent.arg.sampleRate_ms=33;// a leisurely rate. Since it is nonzero continuous measurement will be initiated when the device is capable of it
   api.agent.arg.gpioPin=3;
   api.setup();
-
-
 }
 
 void loop(){

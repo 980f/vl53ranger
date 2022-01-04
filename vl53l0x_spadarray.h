@@ -38,7 +38,8 @@ public:
     uint8_t coarse;
     uint8_t fine;
 
-    constexpr Index(unsigned bitnumber=0) : coarse(bitnumber / 8), fine(bitnumber % 8) {
+    /** default value creates a bad index, however if  you ++ it it becomes the 0th which is valid. */
+    constexpr Index(unsigned bitnumber=~1) : coarse(bitnumber / 8), fine(bitnumber % 8) {
     }
 
 //  private:
@@ -90,7 +91,7 @@ public:
   };
 
 public:
-
+  static const Index badSpad;//sentinel return value
   /** while we always write before use the compiler could not figure that out so we silence a warning with this constructor */
   SpadArray(){
     clear();
@@ -127,45 +128,68 @@ public:
     return !((*this)==(rhs));
   }
 
+  /** @returns the index of the next bit that is set, which may the value passed in. */
   Index nextSet(Index curr) const{
-      while ( curr.isValid()) {
+      while (curr.isValid()) {
         if (get(curr)) {
           return curr;
         }
         ++curr;
       }
-      return ~0;//canonical ! isValid()
+      return badSpad;//canonical ! isValid()
   }
 
-//there was only one use
-//  class Pointer{
-//    SpadArray &storage;
-//    SpadArray::Index index;
-//  public:
-//    Pointer(SpadArray&wrapped):storage(wrapped), index(0){}
-//
-//    Pointer &operator=(unsigned absolute){
-//      index=absolute;
-//      return *this;
-//    }
-//
-//    BitAlias operator *(){
-//      return BitAlias(storage[index.coarse],index.fine);
-//    }
-//
-//    Pointer &operator ++(){
-//      ++index;
-//      return *this;
-//    }
-//
-////    /** post increment is a touch expensive, returns a copy of this which is about 8 bytes with a weird lifetime */
-////    Pointer &operator ++(int ){
-////      Pointer post=*this;
-////      ++index;
-////      return post;
-////    }
-//
-//  };
+  /** wraps what was once called enable_ref_spad */
+  class Scanner {
+    const SpadArray &goodSpadArray;
+    SpadArray::Index scanner;
+  public:
+    SpadArray::Index lastSet;//because this is the cheapest way to undo the last set
+    SpadArray &spadArray;
+
+    void restart(){
+      scanner=0;
+    }
+    Scanner(const SpadArray &goodSpadArray, SpadArray &spadArray) : goodSpadArray(goodSpadArray), spadArray(spadArray) {
+      //default scanner is NOT valid, call restart before every use.
+    }
+
+    /** move pointer based on inherent type, ignoring the arrays*/
+    bool moveto(bool isAperature, SpadArray::Index bias){
+      while (scanner.isValid() && !(bias + scanner).is_aperture()) {
+        ++scanner;
+      }
+      return scanner.isValid();
+    }
+
+    /** set req.quantity spads of type req.isAperture in the wrapped spadArray */
+    bool operator()(SpadCount req){
+      while (req.quantity>0) {
+        if(!scanner.isValid()){
+          return false;
+        }
+        auto nextGoodSpad = goodSpadArray.nextSet(scanner);
+        if (!nextGoodSpad.isValid()) {
+          return false;//seems excessive, we just went past the last
+        }
+        /* Confirm that the next good SPAD is of the desired aperture type */
+        if (nextGoodSpad.is_aperture() != req.isAperture) {
+          /* if we can't get the required number of good spads from the current quadrant then this is an error */
+          return false;
+        }
+        lastSet=nextGoodSpad;
+        spadArray.enable(lastSet);
+        scanner = ++nextGoodSpad;//without the incr we would spin forever
+      }
+      return true;
+    }
+
+    /** clear/disable the last bit enabled, making no other changes */
+    void undoLast(){
+      spadArray.set(lastSet,false);
+      //and what do we do to guard against ill use? nothing, leave this idempotent
+    }
+  };
 
 };
 
