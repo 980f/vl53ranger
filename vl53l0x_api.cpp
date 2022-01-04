@@ -37,15 +37,16 @@ Copyright 2021 by Andy Heilveil github/980f via extensive rewrite of stuff origi
 #include "vl53l0x_interrupt_threshold_settings.h" //some tuning parameters
 #include "vl53l0x_tuning.h"  //tuning values packed into an array of bytes
 
-#include "log_api.h"
+#include "vl53l0x_platform_log.h"
 
 #include "versioninfo.h"
 
 #define  VL53L0X_NYI(fakeout)   LOG_ERROR(ERROR_NOT_IMPLEMENTED); return fakeout;
 
-#ifdef VL53L0X_LOG_ENABLE
-#define trace_print(level, ...)   trace_print_module_function(TRACE_MODULE_API, level, TRACE_FUNCTION_NONE, ## __VA_ARGS__)
-#endif
+//stuff like this should be in platform_log, not in drive code
+//#ifdef VL53L0X_LOG_ENABLE
+//#define trace_print(level, ...)   trace_print_module_function(TRACE_MODULE_API, level, TRACE_FUNCTION_NONE, ## __VA_ARGS__)
+//#endif
 
 namespace VL53L0X {
 
@@ -56,7 +57,7 @@ namespace VL53L0X {
 #if IncludeBlockers
   /* Group PAL General Functions */
   bool Api::measurement_poll_for_completion() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {
       auto ready = GetMeasurementDataReady();
       if (ready) {
@@ -70,7 +71,7 @@ namespace VL53L0X {
 
 
   bool Api::check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     if (get_info_from_device(IDStuff)) {
       if (VL53L0X_GETDEVICESPECIFICPARAMETER(ModuleId) == 0) {
@@ -110,19 +111,19 @@ namespace VL53L0X {
   } // get_device_info
 
   SemverLite Core::GetProductRevision() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     uint8_t revision_id;
     fetch(revision_id, REG_IDENTIFICATION_REVISION_ID);
     return {1, static_cast<uint8_t>(revision_id >> 4)};
   } // GetProductRevision
 
   bool Api::GetDeviceInfo(DeviceInfo_t &pVL53L0X_DeviceInfo) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return get_device_info(pVL53L0X_DeviceInfo);
   }
 
   DeviceError Api::GetDeviceErrorStatus() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     uint8_t rangeStatus;
     fetch(rangeStatus, REG_RESULT_RANGE_STATUS);
     return static_cast<DeviceError>(getBits<6, 3>(rangeStatus));
@@ -149,7 +150,7 @@ namespace VL53L0X {
   }
 
   bool Api::SetPowerMode(PowerModes PowerMode) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     if (PowerMode == POWERMODE_IDLE_LEVEL1) {
       comm.WrByte(0x80, 0x00);
@@ -171,7 +172,7 @@ namespace VL53L0X {
   } // VL53L0X_SetPowerMode
 
   PowerModes Api::GetPowerMode() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     uint8_t Byte;
     fetch(Byte, Private_PowerMode);
     /* Only level1 of Power mode exists */
@@ -181,17 +182,17 @@ namespace VL53L0X {
   } // GetPowerMode
 
   void Api::SetOffsetCalibrationDataMicroMeter(int32_t OffsetCalibrationDataMicroMeter) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     set_offset_calibration_data_micro_meter(OffsetCalibrationDataMicroMeter);
   }
 
   int32_t Api::GetOffsetCalibrationDataMicroMeter() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return get_offset_calibration_data_micro_meter();
   }
 
   bool Api::SetLinearityCorrectiveGain(uint16_t LinearityCorrectiveGain) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     if (!validGain(LinearityCorrectiveGain)) {
       return LOG_ERROR(ERROR_INVALID_PARAMS);
     }
@@ -210,7 +211,7 @@ namespace VL53L0X {
   }
 
   MegaCps Api::GetTotalSignalRate() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return get_total_signal_rate(PALDevDataGet(LastRangeMeasure));
   } // GetTotalSignalRate
 
@@ -218,14 +219,14 @@ namespace VL53L0X {
 
 /* Group PAL Init Functions */
   bool Api::SetDeviceAddress(uint8_t _8bitAddress) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     comm.WrByte(REG_I2C_SLAVE_DEVICE_ADDRESS, _8bitAddress >> 1);
     comm.wirer.devAddr = _8bitAddress; // 7 bit addr
     return true;
   }
 
   void Api::DataInit() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     /* by default the I2C is running at 1V8 if you want to change it you need to include this define at compilation level. */
 #ifdef USE_I2C_2V8
@@ -293,7 +294,7 @@ namespace VL53L0X {
   } // VL53L0X_DataInit
 
   bool Api::SetTuningSettingBuffer(Tunings pTuningSettingBuffer, bool UseInternalTuningSettings) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     if (UseInternalTuningSettings) { /* Force use internal settings */
       PALDevDataSet(UseInternalTuningSettings, true);
     } else {   /* check that the first byte is not 0 */
@@ -322,7 +323,7 @@ namespace VL53L0X {
   }
 
   bool Api::StaticInit() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     if (!get_info_from_device(InfoGroup::SpadStuff)) {
       return false;
@@ -381,7 +382,7 @@ namespace VL53L0X {
   }
 
   bool Api::ResetDevice() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     /* Set reset bit */
     comm.WrByte(REG_SOFT_RESET_GO2_SOFT_RESET_N, 0x00);
     //todo:M if we get comm errors when device resets then we need to catch them here.
@@ -405,7 +406,7 @@ namespace VL53L0X {
 
 /* Group PAL Parameters Functions */
   void Api::SetDeviceParameters(const DeviceParameters_t &pDeviceParameters) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     SetDeviceMode(pDeviceParameters.DeviceMode);
     SetInterMeasurementPeriodMilliSeconds(pDeviceParameters.InterMeasurementPeriodMilliSeconds);
     SetXTalkCompensationRateMegaCps(pDeviceParameters.XTalkCompensationRateMegaCps);
@@ -420,7 +421,7 @@ namespace VL53L0X {
 
 
   bool Api::SetDeviceMode(DeviceModes deviceMode) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     switch (deviceMode) {
       case DEVICEMODE_SINGLE_RANGING:
@@ -443,14 +444,14 @@ namespace VL53L0X {
   }
 
   void Api::SetRangeFractionEnable(bool Enable) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 //    Error(" %u", Enable);
     comm.WrByte(REG_SYSTEM_RANGE_CONFIG, Enable);
     PALDevDataSet(RangeFractionalEnable, Enable);
   } // VL53L0X_SetRangeFractionEnable
 
   bool Api::GetFractionEnable() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     bool enabled;
     fetch(enabled, REG_SYSTEM_RANGE_CONFIG);
     return getBit<0>(enabled);
@@ -466,12 +467,12 @@ namespace VL53L0X {
   }
 
   uint8_t Api::GetVcselPulsePeriod(VcselPeriod VcselPeriodType) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return get_vcsel_pulse_period(VcselPeriodType);
   }
 
   void Api::SetSequenceStepEnable(SequenceStepId SequenceStepId, bool SequenceStepEnabled) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     unsigned bitnum = bitFor(SequenceStepId);
     if (bitnum == ~0) {
       THROW(ERROR_INVALID_PARAMS);//bypassed enum
@@ -499,7 +500,7 @@ namespace VL53L0X {
   } // GetSequenceStepsInfo
 
   bool Api::SetSequenceStepTimeout(SequenceStepId SequenceStepId, FixPoint1616_t TimeOutMilliSecs) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     /* Read back the current value in case we need to revert back to this.  */
     auto OldTimeOutMicroSeconds = get_sequence_step_timeout(SequenceStepId);
 
@@ -518,13 +519,13 @@ namespace VL53L0X {
   } // VL53L0X_SetSequenceStepTimeout
 
   FixPoint1616_t Api::GetSequenceStepTimeout(SequenceStepId SequenceStepId) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     auto TimeoutMicroSeconds = get_sequence_step_timeout(SequenceStepId);
     return {TimeoutMicroSeconds, 1000};
   } // GetSequenceStepTimeout
 
   void Api::SetInterMeasurementPeriodMilliSeconds(unsigned int InterMeasurementPeriodMilliSeconds) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     uint16_t osc_calibrate_val;
     comm.RdWord(REG_OSC_CALIBRATE_VAL, &osc_calibrate_val);
 
@@ -533,7 +534,7 @@ namespace VL53L0X {
   } // VL53L0X_SetInterMeasurementPeriodMilliSeconds
 
   uint32_t Api::GetInterMeasurementPeriodMilliSeconds() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     uint16_t osc_calibrate_val;
     fetch(osc_calibrate_val, REG_OSC_CALIBRATE_VAL);
     uint32_t IMPeriodMilliSeconds;
@@ -546,12 +547,12 @@ namespace VL53L0X {
   } // GetInterMeasurementPeriodMilliSeconds
 
   void Api::SetRefCalibration(CalibrationParameters p) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     set_ref_calibration(p, true, true);
   }
 
   Api::CalibrationParameters Api::GetRefCalibration() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return get_ref_calibration();
   }
 
@@ -576,7 +577,7 @@ namespace VL53L0X {
   } // GetLimitCheckStatus
 
   void Api::SetLimitCheckEnable(CheckEnable LimitCheckId, bool LimitCheckEnable) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     LimitTuple limitTuple = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId);
     limitTuple.enable = LimitCheckEnable;
@@ -585,7 +586,7 @@ namespace VL53L0X {
 
 
   void Api::SetLimitCheckValue(CheckEnable LimitCheckId, Cps16 LimitCheckValue) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     auto tuple = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId);
     tuple.value = LimitCheckValue;
     SetLimitCheck(LimitCheckId, tuple);
@@ -593,7 +594,7 @@ namespace VL53L0X {
 
 
   void Api::SetLimitCheck(CheckEnable LimitCheckId, LimitTuple limit) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     switch (LimitCheckId) {
       case CHECKENABLE_SIGMA_FINAL_RANGE:
       case CHECKENABLE_SIGNAL_REF_CLIP:
@@ -644,7 +645,7 @@ namespace VL53L0X {
       case CHECKENABLE_RANGE_IGNORE_THRESHOLD:
       case CHECKENABLE_SIGNAL_RATE_MSRC:
       case CHECKENABLE_SIGNAL_RATE_PRE_RANGE:
-        /* Need to run a ranging to have the latest values */;
+        /* Need to run a ranging to have the latest values */
         return PALDevDataGet(LastRangeMeasure).SignalRateRtnMegaCps;
 
       default:
@@ -658,7 +659,7 @@ namespace VL53L0X {
  * WRAPAROUND Check
  */
   void Api::SetWrapAroundCheckEnable(bool WrapAroundCheckEnable) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     bool WrapAroundCheckEnableInt = WrapAroundCheckEnable != 0;//in case someone somehow circumvented compiler checks
     comm.UpdateBit(REG_SYSTEM_SEQUENCE_CONFIG, 7, WrapAroundCheckEnableInt);
     setBit<7>(Data.SequenceConfig, WrapAroundCheckEnableInt);
@@ -666,7 +667,7 @@ namespace VL53L0X {
   } // VL53L0X_SetWrapAroundCheckEnable
 
   bool Api::GetWrapAroundCheckEnable() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     uint8_t seqconf = get_SequenceConfig();
     PALDevDataSet(SequenceConfig, seqconf);
     VL53L0X_SETPARAMETERFIELD(WrapAroundCheckEnable, getBit<7>(seqconf));
@@ -674,7 +675,7 @@ namespace VL53L0X {
   } // GetWrapAroundCheckEnable
 
   bool Api::SetDmaxCalParameters(const DevData_t::DmaxCal &p) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     /* Check if one of input parameter is zero, in that case the value are get from NVM */
     if ((p.RangeMilliMeter == 0) || (p.SignalRateRtnMegaCps.raw == 0)) {
@@ -705,7 +706,7 @@ namespace VL53L0X {
 
 /* Group PAL Measurement Functions */
   bool Api::PerformSingleMeasurement() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     /* Get Current DeviceMode */
     auto DeviceMode = GetDeviceMode();
@@ -731,12 +732,12 @@ namespace VL53L0X {
 
 
   bool Api::PerformRefCalibration() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return perform_ref_calibration();
   }
 
   bool Api::PerformXTalkCalibration(MilliMeter XTalkCalDistance) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
       THROW(ERROR_INVALID_PARAMS);//bad user input (for blocking procedure)
       return false;
@@ -745,7 +746,7 @@ namespace VL53L0X {
   }
 
   bool Api::PerformOffsetCalibration(MilliMeter CalDistanceMilliMeter) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     if (CalDistanceMilliMeter.raw <= 0) {//ick,unsigned numbers are never negative, todo: need a maximum check here.
       THROW(ERROR_INVALID_PARAMS);//bad user input (for blocking procedure)
       return false;
@@ -777,7 +778,7 @@ namespace VL53L0X {
   } // VL53L0X_CheckAndLoadInterruptSettings
 
   bool Api::StartMeasurement() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     DeviceModes DeviceMode = GetDeviceMode();
     {
@@ -823,7 +824,7 @@ namespace VL53L0X {
   } // VL53L0X_StartMeasurement
 
   bool Api::StopMeasurement() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_SINGLESHOT);
     {
@@ -834,12 +835,12 @@ namespace VL53L0X {
     /* Set PAL State to Idle */
     PALDevDataSet(PalState, STATE_IDLE);
     /* Check if need to apply interrupt settings */
-    return CheckAndLoadInterruptSettings(0);
+    return CheckAndLoadInterruptSettings(false);
   } // VL53L0X_StopMeasurement
 
 
   bool Api::GetMeasurementDataReady() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     uint8_t InterruptConfig = VL53L0X_GETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality);
 
     if (InterruptConfig == GPIOFUNCTIONALITY_NEW_MEASURE_READY) {
@@ -854,7 +855,7 @@ namespace VL53L0X {
 
 
   bool Api::GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     /*
      * use multi read even if some registers are not useful, result will
      * be more efficient
@@ -921,7 +922,7 @@ namespace VL53L0X {
   }
 
   bool Api::PerformSingleRangingMeasurement(RangingMeasurementData_t &pRangingMeasurementData) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     /* This function will do a complete single ranging
      * Here we fix the mode! */
     SetDeviceMode(DEVICEMODE_SINGLE_RANGING);
@@ -975,7 +976,7 @@ namespace VL53L0X {
   };
 
   bool Api::SetGpioConfig(uint8_t Pin, GpioConfiguration gpioConfig) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     if (Pin != 0) {
       THROW(ERROR_GPIO_NOT_EXISTING);//bad argument, very unlikely unless built for the wrong device.
@@ -1038,7 +1039,7 @@ namespace VL53L0X {
   }
 
   void Api::SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     /* no dependency on DeviceMode for Ewok
      * Need to divide by 2 because the FW will apply a x2*/
     set_threshold(REG_SYSTEM_THRESH_LOW, Threshold.Low);
@@ -1046,7 +1047,7 @@ namespace VL53L0X {
   } // VL53L0X_SetInterruptThresholds
 
   Api::RangeWindow Api::GetInterruptThresholds(DeviceModes DeviceMode) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     /* no dependency on DeviceMode for Ewok */
     RangeWindow pThreshold;
     pThreshold.Low = get_threshold(REG_SYSTEM_THRESH_LOW);
@@ -1055,7 +1056,7 @@ namespace VL53L0X {
   } // GetInterruptThresholds
 
   uint8_t Api::GetStopCompletedStatus() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     uint8_t Byte;
     {//must close before going onto writing 0x91
@@ -1071,7 +1072,7 @@ namespace VL53L0X {
 
 /* Group PAL Interrupt Functions */
   bool Api::ClearInterruptMask(unsigned int ignored_InterruptMask) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     /* clear bit 0 range interrupt, bit 1 error interrupt */
     for (unsigned LoopCount = 3; LoopCount-- > 0;) {
       comm.WrByte(REG_SYSTEM_INTERRUPT_CLEAR, 1);//ick: is this a 1<<0 or a boolean?
@@ -1085,7 +1086,7 @@ namespace VL53L0X {
   } // ClearInterruptMask
 
   uint8_t Api::GetInterruptMaskStatus(bool throwRangeErrors) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     uint8_t mask;
     comm.Read(REG_RESULT_INTERRUPT_STATUS, mask);
     if (throwRangeErrors) {
@@ -1101,22 +1102,22 @@ namespace VL53L0X {
 /* Group SPAD functions */
 
   void Api::SetSpadAmbientDamperThreshold(uint16_t SpadAmbientDamperThreshold) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     FFwrap(RegSystem(0x40), SpadAmbientDamperThreshold);
   } // VL53L0X_SetSpadAmbientDamperThreshold
 
   uint16_t Api::GetSpadAmbientDamperThreshold() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return FFread<uint16_t>(RegSystem(0x40));
   } // GetSpadAmbientDamperThreshold
 
   void Api::SetSpadAmbientDamperFactor(uint16_t SpadAmbientDamperFactor) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     FFwrap(RegSystem(0x42), uint8_t(SpadAmbientDamperFactor));
   } // VL53L0X_SetSpadAmbientDamperFactor
 
   uint8_t Api::GetSpadAmbientDamperFactor() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return FFread<uint8_t>(RegSystem(0x42));
   } // GetSpadAmbientDamperFactor
 
@@ -1266,7 +1267,7 @@ namespace VL53L0X {
 #endif
 
   DeviceParameters_t Api::GetDeviceParameters() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     DeviceParameters_t wad;
 
     auto DeviceMode = GetDeviceMode();
@@ -1295,7 +1296,7 @@ namespace VL53L0X {
   }
 #if IncludeBlockers
   bool Api::PerformRefSpadManagement() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return perform_ref_spad_management();
   }
 #endif

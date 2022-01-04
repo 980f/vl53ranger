@@ -32,7 +32,7 @@ Copyright 2021 Andy Heilveil, github/980F via mutation of source
 
 #include "vl53l0x_api_core.h"
 
-#include "log_api.h"
+#include "vl53l0x_platform_log.h"
 
 namespace VL53L0X {
 
@@ -107,7 +107,7 @@ namespace VL53L0X {
   } // VL53L0X_quadrature_sum
 
   bool Core::device_read_strobe(unsigned trials) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     auto onexit = push(Private_Strober, 0x00, 0x01);
     /* polling with timeout to avoid deadlock*/
     while (trials-- > 0) {
@@ -160,7 +160,7 @@ namespace VL53L0X {
 
     DeviceSpecificParameters_t::PartUID_t PartUID;
 
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     uint8_t ReadDataFromDeviceDone = VL53L0X_GETDEVICESPECIFICPARAMETER(ReadDataFromDeviceDone);
     uint8_t needs = infoGroups & ~ReadDataFromDeviceDone;
 
@@ -306,12 +306,12 @@ namespace VL53L0X {
 
 
   bool Core::GetXTalkCompensationEnable() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
   } // GetXTalkCompensationEnable
 
   MegaCps Core::GetXTalkCompensationRateMegaCps() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     FixPoint<3, 13> Value;
     fetch(Value.raw, REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS);
     if (Value.raw == 0) {
@@ -326,7 +326,7 @@ namespace VL53L0X {
 
 
   void Core::SetXTalkCompensationEnable(bool XTalkCompensationEnable) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     FixPoint313_t duck((XTalkCompensationEnable && Data.unityGain()) ? VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps) : MegaCps(0));
     comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, duck);
     VL53L0X_SETPARAMETERFIELD(XTalkCompensationEnable, XTalkCompensationEnable);
@@ -334,7 +334,7 @@ namespace VL53L0X {
 
 
   bool Core::SetXTalkCompensationRateMegaCps(MegaCps XTalkCompensationRateMegaCps) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     if (GetXTalkCompensationEnable()) {
       FixPoint<3, 13> data = Data.unityGain() ? XTalkCompensationRateMegaCps : MegaCps(0);
       comm.WrWord(REG_CROSSTALK_COMPENSATION_PEAK_RATE_MCPS, data);
@@ -494,12 +494,12 @@ namespace VL53L0X {
   }
 
   SchedulerSequenceSteps_t Core::get_sequence_step_enables() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     return get_SequenceConfig();
   }
 
   bool Core::set_measurement_timing_budget_micro_seconds(uint32_t MeasurementTimingBudgetMicroSeconds) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     if (MeasurementTimingBudgetMicroSeconds < cMinTimingBudgetMicroSeconds) {
       return LOG_ERROR(ERROR_INVALID_PARAMS);
     }
@@ -581,7 +581,7 @@ namespace VL53L0X {
   } // VL53L0X_set_measurement_timing_budget_micro_seconds
 
   uint32_t Core::get_measurement_timing_budget_micro_seconds() {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     SchedulerSequenceSteps_t SchedulerSequenceSteps = get_sequence_step_enables();
 
     /* Start and end overhead times always present */
@@ -661,7 +661,7 @@ namespace VL53L0X {
    * 0..3 index  number of bytes indicated in first byte  I2C multi byte write.
    * */
   unsigned int Core::load_tuning_settings(const uint8_t *pTuningSettingBuffer) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     unsigned checkcount=0;
     while (oneTuning(pTuningSettingBuffer)) {
       ++checkcount;
@@ -673,7 +673,7 @@ namespace VL53L0X {
  * table of index:byte value pairs
  * */
   void Core::load_compact(const DeviceByte *bunch, unsigned quantity) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     for (unsigned index = 0; index < quantity; ++index) {
       send(bunch[index]);
     }
@@ -705,7 +705,7 @@ namespace VL53L0X {
     const uint32_t cAmbEffWidthSigmaEst_ns = 6;
     const uint32_t cAmbEffWidthDMax_ns = 7;
 
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     uint32_t dmaxCalRange_mm = PALDevDataGet(dmaxCal.RangeMilliMeter);//goes from 16 to 32 bits.
     FixPoint1616_t dmaxCalSignalRateRtn_mcps = PALDevDataGet(dmaxCal.SignalRateRtnMegaCps);
@@ -826,7 +826,7 @@ namespace VL53L0X {
   } // calc_dmax
 
   FixPoint1616_t Core::calc_sigma_estimate(RangingMeasurementData_t &pRangingMeasurementData) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     /* Expressed in 100ths of a ns, i.e. centi-ns */
     const uint32_t cPulseEffectiveWidth_centi_ns {800};
     /* Expressed in 100ths of a ns, i.e. centi-ns */
@@ -1049,7 +1049,7 @@ namespace VL53L0X {
   }
 
   bool Core::GetSequenceStepEnable(SequenceStepId StepId) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     auto seqbit = bitFor(StepId);
     if (seqbit == ~0) {
       THROW(ERROR_INVALID_PARAMS);//bypassed enum
@@ -1068,7 +1068,7 @@ namespace VL53L0X {
   } // GetLimitCheckEnable
 
   Cps16 Core::GetLimitCheckValue(CheckEnable LimitCheckId) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     bool EnableZeroValue = false;
 
     LimitTuple &tuple = VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId);
@@ -1113,7 +1113,7 @@ namespace VL53L0X {
 
 
   RangeStatus Core::get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData) {
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
 
     /*
      * VL53L0X has a good ranging when the value of the DeviceRangeStatus = 11.

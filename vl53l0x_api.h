@@ -85,7 +85,7 @@ namespace VL53L0X {
  * @param   rangeStatus         The rangeError code as stored on a RangingMeasurementData_t
  * @return  pointer to const text.
  */
-    const char *GetRangeStatusString(RangeStatus rangeStatus);
+    static const char *GetRangeStatusString(RangeStatus rangeStatus);
 
 /**
  * @brief Human readable error string for a given Error Code
@@ -95,7 +95,7 @@ namespace VL53L0X {
  * @param   ErrorCode           The error code as stored on  ::DeviceError
  * @return  pointer to const string
  */
-    const char *GetDeviceErrorString(DeviceError ErrorCode);
+    static const char *GetDeviceErrorString(DeviceError ErrorCode);
 
 /**
  * @brief Human readable error string for current PAL error status
@@ -105,7 +105,7 @@ namespace VL53L0X {
  * @param   PalErrorCode       The error code as stored on @a Error
  * @return  The error string corresponding to the PalErrorCode
  */
-    const char *GetPalErrorString(Error PalErrorCode);
+    static const char *GetPalErrorString(Error PalErrorCode);
 
 /**
  * @brief Human readable PAL State string
@@ -116,7 +116,7 @@ namespace VL53L0X {
  * PalStateCode
  * @return pointer to const text.
  */
-    const char *GetPalStateString(State PalStateCode);
+    static const char *GetPalStateString(State PalStateCode);
 
 /**
  * @brief Reads the internal state of the PAL for a given Device
@@ -575,7 +575,7 @@ namespace VL53L0X {
  * @return  ERROR_NONE            Success
  * @return  "Other error code"           See ::Error
  */
-    const char *GetSequenceStepsInfo(SequenceStepId SequenceStepId);
+    static const char *GetSequenceStepsInfo(SequenceStepId SequenceStepId);
 
 /**
  * Program continuous mode Inter-Measurement period in milliseconds

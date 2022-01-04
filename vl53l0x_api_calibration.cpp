@@ -30,7 +30,7 @@
 //still somewhat tangled but at least we can kill this part since apparently the layer violation was to get time tracing:  #include "vl53l0x_api.h"
 #include "vl53l0x_api.h" //private members of the class, split across files due to size of files.
 
-#include "log_api.h"
+#include "vl53l0x_platform_log.h"
 
 namespace VL53L0X {
 
@@ -168,7 +168,7 @@ namespace VL53L0X {
 
   void Api::set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter) {
 //BUG:    const int32_t cMaxOffsetMicroMeter = 511000;//effectively 2044 rather than 2047 for max positive value.
-    LOG_FUNCTION_START;
+    LOG_FUNCTION_START
     /* The offset register is 10.2 format and units are mm
      * therefore conversion is applied by a division of 250.  (1000/4)
      */
