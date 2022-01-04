@@ -153,7 +153,7 @@ namespace VL53L0X {
      * Note that the cal distance is in mm, therefore no resolution
      * is lost.*/
     uint32_t CalDistanceAsInt_mm = CalDistanceMilliMeter.shrunk(16);
-    int32_t OffsetMicroMeter = (CalDistanceAsInt_mm - StoredMeanRangeAsInt) * 1000;
+    int32_t OffsetMicroMeter = static_cast<int32_t>(CalDistanceAsInt_mm - StoredMeanRangeAsInt) * 1000;
 
     /* Apply the calculated offset */
     VL53L0X_SETPARAMETERFIELD(RangeOffsetMicroMeters, OffsetMicroMeter);
@@ -245,10 +245,7 @@ namespace VL53L0X {
     SpadArray checkSpadArray;
     get_ref_spad_map(checkSpadArray);
     /* Compare spad maps. If not equal report error. */
-    if (spadArray != checkSpadArray) {
-      return false;
-    }
-    return false;
+    return (spadArray == checkSpadArray) ;
   } // enable_ref_spads
 
   uint16_t Api::perform_ref_signal_measurement(uint16_t iffails) {

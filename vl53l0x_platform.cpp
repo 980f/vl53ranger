@@ -83,7 +83,7 @@ namespace VL53L0X {
   } // comm.RdDWord
 
   void Physical::UpdateByte(uint8_t index, uint8_t AndData, uint8_t OrData) {
-    //todo: use 980F's wire support classes to mutex Read vs Write via repeated start and no stop.
+    //todo:T for multithreading must find wire support classes to mutex Read vs Write via repeated start and no stop.
     //the goal: // start address index repeat-start address read_byte hold repeat-start address index data stop.
     uint8_t data;
     wirer.Read( index, data);

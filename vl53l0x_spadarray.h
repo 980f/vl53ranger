@@ -25,7 +25,7 @@ class SpadArray {
 
 public:
   enum {
-    MaxCount = 44
+    MaxCount = 44    //this also appeared in one place as 0x2C
       , NumberOfBytes = (MaxCount+7)/8
 
   };
@@ -38,13 +38,12 @@ public:
     uint8_t coarse;
     uint8_t fine;
 
-    /** default value creates a bad index, however if  you ++ it it becomes the 0th which is valid. */
-    constexpr Index(unsigned bitnumber=~1) : coarse(bitnumber / 8), fine(bitnumber % 8) {
+    /** */
+    constexpr Index(unsigned bitnumber) : coarse(bitnumber / 8), fine(bitnumber % 8) {
     }
 
-//  private:
-//    Index(uint8_t coarse,uint8_t fine):coarse(coarse),fine(fine){}
-//  public:
+    /** default value creates a bad index, however if  you ++ it it becomes the 0th which is valid. */
+    Index():coarse(~0), fine(7){}
 
     bool operator==(const Index &rhs) const {
       return coarse == rhs.coarse &&
@@ -129,15 +128,7 @@ public:
   }
 
   /** @returns the index of the next bit that is set, which may the value passed in. */
-  Index nextSet(Index curr) const{
-      while (curr.isValid()) {
-        if (get(curr)) {
-          return curr;
-        }
-        ++curr;
-      }
-      return badSpad;//canonical ! isValid()
-  }
+  Index nextSet(Index curr) const;
 
   /** wraps what was once called enable_ref_spad */
   class Scanner {
@@ -150,39 +141,13 @@ public:
     void restart(){
       scanner=0;
     }
-    Scanner(const SpadArray &goodSpadArray, SpadArray &spadArray) : goodSpadArray(goodSpadArray), spadArray(spadArray) {
-      //default scanner is NOT valid, call restart before every use.
-    }
+    Scanner(const SpadArray &goodSpadArray, SpadArray &spadArray);
 
     /** move pointer based on inherent type, ignoring the arrays*/
-    bool moveto(bool isAperature, SpadArray::Index bias){
-      while (scanner.isValid() && !(bias + scanner).is_aperture()) {
-        ++scanner;
-      }
-      return scanner.isValid();
-    }
+    bool moveto(bool isAperature, SpadArray::Index bias);
 
     /** set req.quantity spads of type req.isAperture in the wrapped spadArray */
-    bool operator()(SpadCount req){
-      while (req.quantity>0) {
-        if(!scanner.isValid()){
-          return false;
-        }
-        auto nextGoodSpad = goodSpadArray.nextSet(scanner);
-        if (!nextGoodSpad.isValid()) {
-          return false;//seems excessive, we just went past the last
-        }
-        /* Confirm that the next good SPAD is of the desired aperture type */
-        if (nextGoodSpad.is_aperture() != req.isAperture) {
-          /* if we can't get the required number of good spads from the current quadrant then this is an error */
-          return false;
-        }
-        lastSet=nextGoodSpad;
-        spadArray.enable(lastSet);
-        scanner = ++nextGoodSpad;//without the incr we would spin forever
-      }
-      return true;
-    }
+    bool operator()(SpadCount req);
 
     /** clear/disable the last bit enabled, making no other changes */
     void undoLast(){

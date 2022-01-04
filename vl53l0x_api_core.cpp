@@ -250,7 +250,7 @@ namespace VL53L0X {
         VL53L0X_SETDEVICESPECIFICPARAMETER(SignalRateMeasFixed400mm, SignalRateMeasFixed400mmFix);
         int32_t OffsetMicroMeters(0);//BUG: was int16, truncating too soon
         if (DistMeasFixed1104_400_mm != 0) {
-          int32_t OffsetFixed1104_mm = DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm;//was uint32_t despite being an intrinsically signed value
+          int32_t OffsetFixed1104_mm = static_cast<int32_t>(DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm);//was uint32_t despite being an intrinsically signed value. swap operands and we can use unsigned again.
           OffsetMicroMeters = -roundedScale((OffsetFixed1104_mm * 1000), 4);
         }
         PALDevDataSet(Part2PartOffsetAdjustmentNVMMicroMeter, OffsetMicroMeters);

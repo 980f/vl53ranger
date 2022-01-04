@@ -31,3 +31,45 @@ bool SpadArray::operator==(const SpadArray &rhs) const {
   }
   return true;
 }
+
+SpadArray::Index SpadArray::nextSet(SpadArray::Index curr) const {
+  while (curr.isValid()) {
+    if (get(curr)) {
+      return curr;
+    }
+    ++curr;
+  }
+  return badSpad;//canonical ! isValid()
+}
+
+bool SpadArray::Scanner::moveto(bool isAperature, SpadArray::Index bias) {
+  while (scanner.isValid() && !(bias + scanner).is_aperture()) {
+    ++scanner;
+  }
+  return scanner.isValid();
+}
+
+bool SpadArray::Scanner::operator()(SpadCount req) {
+  while (req.quantity>0) {
+    if(!scanner.isValid()){
+      return false;
+    }
+    auto nextGoodSpad = goodSpadArray.nextSet(scanner);
+    if (!nextGoodSpad.isValid()) {
+      return false;//seems excessive, we just went past the last
+    }
+    /* Confirm that the next good SPAD is of the desired aperture type */
+    if (nextGoodSpad.is_aperture() != req.isAperture) {
+      /* if we can't get the required number of good spads from the current quadrant then this is an error */
+      return false;
+    }
+    lastSet=nextGoodSpad;
+    spadArray.enable(lastSet);
+    scanner = ++nextGoodSpad;//without the incr we would spin forever
+  }
+  return true;
+}
+
+SpadArray::Scanner::Scanner(const SpadArray &goodSpadArray, SpadArray &spadArray) : goodSpadArray(goodSpadArray), spadArray(spadArray) {
+  //default scanner is NOT valid, call restart before every use.
+}
