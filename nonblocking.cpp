@@ -66,7 +66,7 @@ bool NonBlocking::afterSpadsSet(SpadCount &ref) {
 //call after tuning settings load.
 void NonBlocking::endStaticInit() {
   /* Set interrupt config to new sample ready. Failure is now ignored as we are using enums and all real errors will THROW */
-  allowing.gpioAsReadyBit = SetGpioConfig(0, {DEVICEMODE_SINGLE_RANGING, GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
+  allowing.gpioAsReadyBit = SetGpioConfig(0, { GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
   auto fix412 = FFread<FixPoint<4, 12>>(RegSystem(0x84));
   VL53L0X_SETDEVICESPECIFICPARAMETER(OscFrequencyMHz, fix412);//conversion from 412 to 1616 is inferred by compiler
   /* After static init actions, some device parameters may be changed, so update them */
@@ -620,7 +620,7 @@ void NonBlocking::Waiting::abandonAll() {
   *this = {};//sometimes C++ is wonderful. This sets all fields to their constructor defaults.
 }
 
-bool NonBlocking::SpadSetupProcess::oldcode() {
+bool NonBlocking::SpadSetupProcess::stage1() {
   targetRefRate = nb.PALDevDataGet(targetRefRate);//different data types, convert just once.
   /*
    * Initialize Spad arrays.

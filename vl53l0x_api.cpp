@@ -55,6 +55,7 @@ namespace VL53L0X {
   const Version_t PalSpecVersion {{VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR}, VL53L0X_SPECIFICATION_VER_SUB, VL53L0X_SPECIFICATION_VER_REVISION};
 
 #if IncludeBlockers
+
   /* Group PAL General Functions */
   bool Api::measurement_poll_for_completion() {
     LOG_FUNCTION_START
@@ -68,7 +69,6 @@ namespace VL53L0X {
     return LOG_ERROR(ERROR_TIME_OUT);
   } // VL53L0X_measurement_poll_for_completion
 #endif
-
 
   bool Api::check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo) {
     LOG_FUNCTION_START
@@ -347,7 +347,7 @@ namespace VL53L0X {
       return false;//bad content, comm errors throw.
     }
     /* Set interrupt config to new sample ready */
-    if (!SetGpioConfig(0, {DEVICEMODE_SINGLE_RANGING, GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW})) {
+    if (!SetGpioConfig(0, {GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW})) {
       return false;
     }
     auto fix412 = FFread<FixPoint<4, 12>>(RegSystem(0x84));
@@ -427,8 +427,6 @@ namespace VL53L0X {
       case DEVICEMODE_SINGLE_RANGING:
       case DEVICEMODE_CONTINUOUS_RANGING:
       case DEVICEMODE_CONTINUOUS_TIMED_RANGING:
-      case DEVICEMODE_GPIO_DRIVE:
-      case DEVICEMODE_GPIO_OSC:
         /* Supported modes */
         VL53L0X_SETPARAMETERFIELD(DeviceMode, deviceMode);
         return true;
@@ -485,7 +483,7 @@ namespace VL53L0X {
     }
 
     if (SequenceConfigNew != SequenceConfig) {
-      set_SequenceConfig( SequenceConfigNew,true);
+      set_SequenceConfig(SequenceConfigNew, true);
       /* Recalculate timing budget */
       SetMeasurementTimingBudgetMicroSeconds(VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds));
     }
@@ -570,7 +568,7 @@ namespace VL53L0X {
 
   bool Api::GetLimitCheckStatus(CheckEnable LimitCheckId) {
     TRACE_ENTRY
-    if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
+    if (!isValid(LimitCheckId)) {
       THROW(ERROR_INVALID_PARAMS);//bypassed enum
     }
     return Data.CurrentParameters.LimitChecksStatus[LimitCheckId];
@@ -608,7 +606,7 @@ namespace VL53L0X {
 
       case CHECKENABLE_SIGNAL_RATE_MSRC:
 //was buggy:        comm.UpdateByte(REG_MSRC_CONFIG_CONTROL, ~Bitter(0), !limit.enable ? Bitter(1) : 0);//BUG:clear lsb set bit 1
-        comm.UpdateBit(REG_MSRC_CONFIG_CONTROL,1, !limit.enable);
+        comm.UpdateBit(REG_MSRC_CONFIG_CONTROL, 1, !limit.enable);
         if (limit.enable) {
           comm.WrWord(REG_PRE_RANGE_MIN_COUNT_RATE_RTN_LIMIT, limit.value);
         }
@@ -629,9 +627,6 @@ namespace VL53L0X {
 
   MegaCps Api::GetLimitCheckCurrent(CheckEnable LimitCheckId) {
     TRACE_ENTRY
-    if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
-      THROW(ERROR_INVALID_PARAMS);//bypassed enum
-    }
     switch (LimitCheckId) {
       case CHECKENABLE_SIGMA_FINAL_RANGE:
         /* Need to have run a ranging to have the latest values */
@@ -729,7 +724,6 @@ namespace VL53L0X {
     }
   } // VL53L0X_PerformSingleMeasurement
 #endif
-
 
   bool Api::PerformRefCalibration() {
     LOG_FUNCTION_START
@@ -903,7 +897,7 @@ namespace VL53L0X {
       }
     }
 
-    pRangingMeasurementData.Range.assign(RangeMilliMeter,RangeFractionalEnable);
+    pRangingMeasurementData.Range.assign(RangeMilliMeter, RangeFractionalEnable);
 
     /*
      * For a standard definition of rangeError, this should return 0 in case of good result after a ranging
@@ -975,29 +969,24 @@ namespace VL53L0X {
     {0x00, 0x00},
   };
 
+  void Api::SetGpioOsc() {
+    load_compact(gpiooscer, sizeof(gpiooscer) / sizeof(gpiooscer[0]));
+  }
+
   bool Api::SetGpioConfig(uint8_t Pin, GpioConfiguration gpioConfig) {
     LOG_FUNCTION_START
 
     if (Pin != 0) {
-      THROW(ERROR_GPIO_NOT_EXISTING);//bad argument, very unlikely unless built for the wrong device.
+      return LOG_ERROR(ERROR_GPIO_NOT_EXISTING);//bad argument, very unlikely unless built for the wrong device.
     }
 
-    switch (gpioConfig.devMode) {
-      case DEVICEMODE_GPIO_DRIVE:
-        comm.WrByte(REG_GPIO_HV_MUX_ACTIVE_HIGH, (gpioConfig.polarity == INTERRUPTPOLARITY_LOW) ? Bitter(4) : 1);//ick: elsewhere does an update
-        return true;
-      case DEVICEMODE_GPIO_OSC:
-        load_compact(gpiooscer, sizeof(gpiooscer) / sizeof(gpiooscer[0]));
-        return true;
-      default:
-        if (!isValid(gpioConfig.function)) {
-          return LOG_ERROR(ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);
-        } // switch
-        comm.WrByte(REG_SYSTEM_INTERRUPT_CONFIG_GPIO, gpioConfig.function);
-        comm.UpdateBit(REG_GPIO_HV_MUX_ACTIVE_HIGH, 4, gpioConfig.polarity == INTERRUPTPOLARITY_HIGH);
-        VL53L0X_SETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality, gpioConfig.function);
-        return ClearInterruptMask(0);
-    }
+    if (!isValid(gpioConfig.function)) {
+      return LOG_ERROR(ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED);
+    } // switch
+    comm.WrByte(REG_SYSTEM_INTERRUPT_CONFIG_GPIO, gpioConfig.function);
+    comm.UpdateBit(REG_GPIO_HV_MUX_ACTIVE_HIGH, 4, gpioConfig.polarity == INTERRUPTPOLARITY_HIGH);
+    VL53L0X_SETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality, gpioConfig.function);
+    return ClearInterruptMask(0);
   } // VL53L0X_SetGpioConfig
 
   GpioConfiguration Api::GetGpioConfig(uint8_t Pin) {
@@ -1005,10 +994,9 @@ namespace VL53L0X {
     if (Pin != 0) {
       THROW(ERROR_GPIO_NOT_EXISTING);//unlikley bad argument
     }
-
     /* pDeviceMode not managed by Ewok it return the current mode */
     GpioConfiguration gpio;
-    gpio.devMode = GetDeviceMode();
+//ST mixed unrelated functionality into this call.    gpio.devMode = GetDeviceMode();
     uint8_t gpioConfig;
     fetch(gpioConfig, REG_SYSTEM_INTERRUPT_CONFIG_GPIO);
     gpio.function = static_cast<enum GpioFunctionality>(gpioConfig & Mask<2, 0>::places);
@@ -1019,7 +1007,7 @@ namespace VL53L0X {
     uint8_t polarity;
     fetch(polarity, REG_GPIO_HV_MUX_ACTIVE_HIGH);
     gpio.polarity = getBit<4>(polarity) ? INTERRUPTPOLARITY_LOW : INTERRUPTPOLARITY_HIGH;
-    VL53L0X_SETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality, gpio.function);
+    VL53L0X_SETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality, gpio.function);//record the actual over the last set.
     return gpio;
   } // GetGpioConfig
 
@@ -1264,6 +1252,7 @@ namespace VL53L0X {
 
     return true;
   }
+
 #endif
 
   DeviceParameters_t Api::GetDeviceParameters() {
@@ -1294,11 +1283,14 @@ namespace VL53L0X {
     wad.MeasurementTimingBudgetMicroSeconds = GetMeasurementTimingBudgetMicroSeconds();
     return wad;
   }
+
 #if IncludeBlockers
+
   bool Api::PerformRefSpadManagement() {
     LOG_FUNCTION_START
     return perform_ref_spad_management();
   }
+
 #endif
 
   void Api::SetReferenceSpads(SpadCount spad) {

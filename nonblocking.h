@@ -357,9 +357,9 @@ namespace VL53L0X {
         return false;
       }
     public:
-      SpadSetupProcess(NonBlocking &dev);
+      explicit SpadSetupProcess(NonBlocking &dev);
       bool onMeasurement(bool successful) override;
-      bool oldcode();
+      bool stage1();
       bool stage2();
       bool stage3();
       bool laststage();

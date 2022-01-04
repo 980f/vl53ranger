@@ -1061,7 +1061,7 @@ namespace VL53L0X {
 
   bool Core::GetLimitCheckEnable(CheckEnable LimitCheckId) {
     TRACE_ENTRY
-    if (LimitCheckId >= CHECKENABLE_NUMBER_OF_CHECKS) {
+    if (!isValid(LimitCheckId)) {
       THROW (ERROR_INVALID_PARAMS);//bypassed enum
     }
     return VL53L0X_GETARRAYPARAMETERFIELD(LimitChecks, LimitCheckId).enable;

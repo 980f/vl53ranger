@@ -102,10 +102,12 @@ namespace VL53L0X {
     , DEVICEMODE_CONTINUOUS_RANGING
     , DEVICEMODE_SINGLE_HISTOGRAM
     , DEVICEMODE_CONTINUOUS_TIMED_RANGING
-
+#if IncludeNotimplemented
     , DEVICEMODE_SINGLE_ALS = 10
-    , DEVICEMODE_GPIO_DRIVE = 20
-    , DEVICEMODE_GPIO_OSC
+#endif
+// these are unrelated to the above
+//    , DEVICEMODE_GPIO_DRIVE = 20
+//    , DEVICEMODE_GPIO_OSC
 
 /* ... Modes to be added depending on device */
 /** @} VL53L0X_define_DeviceModes_group */
@@ -113,7 +115,7 @@ namespace VL53L0X {
 
   /** these are paired in many places, having a struct lets us set a universal default  */
   struct GpioConfiguration {
-    DeviceModes devMode = DEVICEMODE_GPIO_DRIVE;//looks like two enums are in one space.
+//    DeviceModes devMode = DEVICEMODE_GPIO_DRIVE;//looks like two enums are in one space.
     GpioFunctionality function = GPIOFUNCTIONALITY_OFF;
     InterruptPolarity polarity = INTERRUPTPOLARITY_LOW;
   };
@@ -128,12 +130,15 @@ namespace VL53L0X {
         return false;//NYI
       case DEVICEMODE_CONTINUOUS_TIMED_RANGING:
         return true;
+#if IncludeNotimplemented
       case DEVICEMODE_SINGLE_ALS:
         return false; //NYI
-      case DEVICEMODE_GPIO_DRIVE:
-        return true;
-      case DEVICEMODE_GPIO_OSC:
-        return true;
+#endif
+
+//      case DEVICEMODE_GPIO_DRIVE:
+//        return true;
+//      case DEVICEMODE_GPIO_OSC:
+//        return true;
       default:
         return false;
     }

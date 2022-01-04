@@ -102,10 +102,11 @@ namespace VL53L0X {
     CHECKENABLE_NUMBER_OF_CHECKS
   };
 
-/** @}  end of VL53L0X_CheckEnable_group */
   constexpr bool isValid(CheckEnable LimitCheckId) {
     return LimitCheckId < CHECKENABLE_NUMBER_OF_CHECKS;
   }
+/** @}  end of VL53L0X_CheckEnable_group */
+
 
 /** @defgroup VL53L0X_GpioFunctionality_group Gpio Functionality
  *  @brief Defines the different functionalities for the device GPIO(s)
@@ -118,7 +119,7 @@ namespace VL53L0X {
     , GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH /*!< Level High (value > thresh_high) */
     , GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT /*!< Out Of Window (value < thresh_low OR value > thresh_high)  */
     , GPIOFUNCTIONALITY_NEW_MEASURE_READY /*!< New Sample Ready  */
-
+    //3 possible values that are not presently allocated/implemented
   };
 
   constexpr bool isValid(GpioFunctionality functionality) {

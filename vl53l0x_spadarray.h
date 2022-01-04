@@ -10,13 +10,12 @@
 
 /** legacy combination. */
 struct SpadCount {
-  uint8_t quantity=0;//ReferenceSpadCount;  /* used for ref spad management */
-  bool isAperture=false;//ReferenceSpadType;   /* used for ref spad management */
+  uint8_t quantity = 0;//ReferenceSpadCount;  /* used for ref spad management */
+  bool isAperture = false;//ReferenceSpadType;   /* used for ref spad management */
 
-  bool isValid()const{
-    return quantity>0; //not this guy's job to enforce minSpadCount
+  bool isValid() const {
+    return quantity > 0; //not this guy's job to enforce minSpadCount
   }
-
 };
 
 /** spad arrays are arrays of bits of whether a spad exists or is enabled
@@ -26,8 +25,7 @@ class SpadArray {
 public:
   enum {
     MaxCount = 44    //this also appeared in one place as 0x2C
-      , NumberOfBytes = (MaxCount+7)/8
-
+    , NumberOfBytes = (MaxCount + 7) / 8
   };
 
   uint8_t raw[NumberOfBytes];
@@ -43,11 +41,11 @@ public:
     }
 
     /** default value creates a bad index, however if  you ++ it it becomes the 0th which is valid. */
-    Index():coarse(~0), fine(7){}
+    Index() : coarse(~0), fine(7) {
+    }
 
     bool operator==(const Index &rhs) const {
-      return coarse == rhs.coarse &&
-             fine == rhs.fine;
+      return coarse == rhs.coarse && fine == rhs.fine;
     }
 
     bool operator!=(const Index &rhs) const {
@@ -62,18 +60,18 @@ public:
       return *this;
     }
 
-    Index &operator =(Index other){
-      coarse=other.coarse;
-      fine=other.fine;
+    Index &operator=(Index other) {
+      coarse = other.coarse;
+      fine = other.fine;
       return *this;
     }
 
-    unsigned absolute()const {
-      return (coarse<<3)+fine;
+    unsigned absolute() const {
+      return (coarse << 3) + fine;
     }
 
-    Index operator +(const Index &other) const{
-      return absolute()+other.absolute();
+    Index operator+(const Index &other) const {
+      return absolute() + other.absolute();
     }
 
     bool isValid() const {
@@ -84,15 +82,14 @@ public:
     bool is_aperture() const {
 //there are 64 spads per quadrant. quadrant 2 seems to be aperture, the rest not.
       static const uint32_t refArrayQuadrants[4] = {10, 5, 0, 5};
-      return coarse<32 && refArrayQuadrants[(coarse>>3)] != 0;
+      return coarse < 32 && refArrayQuadrants[(coarse >> 3)] != 0;
     }
-
   };
 
 public:
   static const Index badSpad;//sentinel return value
-  /** while we always write before use the compiler could not figure that out so we silence a warning with this constructor */
-  SpadArray(){
+  /** zero init is excessive since all instances load before use, but ensures that the excess bits are zero*/
+  SpadArray() {
     clear();
   }
 
@@ -102,7 +99,7 @@ public:
   }
 
   void clear() {
-    for (unsigned char & i : raw) {
+    for (unsigned char &i: raw) {
       i = 0;
     }
   }
@@ -112,7 +109,7 @@ public:
   }
 
   void set(Index bitly, bool enableit) {
-    BitAlias (raw[bitly.coarse],bitly.fine)=enableit;
+    BitAlias(raw[bitly.coarse], bitly.fine) = enableit;
   }
 
   void enable(Index spadIndex) {
@@ -124,7 +121,7 @@ public:
   bool operator==(const SpadArray &rhs) const;
 
   bool operator!=(const SpadArray &rhs) const {
-    return !((*this)==(rhs));
+    return !((*this) == (rhs));
   }
 
   /** @returns the index of the next bit that is set, which may the value passed in. */
@@ -138,9 +135,10 @@ public:
     SpadArray::Index lastSet;//because this is the cheapest way to undo the last set
     SpadArray &spadArray;
 
-    void restart(){
-      scanner=0;
+    void restart() {
+      scanner = 0;
     }
+
     Scanner(const SpadArray &goodSpadArray, SpadArray &spadArray);
 
     /** move pointer based on inherent type, ignoring the arrays*/
@@ -150,12 +148,11 @@ public:
     bool operator()(SpadCount req);
 
     /** clear/disable the last bit enabled, making no other changes */
-    void undoLast(){
-      spadArray.set(lastSet,false);
+    void undoLast() {
+      spadArray.set(lastSet, false);
       //and what do we do to guard against ill use? nothing, leave this idempotent
     }
   };
-
 };
 
 #endif //VL53_VL53L0X_SPADARRAY_H

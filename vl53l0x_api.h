@@ -1425,6 +1425,7 @@ namespace VL53L0X {
     FixPoint1616_t get_threshold(RegSystem index);
     bool set_reference_spads(SpadCount ref);
     bool perform_phase_calibration(bool restore_config);
+    void SetGpioOsc();
   };
 }//end namespace
 #endif /* __H_ */
