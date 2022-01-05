@@ -112,14 +112,17 @@ namespace VL53L0X {
     /** formerly returned a value that was then written to a member of the RMD parameter, whose value is never queried by the driver.
      * @returns sigma estimate, udpates RangeDMaxMillimeter as a side effect of the computation.
      * */
-    FixPoint1616_t calc_sigma_estimate(RangingMeasurementData_t &pRangingMeasurementData);
+    MegaCps calc_sigma_estimate(RangingMeasurementData_t &pRangingMeasurementData);
 
     MegaCps get_total_xtalk_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
     MegaCps get_total_signal_rate(const RangingMeasurementData_t &pRangingMeasurementData);
 
-    /** RMD not const due to setting of darkMM */
-    RangeStatus get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData);
+    /**
+     * the range status is a function of device specific patterns, as well as some measurement context
+     *
+     * RMD not const due to setting of darkMM */
+    RangeStatus get_pal_range_status(uint8_t DeviceRangeStatus, RangingMeasurementData_t &pRangingMeasurementData);
 
     /**
  * @brief  Get specific limit check enable state

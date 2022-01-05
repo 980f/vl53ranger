@@ -44,7 +44,9 @@ template<typename Intish> Intish squared(Intish num) {
   return num * num;
 }
 
-/** @returns @param num divided by @param denom, rounded */
+/** @returns @param num divided by @param denom, rounded
+ *
+ * @note: divide by zero returns ZERO  due to frequency of ternaries doing that in first project to use this code */
 template<typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom) {
   return (denom != 0) ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
 }

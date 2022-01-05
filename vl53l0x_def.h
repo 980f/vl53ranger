@@ -286,9 +286,13 @@ namespace VL53L0X {
     MegaCps AmbientRateRtnMegaCps;  /*!< Return ambient rate (MCPS)\n these is a 16.16 fix point value, which is effectively a measure of the ambient light.*/
 
     static const unsigned int spadEpsilon = 8;
-    FixPoint<16 - spadEpsilon, spadEpsilon> EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256  (call .rounded()) */
+    using SpadAverage= FixPoint<16 - spadEpsilon, spadEpsilon>;
+    SpadAverage EffectiveSpadRtnCount;  /*!< Return the effective SPAD count for the return signal. To obtain Real value it should be divided by 256  (call .rounded()) */
 
     RangeDatum Range;
+    SpadAverage ratePerSpad() {
+      return  { SignalRateRtnMegaCps,EffectiveSpadRtnCount.raw,1 };//todo: probably off by a factor of 2 or 1/2
+    }
   };
 
 #if IncludeHistogramming

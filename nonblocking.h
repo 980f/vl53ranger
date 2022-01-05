@@ -42,7 +42,7 @@ namespace VL53L0X {
       , InitData   //includes tuning table and other settings that shouldn't need to change often
       , InitStatic //does SetupSpads, some tuning parameters
       , SetupSpads //part of init data but callable for debug of device
-      , CalVhvPhase    // call when ???
+      , CalVhvPhase    // call when ??? staticinit
       , CalPhase      //call when vcsel pulse width changes, save and restore from nvm?
       , OneShot
       , Continuous //references 'timed', will use non timed version for sample rate of 0
@@ -128,15 +128,7 @@ namespace VL53L0X {
 #endif
 
     /** normally statically constructed */
-    explicit NonBlocking(UserAgent &agent, uint8_t i2c_addr = VL53L0X_I2C_ADDR >> 1, uint8_t busNumber = 0) : Api({busNumber, i2c_addr, 400})
-                                                                                                              , agent(agent)
-                                                                                                              , theXtalkProcess(*this)
-                                                                                                              , theOffsetProcess(*this)
-                                                                                                              , theCalProcess(*this)
-                                                                                                              , theRateProcess(*this)
-                                                                                                              , theSpadder(*this) {
-      //do no real actions so that we can statically construct
-    }
+    explicit NonBlocking(UserAgent &agent, uint8_t i2c_addr = VL53L0X_I2C_ADDR >> 1, uint8_t busNumber = 0);
 
   private:
     //#using bit fields instead of booleans for atomicity, guard against future multithreading
@@ -156,6 +148,13 @@ namespace VL53L0X {
       RQBIT(dataInit);  //error recovery, powerup
       RQBIT(resetSoft); //error recovery, powerup
       RQBIT(resetHard);//error recovery, powerup
+      void clear() {
+        vhv=phase=rate=spads=range=staticInit=dataInit=resetSoft=resetHard=false;
+      }
+
+      Requesting(){ // NOLINT(cppcoreguidelines-pro-type-member-init)
+        clear();
+      }
     } requesting;
 
     /** some state bits */
@@ -237,6 +236,14 @@ namespace VL53L0X {
 
     };
 
+    /** serves oneshot and continuous range requests */
+    class RangeProcess:public MeasurementProcess {
+    public:
+      explicit RangeProcess(NonBlocking &dev);
+    protected:
+      bool onMeasurement(bool successful) override;
+    }theRangeProcess;
+
     /** common base for Xtalk and Offset process
      *
       * Perform 50 measurements and compute the averages
@@ -315,7 +322,7 @@ namespace VL53L0X {
     class CalProcess : public MeasurementProcess {
     public:
       explicit CalProcess(NonBlocking &dev);
-    private:
+    public://temporary exposure, unless theCalProcess itself is private enough
       bool doingVhv = false;//which of two measurements
 
     public:

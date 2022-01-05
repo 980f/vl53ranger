@@ -852,12 +852,10 @@ namespace VL53L0X {
   bool Api::GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START
     /*
-     * use multi read even if some registers are not useful, result will
-     * be more efficient
-     * start reading at 0x14 dec20
-     * end reading at 0x21 dec33 total 14 bytes to read  //ick: code says 12, not 14
+     * use multi read even if some registers are not useful, result will be more efficient than reading onesies and twosies due to I2C overhead
+     * start reading at 0x14 (dec20)
+     * end reading at 0x21 (dec33) total 14 bytes to read  //ick: actual code says 12, not 14
      */
-
     uint8_t localBuffer[12];
     comm.ReadMulti(0x14, localBuffer, sizeof(localBuffer));
 #if IncludeNotimplemented
@@ -877,7 +875,7 @@ namespace VL53L0X {
 
     pRangingMeasurementData.AmbientRateRtnMegaCps = Cps16(MAKEUINT16(localBuffer[9], localBuffer[8]));
 
-    decltype(pRangingMeasurementData.EffectiveSpadRtnCount) EffectiveSpadRtnCount(MAKEUINT16(localBuffer[3], localBuffer[2]));
+    RangingMeasurementData_t::SpadAverage EffectiveSpadRtnCount(MAKEUINT16(localBuffer[3], localBuffer[2]));
     pRangingMeasurementData.EffectiveSpadRtnCount = EffectiveSpadRtnCount;
 
     auto DeviceRangeStatus = localBuffer[0];
@@ -892,19 +890,15 @@ namespace VL53L0X {
       bool XTalkCompensationEnable = VL53L0X_GETPARAMETERFIELD(XTalkCompensationEnable);
 
       if (XTalkCompensationEnable) {
-        uint16_t XTalkCompensationRateMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);//BUG: loses integer part, perhaps a 9,7 was intended?
-        auto dry = SignalRate.raw - roundedScale(XTalkCompensationRateMegaCps * EffectiveSpadRtnCount, RangingMeasurementData_t::spadEpsilon);
+        Cps16 XTalkCompensationRateMegaCps = VL53L0X_GETPARAMETERFIELD(XTalkCompensationRateMegaCps);//BUG(fixed): loses integer part, perhaps a 9,7 was intended?
+        auto dry = SignalRate.raw - roundedScale(XTalkCompensationRateMegaCps.raw * EffectiveSpadRtnCount.raw, RangingMeasurementData_t::spadEpsilon);
         RangeMilliMeter = dry > 0 ? (RangeMilliMeter * SignalRate) / dry : (RangeFractionalEnable ? 8888 : (8888 << 2));//bug: magic value
       }
     }
 
     pRangingMeasurementData.Range.assign(RangeMilliMeter, RangeFractionalEnable);
 
-    /*
-     * For a standard definition of rangeError, this should return 0 in case of good result after a ranging
-     * The range status depends on the device so call a device specific function to obtain the right Error.
-     */
-    pRangingMeasurementData.Range.error = get_pal_range_status(DeviceRangeStatus, SignalRate, EffectiveSpadRtnCount, pRangingMeasurementData);
+    pRangingMeasurementData.Range.error = get_pal_range_status(DeviceRangeStatus, pRangingMeasurementData);
 
     /* Copy last read data into Dev buffer */
     PALDevDataGet(LastRangeMeasure) = pRangingMeasurementData;

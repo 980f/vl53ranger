@@ -153,21 +153,35 @@ void NonBlocking::loop() {
         }
       }
 
-      if (requesting.rate) {//set by user or by spads
-
+      if (take(requesting.rate)) {//set by user or by spads
+        if(inProgress== nullptr){//there must be a receiver or we don't start a measurement
+          //wtf!
+          inProgress=&theRateProcess;//to avert NPE's
+        }
+        //todo: crank up the measurement
+        return;
       }
-      if (requesting.range) {//set by user or xtalk or offset
-
+      if (take(requesting.range)) {//set by user or xtalk or offset
+        if(inProgress== nullptr){//there must be a receiver or we don't start a measurement
+          //wtf if not OneShot or Continuous
+          inProgress=&theRangeProcess;
+        }
+        inProgress->startNext();
       }
-      if (requesting.vhv) {//traditionally vhv was done prior to phase, and sometimes phase is done by itself
-
-      }
-      if (requesting.phase) {//this and vhv are done after spad setting, phase afte vcsel setting
-
+      if (requesting.vhv || requesting.phase) {//traditionally vhv was done prior to phase, and sometimes phase is done by itself
+        if(inProgress== nullptr){
+          theCalProcess.doingVhv=take(requesting.vhv);
+          inProgress=&theCalProcess;
+        }
+        inProgress->startNext();
+        //todo: have to clear .phase eventually
+        return;
       }
       if (requesting.spads) { //powerup (aka staticinit), diagnostics
-        //if process not running then start it
-        //if stopped running then WTF are we getting here?
+        if(inProgress!= &theSpadder){
+          //todo: signal WTF
+        }
+        //vhv,phase,rate should all have intercepted this.
       }
       //////
       // init should be automatic, can add an overall 'be running' for power management, but not yet.
@@ -225,7 +239,7 @@ void NonBlocking::doMeasurementComplete(bool successful) {
   }
   if (!successful) {
     if (!inProgress->onMeasurement(successful)) {
-      abandonTasks();
+      abandonTasks();//kill any pending subtasks
     }
     return;
   }
@@ -237,10 +251,10 @@ void NonBlocking::doMeasurementComplete(bool successful) {
 
     if (inProgress) {
       if (!inProgress->onMeasurement(successful)) {
-        abandonTasks();
+        abandonTasks();//clean up
       }
     } else {
-      //must have been abandoned
+      //wtf!
     }
   } else {
     measurementInProgress = Abandoned;
@@ -274,6 +288,7 @@ void NonBlocking::setProcess(NonBlocking::ProcessRequest process){
     case InitData:
       break;
     case InitStatic:
+      inProgress=&theCalProcess;//the only thing static waits on if it doesn't do spads
       break;
     case SetupSpads:
       inProgress=&theSpadder;
@@ -437,11 +452,23 @@ bool NonBlocking::doBlocking(ProcessRequest process) {
   return false;
 }
 
+NonBlocking::NonBlocking(NonBlocking::UserAgent &agent, uint8_t i2c_addr, uint8_t busNumber) : Api({busNumber, i2c_addr, 400})
+                                                                                               , agent(agent)
+                                                                                               , theRangeProcess(*this)
+                                                                                               , theXtalkProcess(*this)
+                                                                                               , theOffsetProcess(*this)
+                                                                                               , theCalProcess(*this)
+                                                                                               , theRateProcess(*this)
+                                                                                               , theSpadder(*this) {
+  //do no real actions so that we can statically construct
+}
+
 #endif
 ////////////////////////////////////////////
 
 bool NonBlocking::MeasurementProcess::onMeasurement(bool successful) {
-  return false;//default is to abandon the task.
+  nb.agent.processEvent(nb.activeProcess,successful?ProcessResult::Succeeded:ProcessResult::Failed);
+  return false;//default is task is done
 }
 
 bool NonBlocking::AveragingProcess::begin() {
@@ -796,4 +823,14 @@ bool NonBlocking::SpadSetupProcess::setAndCheck() {
   nb.get_ref_spad_map(checkSpadArray);
   /* Compare spad maps. If not equal report error. */
   return scanner.spadArray != checkSpadArray;
+}
+
+NonBlocking::RangeProcess::RangeProcess(NonBlocking &dev) : MeasurementProcess(dev) {
+}
+
+bool NonBlocking::RangeProcess::onMeasurement(bool successful) {
+  if(nb.activeProcess==Continuous){//then "may I have another"
+    nb.requesting.range=true;//here is where we would restart a timer that defers checking ready until it is nearly due
+  }
+  return MeasurementProcess::onMeasurement(successful);
 }

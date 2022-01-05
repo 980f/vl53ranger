@@ -824,7 +824,7 @@ namespace VL53L0X {
     return dmaxDark.raw;
   } // calc_dmax
 
-  FixPoint1616_t Core::calc_sigma_estimate(RangingMeasurementData_t &pRangingMeasurementData) {
+  MegaCps Core::calc_sigma_estimate(RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START
     /* Expressed in 100ths of a ns, i.e. centi-ns */
     const uint32_t cPulseEffectiveWidth_centi_ns {800};
@@ -978,9 +978,7 @@ namespace VL53L0X {
       FixPoint1616_t pwMult(deltaT_ps.raw, cVcselPulseWidth_ps, 0); /* smaller than 1.0f */ //ick: 980f added rounding
 
       /*
-       * FixPoint1616 * FixPoint1616 = FixPoint3232, however both
-       * values are small enough such that32 bits will not be
-       * exceeded.
+       * FixPoint1616 * FixPoint1616 = FixPoint3232, however both values are small enough such that 32 bits will not be exceeded.
        */
       pwMult.raw *= (Unity.raw - xTalkCorrection.raw);
 
@@ -1110,7 +1108,7 @@ namespace VL53L0X {
   } // GetLimitCheckValue
 
 
-  RangeStatus Core::get_pal_range_status(uint8_t DeviceRangeStatus, FixPoint1616_t SignalRate, uint16_t EffectiveSpadRtnCount, RangingMeasurementData_t &pRangingMeasurementData) {
+  RangeStatus Core::get_pal_range_status(uint8_t DeviceRangeStatus, RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START
 
     /*
@@ -1134,7 +1132,7 @@ namespace VL53L0X {
       /*
        * compute the Sigma and check with limit
        */
-      FixPoint1616_t SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData);
+      MegaCps SigmaEstimate = calc_sigma_estimate(pRangingMeasurementData);
 
       auto SigmaLimitValue = SigmaLimitCheck.value;
       if ((SigmaLimitValue.raw > 0) && (SigmaEstimate > SigmaLimitValue)) {//todo: check for factor of 2 error due to refactoring
@@ -1169,9 +1167,7 @@ namespace VL53L0X {
     bool RangeIgnoreThresholdflag = false;
 
     if (RangeIgnoreThresholdLimitCheckEnable) {
-      /* Compute the signal rate per spad */
-      //floating point is laboriously averted even though that might retain a literal bit more precision.
-      FixPoint1616_t SignalRatePerSpad = (EffectiveSpadRtnCount != 0) ? SignalRate.boosted(8).divideby(EffectiveSpadRtnCount) : FixPoint1616_t(0);//had to cast the 0 to ensure floating point would not be used temporarily even though correct answer would have been achieved.
+      RangingMeasurementData_t::SpadAverage SignalRatePerSpad(pRangingMeasurementData.ratePerSpad());
 
       auto RangeIgnoreThresholdValue = GetLimitCheckValue(CHECKENABLE_RANGE_IGNORE_THRESHOLD);
 
