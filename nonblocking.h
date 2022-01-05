@@ -11,6 +11,13 @@ namespace VL53L0X {
 
   /** one instance for each sensor.
    * sensor address management is outside the scope of this driver
+   *
+   * This guy entails all of the various processes of ST's Api that took more than most of a millisecond.
+   * It is a bit gnarly as each such process is decomposed into phases and there are subclasses in here that for each phase consider all the processes.
+   *
+   * Adding a new process entails distributing its logic into the various phase handlers.
+   * There is a base class MeasurementProcess which you should extend, allowing to bring the source for some of the phases into close proximity in the source code.
+   *
    * */
   class NonBlocking : public VL53L0X::Api {
 
@@ -54,17 +61,22 @@ namespace VL53L0X {
 
     /** data shared by background processing and the user application */
     struct ProcessArg {
-      uint8_t *tuningTable = nullptr;//if not same as present one then apply it, if null then feature disable (set default)
-      unsigned sampleRate_ms = 0;//sample interval for continuous measurement, 0 for untimed
+      /** when you have enough writes to the chip that you have to break them up into groups to not stall the whole program: */
+      uint8_t *tuningTable = nullptr;//todo: implement the "only byte writes" version.
+      /** sample interval for continuous measurement, 0 for untimed */
+      unsigned sampleRate_ms = 0;
+      /** hardware reset control. will be a 'virtual pin number' where values beyond the Arduino GPIO refer to other means of controlling the XSHUT pin */
       unsigned gpioPin = ~0;//~0 is clearly not a legitimate Arduino pin designation
-      MilliMeter sampleDistance_mm {0}; //for offset and xtalk calibrations, 0 may not be valid, suggested is 400mm
+      /** //for offset and xtalk calibrations, 0 may not be valid, suggested is 400mm */
+      MilliMeter sampleDistance_mm {0};
+
+      /** diagnostic for who asked for the measurement, set when data is updated */
+      MeasurementAction theLastMeasurement = Abandoned;
       //data targets
       /** result of most recent measurement of any type */
       VL53L0X::RangingMeasurementData_t theRangingMeasurementData;//arg.details often points to this
-      MegaCps peakSignal;
-      /** diagnostic for who asked for the above measurement */
-      MeasurementAction theLastMeasurement = Abandoned;
-      CalibrationParameters refCal;
+      MegaCps peakSignal; //rate measurements, computed from theRangingMeasurementData
+      CalibrationParameters refCal;//vhv phase processes
       //program statistics, updated by processes but not used by them
       unsigned measurements = 0;//incremented each time data is acquired for any purpose
     };
@@ -77,23 +89,23 @@ namespace VL53L0X {
       /** called when data has been generated, or an error has occured while doing so.
        * might send progress reports once we have enables for doing so.
        * */
-      virtual void afterProcess(ProcessRequest process, ProcessResult stage) {
+      virtual void processEvent(ProcessRequest process, ProcessResult stage) {
       };
 
-      /** called when something couldn't be handled. Expectation is report to user and a call to reset */
+      /** called when something couldn't be handled. Expectation is report to user and a call to reset. Caught exceptions might be reported here, then a processEvent will be called. */
       virtual void unexpected() {
       };
 
       /** called when we are waiting for a measurement and have been told to configure the VL53 signal and so on.*/
       virtual bool gpioSignal() {
-        return false;
+        return false;//user override use arg.gpioPin to report on the hardware signal from the VL53
       }
     };
 
     /** a mixin' set at construction time: */
     UserAgent &agent;
 
-    /** call from Arduino setup. Probably useless*/
+    /** intended for call from Arduino setup. will reset state as best we can. */
     void setup();
 
     /** call this from your dispatcher, such as loop() in Arduino  or   while(1){WFE(); ... }*/
@@ -106,11 +118,12 @@ namespace VL53L0X {
        * - any is in progress that is not abandonable
        * - system is not initialized
        *
-       * TBD: afterProcess(process, reasonForFailure) may be called before this returns false.
+       * TBD: processEvent(process, reasonForFailure) may be called before this returns false.
        * */
     bool startProcess(ProcessRequest process);
 
 #if IncludeBlockers
+    /** initially run the old code */
     bool doBlocking(ProcessRequest process);
 #endif
 
@@ -120,8 +133,8 @@ namespace VL53L0X {
                                                                                                               , theXtalkProcess(*this)
                                                                                                               , theOffsetProcess(*this)
                                                                                                               , theCalProcess(*this)
-                                                                                                              , theRefSignalProcess(*this)
-                                                                                                              ,theSpadder(*this){
+                                                                                                              , theRateProcess(*this)
+                                                                                                              , theSpadder(*this) {
       //do no real actions so that we can statically construct
     }
 
@@ -160,15 +173,18 @@ namespace VL53L0X {
 
     struct Waiting {
       const uint8_t *tuning = nullptr;         //tuning table (does items in tranches)
-      unsigned interruptClear = 0; //3 lsbs zero, number of polls for timeout
+      unsigned interruptClear = 0; //expect 3 lsbs of mask are zero, number of polls for timeout
       unsigned forStop = 0;        //wait on stop complete,, number of polls for timeout
       unsigned onStart = 0;        //wait on start acknowledge (10 samples per call), number of polls for timeout
-      unsigned onMeasurement = 0;  //wait on measurement data ready (flag captured by ISR or poll device, 10 polls per call)
-
+      unsigned onMeasurement = 0;  //wait on measurement data ready (check gpio or flag captured by ISR or poll device, 10 polls per call)
+      /** drop all expectations */
       void abandonAll();
     } waiting;
 
+    /** sets sequence config then issues a start */
     bool startMeasurement(MeasurementAction action);
+
+    /** signal failure on active task and clear all requests */
     void abandonTasks();
 
   private:
@@ -186,9 +202,6 @@ namespace VL53L0X {
       //if functional rather than virtual here is where we record the action to take on completion.
     }
 
-    /**  */
-    bool requestMeasurement(MeasurementAction use);
-
   protected:
 
     class MeasurementProcess {
@@ -196,7 +209,6 @@ namespace VL53L0X {
 
     protected:
       NonBlocking &nb;
-
       uint8_t seqConfigCache;//for seq value
     protected:
       explicit MeasurementProcess(NonBlocking &dev);
@@ -214,11 +226,15 @@ namespace VL53L0X {
        */
       virtual bool onMeasurement(bool successful);
 
-      void done() {
+      bool bedone(bool failed) {
         /* restore the previous Sequence Config */
         //perhaps conditional on match of Get(SequenceConfig)
         nb.set_SequenceConfig(seqConfigCache, true);
+        return failed;
       }
+
+    public:
+
     };
 
     /** common base for Xtalk and Offset process
@@ -255,9 +271,8 @@ namespace VL53L0X {
       }
 
       /** overrides called when last measurement has been summed into dataset */
-      virtual bool finish() {
-        done();
-        return true;
+      virtual bool finish(bool passthru) {
+        return passthru;
       };
     };
 
@@ -275,7 +290,7 @@ namespace VL53L0X {
       bool begin() override;
       void startNext() override;
       void alsoSum() override;
-      bool finish() override;
+      bool finish(bool successful) override;
     } theXtalkProcess;
 
     /** makes a bunch of measurements then sets offset.
@@ -291,40 +306,36 @@ namespace VL53L0X {
     public:
       bool begin() override;
       /** @returns whether to continue the process. if not then nb.lastError details why  */
-      bool finish() override;
+      bool finish(bool successful) override;
       void startNext() override;
     } theOffsetProcess;
 
-    /** a pair of measurements which leave behind results accessible for curiousity's sake*/
+    /** vhv or phasecal
+     * */
     class CalProcess : public MeasurementProcess {
     public:
       explicit CalProcess(NonBlocking &dev);
     private:
-      bool lastStep = false;//which of two measurements
+      bool doingVhv = false;//which of two measurements
 
-    public:
-      /** the result of the process */
-      CalibrationParameters p;//UserAgent args will often point to this
     public:
       bool begin() override;
       /** @returns whether to continue the process. if not then nb.lastError details why  */
-      bool onMeasurement(bool successful);
+      bool onMeasurement(bool successful) override;
       void startNext() override;
     } theCalProcess;
 
-    /** single measurement from which a reference signal rate is extracted*/
-    class RefSignalProcess : public MeasurementProcess {
+    /** single measurement from which a reference signal rate is extracted */
+    class RateProcess : public MeasurementProcess {
     public:
-      explicit RefSignalProcess(NonBlocking &dev);
+      explicit RateProcess(NonBlocking &dev);
     private:
-    public:
-      uint16_t rate;//the output of the process
     public:
       bool begin() override;
       /** @returns whether to continue the process. if not then nb.lastError details why  */
-      bool onMeasurement(bool successful);
+      bool onMeasurement(bool successful) override;
       void startNext() override;
-    } theRefSignalProcess;
+    } theRateProcess;
 
     /** complicated bugger:
      * it does the CalProcess for vhv and phase then it does a variable number rate measurements.
@@ -339,40 +350,44 @@ namespace VL53L0X {
     *
     * This procedure operates within a SPAD window of interest of a maximum 44 spads (SpadArray::maxcount).
     * The start point is fixed to 180 (Api::startSelect), which lies towards the end of the non-aperture quadrant and runs in to the adjacent aperture quadrant.
+     *
+     * From ST's actual code:
+     * try minimum nonapeture spads, if too great do the rest of the algorithm with aperture spads
+     * while too low add spads, if greater then compare excess to deficit of prior test to choose between the two.
+     *
+     * our code:
+     * start with min + non
+     * if too great then if non switch to aper else compare to previous pick one and exit
+     * else add one of the present type.
  */
 
     class SpadSetupProcess : public MeasurementProcess {
       MegaCps targetRefRate;//FYI: PAL targetRefRate exists solely to feed this guy potentially from a tunings block.
       SpadArray::Scanner scanner;
       SpadCount sc;
-      uint32_t rateDeficit=~0;//init to wildly bad value
+      uint32_t rateDeficit = ~0;//init to wildly bad value
 
-      bool setAndCheck(){
-        nb.set_ref_spad_map(scanner.spadArray);
+      /** send spad settings to device, read back and report on whether the settings stuck */
+      bool setAndCheck();
 
-        SpadArray checkSpadArray;
-        nb.get_ref_spad_map(checkSpadArray);
-        /* Compare spad maps. If not equal report error. */
-        return scanner.spadArray != checkSpadArray;
-        return false;
-      }
+      bool refreshCalibration();
+      bool forEachMeasurement();
+      bool laststage();
+
     public:
       explicit SpadSetupProcess(NonBlocking &dev);
       bool onMeasurement(bool successful) override;
-      bool stage1();
-      bool stage2();
-      bool stage3();
-      bool laststage();
+      bool precheck();
     } theSpadder;
 
     /** object that is notified when data is ready */
     MeasurementProcess *inProgress = nullptr;
 
+  protected:
     //// state machine fragments:
-    bool staticInitStage1();
     void endStaticInit();
-    bool afterSpadsSet(SpadCount &ref);
     bool gpioReady();
+    void setProcess(ProcessRequest process);
   };
 
   /** NYI

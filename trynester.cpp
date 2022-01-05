@@ -30,7 +30,7 @@ static void tracer_example(unsigned recurse) {
     tracer_example(recurse);
   } else {
     //check:  should see records identical except for timestamp
-    LocationStack:: walk([](LocationStack &item) {
+    LocationStack:: walk([](Stacked<LocationStack> *item) {
       //item.element.timestamp = ~0;//testing access
       return true;
     });

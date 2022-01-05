@@ -113,18 +113,32 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     return float(raw >> fract) + float(raw & mask) / float(unity);
   }
 
-  /** this is logically dangerous but matches legacy use. Logically one would expect to assign to the whole part, ie shift up by fract. */
-  FixPoint &operator=(RawType pattern) {
-    raw = pattern;
-    return *this;
+
+  /**
+   * assigning with shifting and truncation or expansion as needed
+   * */
+  template<unsigned other_whole, unsigned other_fract> FixPoint(FixPoint<other_whole, other_fract> other) {
+//e.g: <16,16>other  to <9,7> this (uint16_t)((Value >> 9) & 0xFFFF)
+    const int bitdiff = fract - other_fract;
+    if constexpr (unsigned(size) >= unsigned(other.size)) {//we are expanding so inflate and shrunk
+      raw = other.raw;//radix point is still at other_fract position
+      if constexpr (bitdiff < 0) {//truncating some bits on the ls end
+        raw >>= (-bitdiff);
+      } else if constexpr (bitdiff > 0) {
+        raw <<= (bitdiff);
+      }
+    } else { //shrinking so must align before truncating
+      if constexpr (bitdiff < 0) {//truncating some bits on the ls end
+        other.raw >>= (-bitdiff);
+      } else if constexpr(bitdiff > 0) {
+        other.raw <<= (bitdiff);
+      }
+      raw = other.raw;
+    }
   }
+
 
   FixPoint() : raw(0) {
-  }
-
-  FixPoint &operator=(float eff) {
-    raw = FixPoint(eff).raw;//borrow constructor
-    return *this;
   }
 
   template<typename Intish> explicit FixPoint(Intish stuff) {
@@ -132,8 +146,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   }
 
   /** two ints init item to ratio, with boosted of numerator by @param boostit power of two which defaults to fract, which treats num  as an integer value */
-  template<typename IntishUp, typename IntishDown>
-  constexpr FixPoint(IntishUp num, IntishDown denom, unsigned boostit = fract) {
+  template<typename IntishUp, typename IntishDown> constexpr FixPoint(IntishUp num, IntishDown denom, unsigned boostit = fract) {
     raw = num;//expand to 32 bits asap.
     boosted(boostit);
     if (denom != 1) {//do not round if denom is 1, which would only make a difference if boostit != fract
@@ -155,6 +168,25 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   constexpr FixPoint(double eff) {
     raw = eff > 0 ? RawType(eff * unity) : 0;
   }
+  ///////////////////////////////////////
+  /** this is logically dangerous but matches legacy use. Logically one would expect to assign to the whole part, ie shift up by fract. */
+  template<unsigned other_whole, unsigned other_fract> FixPoint &operator=(FixPoint<other_whole, other_fract> other) {
+    raw = static_cast<FixPoint>(other);//use constructor to do conversion as the vast majority were inline. Defining the targets as the appropriate type will let us drop macros that use the constructor.
+    return *this;
+  }
+
+  FixPoint &operator=(RawType pattern) {
+    raw = pattern;
+    return *this;
+  }
+
+  FixPoint &operator=(float eff) {
+    raw = FixPoint(eff).raw;//borrow constructor
+    return *this;
+  }
+
+
+  //////////////////////////////////////
 
   /** @returns nearest integer to nominal value */
   WholeType rounded() const {
@@ -257,7 +289,6 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     raw *= rhs.raw;
     return *this;
   }
-//force explicit roundedDivided
 
   RawType operator+(RawType raw_) {
     return raw + raw_;
@@ -286,35 +317,8 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     raw *= raw_;
     return *this;
   }
-//force explicit roundedDivided
 
-  /**
-   * assigning with shifting and truncation or expansion as needed
-   * */
-  template<unsigned other_whole, unsigned other_fract> FixPoint(FixPoint<other_whole, other_fract> other) {
-//e.g: <16,16>other  to <9,7> this (uint16_t)((Value >> 9) & 0xFFFF)
-    const int bitdiff = fract - other_fract;
-    if constexpr (unsigned(size) >= unsigned(other.size)) {//we are expanding so inflate and shrunk
-      raw = other.raw;//radix point is still at other_fract position
-      if constexpr (bitdiff < 0) {//truncating some bits on the ls end
-        raw >>= (-bitdiff);
-      } else if constexpr (bitdiff > 0) {
-        raw <<= (bitdiff);
-      }
-    } else { //shrinking so must align before truncating
-      if constexpr (bitdiff < 0) {//truncating some bits on the ls end
-        other.raw >>= (-bitdiff);
-      } else if constexpr(bitdiff > 0) {
-        other.raw <<= (bitdiff);
-      }
-      raw = other.raw;
-    }
-  }
 
-  template<unsigned other_whole, unsigned other_fract> FixPoint &operator=(FixPoint<other_whole, other_fract> other) {
-    raw = static_cast<FixPoint>(other);//use constructor to do conversion as the vast majority were inline. Defining the targets as the appropriate type will let us drop macros that use the constructor.
-    return *this;
-  }
 
   /** rounding /= */
   template<typename Intish> FixPoint &divideby(Intish denom) {

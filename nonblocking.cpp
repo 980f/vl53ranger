@@ -37,55 +37,47 @@ void NonBlocking::abandonTasks() {
   onStopComplete(false);
   doMeasurementComplete(false);
   waiting.abandonAll();
+  activeProcess = Idle;
+  inProgress = nullptr;
 }
 
-bool NonBlocking::staticInitStage1() {
-  if (!get_info_from_device(InfoGroup::SpadStuff)) {
-    return false;
-  }
-  /* set the ref spad from NVM */
-  SpadCount ref = VL53L0X_GETDEVICESPECIFICPARAMETER(ReferenceSpad);
-  /* check NVM value: two known types, 1 and 0, '1' has a max 32 spads, '0' has a max of 12 */
-  if (ref.quantity > (ref.isAperture ? 32 : 12)) {//if true then invalid settings so compute correct ones
-    requesting.spads = true;
-    return true;//not cancelled
-  }
-  return afterSpadsSet(ref);
-}
-
-bool NonBlocking::afterSpadsSet(SpadCount &ref) {
-  if (!set_reference_spads(ref)) {
-    allowing.nothing = true;
-    return false;
-  }
-
-  waiting.tuning = GetTuningSettingBuffer();
-  return true;//not quite done yet
-}
+//bool NonBlocking::afterSpadsSet(SpadCount &ref) {
+//  if (!set_reference_spads(ref)) {
+//    allowing.nothing = true;
+//    return false;
+//  }
+//
+//  waiting.tuning = GetTuningSettingBuffer();//refresh tunings
+//  return true;//not quite done yet
+//}
 
 //call after tuning settings load.
 void NonBlocking::endStaticInit() {
   /* Set interrupt config to new sample ready. Failure is now ignored as we are using enums and all real errors will THROW */
-  allowing.gpioAsReadyBit = SetGpioConfig(0, { GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
-  auto fix412 = FFread<FixPoint<4, 12>>(RegSystem(0x84));
-  VL53L0X_SETDEVICESPECIFICPARAMETER(OscFrequencyMHz, fix412);//conversion from 412 to 1616 is inferred by compiler
-  /* After static init actions, some device parameters may be changed, so update them */
-  PALDevDataSet(RangeFractionalEnable, GetFractionEnable());
-  auto CurrentParameters = GetDeviceParameters();
-  PALDevDataSet(CurrentParameters, CurrentParameters);
-  /* read the sequence config and save it */
-  PALDevDataSet(SequenceConfig, get_SequenceConfig());
+  allowing.gpioAsReadyBit = SetGpioConfig(0, {GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
 
+  VL53L0X_SETDEVICESPECIFICPARAMETER(OscFrequencyMHz, (FFread<FixPoint<4, 12>>(RegSystem(0x84))));//# extra parens required by macro processor.
   /* Disable MSRC and TCC by default */
   SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
   SetSequenceStepEnable(SEQUENCESTEP_MSRC, false);
+
+  /* in case someone bypassed the proper setters */
+  PALDevDataSet(RangeFractionalEnable, GetFractionEnable());
+  PALDevDataSet(CurrentParameters, GetDeviceParameters());//
+  PALDevDataSet(SequenceConfig, get_SequenceConfig());//todo:m make static init a process and useit SC management //in case someone bypassed the proper setters
   initRanger(VCSEL_PERIOD_PRE_RANGE, SEQUENCESTEP_PRE_RANGE, VL53L0X_GETDEVICESPECIFICPARAMETER(PreRange));
   initRanger(VCSEL_PERIOD_FINAL_RANGE, SEQUENCESTEP_FINAL_RANGE, VL53L0X_GETDEVICESPECIFICPARAMETER(FinalRange));
-
   PALDevDataSet(PalState, STATE_IDLE);
   requesting.staticInit = false;
 }
 
+/** prioritizing:
+ * tuning as that might be used by any process step
+ * things that restart the device interface
+ * measurement stages
+ * measurement requests
+ * process steps that need measurements
+ * */
 void NonBlocking::loop() {
   TRY {
       //if we are writing to a block of registers do not interrupt that for anything other than write failures
@@ -111,17 +103,16 @@ void NonBlocking::loop() {
         allowing.nothing = false;//time to try again!
         DataInit();//long but not blocking
         requesting.dataInit = false;//follow DataInit to allow for exceptions
+        requesting.staticInit = true;//we know that DataInit set the flag that we would check to set this, so just set it.
       }
-//      RQBIT(resetSoft); //error recovery, powerup
-//      RQBIT(resetHard);//error recovery, powerup
-
-      if (requesting.staticInit) {
-        if (!requesting.spads) {
-          requesting.staticInit = staticInitStage1();
-        }
-        //waiting on tuning is checked prior to getting here
+      if (requesting.resetHard) {
+        //todo: resetter not yet implemented
+        requesting.dataInit = true;
       }
-
+      if (requesting.resetSoft) {
+        //todo: drop this and directly whack the device.
+        requesting.dataInit = true;
+      }
       /////////////////////////////
       if (waiting.onStart) {
         uint8_t flags;
@@ -131,7 +122,7 @@ void NonBlocking::loop() {
         } else {
           if (--waiting.onStart == 0) {
             abandonTasks();
-            agent.afterProcess(activeProcess, Failed);
+            agent.processEvent(activeProcess, Failed);
           }
           return;//come back in later
         }
@@ -162,16 +153,22 @@ void NonBlocking::loop() {
         }
       }
 
-      if (requesting.spads) { //powerup, diagnostics
-        //if process not running then start it
-        //if stopped running then WTF are we getting here?
+      if (requesting.rate) {//set by user or by spads
 
       }
+      if (requesting.range) {//set by user or xtalk or offset
 
-      //      RQBIT(vhv);   //periodically for drift compensation, powerup
-//      RQBIT(phase); //periodically for drift compensation, powerup
-//      RQBIT(rate);  //spad, diagnostics,
-//      RQBIT(range); //oneshot, sticks on for continuous, xtalk, offset
+      }
+      if (requesting.vhv) {//traditionally vhv was done prior to phase, and sometimes phase is done by itself
+
+      }
+      if (requesting.phase) {//this and vhv are done after spad setting, phase afte vcsel setting
+
+      }
+      if (requesting.spads) { //powerup (aka staticinit), diagnostics
+        //if process not running then start it
+        //if stopped running then WTF are we getting here?
+      }
       //////
       // init should be automatic, can add an overall 'be running' for power management, but not yet.
       auto palstate = GetPalState();
@@ -268,49 +265,104 @@ void NonBlocking::setup() {
   //  set thresholds and GPIO is simple "present" detector.
 }
 
+void NonBlocking::setProcess(NonBlocking::ProcessRequest process){
+  switch (activeProcess=process) {//record and test
+    case Idle:
+      break;
+    case InitI2c:
+      break;
+    case InitData:
+      break;
+    case InitStatic:
+      break;
+    case SetupSpads:
+      inProgress=&theSpadder;
+      break;
+    case CalVhvPhase:
+    case CalPhase:
+      inProgress=&theCalProcess;
+      break;
+    case OneShot:
+      break;
+    case Continuous:
+      //??
+      break;
+    case RateTest:
+      inProgress=&theRateProcess;
+      break;
+    case Offset:
+      inProgress=&theOffsetProcess;
+      break;
+    case CrossTalk:
+      inProgress=&theXtalkProcess;
+      break;
+  }
+}
+
+/** nominally asynchronous access. All 'real' activity takes place in the loop function. */
 bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
-  if (activeProcess != Idle) {
+  if (activeProcess != Idle) { //process block each other
     if (activeProcess == process) {//indicate already running
-      agent.afterProcess(activeProcess, Busy);
+      agent.processEvent(activeProcess, Busy);
       return false;
     }
+    //if one of the panics we should end the present process, but panics all seem to originate in the background so far.
+    return false;
   }
-  activeProcess = process;//but we may terminate it before returning
-  switch (process) {
+  setProcess(process);
+  //initiators:
+  switch (activeProcess) {
     case Idle:
       abandonTasks();
       //todo: defer if Stoptask is activated
-      agent.afterProcess(activeProcess, ProcessResult::Succeeded);
+      agent.processEvent(activeProcess /* which we have tested to be Idle */, ProcessResult::Succeeded);
       return true;
     case InitI2c:
       break;
     case InitData:
       requesting.dataInit = true;
-//      [[fallthrough]]
-    case InitStatic:
-      requesting.staticInit = true;
-      requesting.spads = true;
-//      [[fallthrough]]
+      break;
+    case InitStatic: {
+      if (!get_info_from_device(InfoGroup::SpadStuff)) {
+        return false;
+      }
+      /* gets the ref spad from NVM */
+      SpadCount ref = VL53L0X_GETDEVICESPECIFICPARAMETER(ReferenceSpad);
+      /* check NVM value: two known types, 1 and 0, '1' has a max 32 spads, '0' has a max of 12 */
+      if (ref.quantity > (ref.isAperture ? 32 : 12)) {//if true then invalid settings so compute correct ones
+        requesting.spads = true;
+        return true;//not cancelled
+      }
+      if (!set_reference_spads(ref)) {
+        allowing.nothing = true;
+        return requesting.staticInit = false;//quit and return failed
+      }
+      waiting.tuning = GetTuningSettingBuffer();//refresh tunings
+      requesting.vhv = true;
+      requesting.phase = true;
+      return true;
+    }
+      break;
     case CalVhvPhase:
       requesting.vhv = true;
+      [[fallthrough]];//tradition, call for both or just phase.
     case CalPhase:
       requesting.phase = true;
       break;
-    case OneShot:
-      SetDeviceMode(DeviceModes::DEVICEMODE_SINGLE_RANGING);
-      startMeasurement(forRange);
-      break;
-    case Continuous:
-      SetDeviceMode(agent.arg.sampleRate_ms == 0 ? DeviceModes::DEVICEMODE_CONTINUOUS_RANGING : DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
-      startMeasurement(forRange);
-      break;
+
     case RateTest:
       startMeasurement(forRate);
       break;
+
     case SetupSpads:
-//todo: return false if can't make measurements. (state issues_
-      requesting.spads = true;
-      return true;
+      if( theSpadder.precheck()){
+        requesting.spads =true;//move to in precheck
+        inProgress=&theSpadder;
+        activeProcess=SetupSpads;
+        return true;
+      }
+      return false;
+
     case Offset:
       if (agent.arg.sampleDistance_mm.raw <= 0) {
         return false;
@@ -321,6 +373,16 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
         return false;
       }
       break;
+
+    case OneShot:
+      SetDeviceMode(DeviceModes::DEVICEMODE_SINGLE_RANGING);
+      startMeasurement(forRange);
+      break;
+
+    case Continuous:
+      SetDeviceMode(agent.arg.sampleRate_ms == 0 ? DeviceModes::DEVICEMODE_CONTINUOUS_RANGING : DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
+      startMeasurement(forRange);
+      break;
   }
   //software defect!
   return false;
@@ -330,29 +392,6 @@ bool NonBlocking::gpioReady() {
   return agent.gpioSignal();
 }
 
-bool NonBlocking::requestMeasurement(NonBlocking::MeasurementAction use) {
-  //todo: check if any in progress and refuse, until we implement a queue
-  switch (use) {
-    default:
-    case Abandoned:
-      return false;
-    case forRate:
-      break;
-    case forSpads:
-      break;
-    case forRange:
-      break;
-    case forOffset:
-      break;
-    case forXtalk:
-      return theXtalkProcess.begin();
-    case forVHV:
-      break;
-    case forPhase:
-      break;
-  }
-  return false;
-}
 
 #if IncludeBlockers
 
@@ -431,12 +470,11 @@ bool NonBlocking::AveragingProcess::onMeasurement(bool successful) {
     }
     /* no valid values found */
     if (total_count == 0) {//ick: really should be a larger number, like 90% success rate
-      nb.agent.afterProcess(nb.activeProcess, ProcessResult::Failed);
+      nb.agent.processEvent(nb.activeProcess, ProcessResult::Failed);
       return false;//allow generic cleanup
     }
     sum_ranging += RangeDatum::carry(sum_fractions);//formerly the fractions got tossed, might have been as high as just under 50.
-    finish();
-    return false;
+    return finish(false);
   } else {
     //todo: abend the process instead of skipping perhaps all but one measurement
     return true; //try for some more.
@@ -459,7 +497,7 @@ void NonBlocking::XtalkProcess::alsoSum() {
   sum_spads += nb.agent.arg.theRangingMeasurementData.EffectiveSpadRtnCount.rounded();//980f: formerly truncated
 }
 
-bool NonBlocking::XtalkProcess::finish() {
+bool NonBlocking::XtalkProcess::finish(bool passthru) {
   /* FixPoint1616_t / uint16_t = FixPoint1616_t */
   MegaCps StoredMeanSignalRate(sum_signalRate, total_count, 0);//ick: was not rounded prior to 980f
   FixPoint1616_t StoredMeanRange(sum_ranging, total_count);//round the division, also the fractions were merged before this fn was called.
@@ -497,7 +535,7 @@ bool NonBlocking::XtalkProcess::finish() {
   nb.SetXTalkCompensationEnable(true);
   nb.SetXTalkCompensationRateMegaCps(XTalkCompensationRateMegaCps);
 
-  return false;
+  return passthru;
 }
 
 NonBlocking::XtalkProcess::XtalkProcess(NonBlocking &dev) : AveragingProcess(dev) {
@@ -525,23 +563,27 @@ bool NonBlocking::OffsetProcess::begin() {
   }
 }
 
-bool NonBlocking::OffsetProcess::finish() {
-  /* FixPoint1616_t / uint16_t = FixPoint1616_t */
-  FixPoint1616_t StoredMeanRange(sum_ranging + roundedScale(sum_fractions, RangeDatum::epsilon), total_count);
-  /* Rounding distances to Whole Number.
-   * Note that the cal distance is in mm, therefore no resolution is lost.
-   * 980f: but why not retain the fractional part for tracability of the value? Rounding to resolution is unnecessary */
-  int32_t OffsetMicroMeter = (CalDistanceMilliMeter.rounded() - StoredMeanRange.rounded()) * 1000;
+bool NonBlocking::OffsetProcess::finish(bool passthru) {
+  if (passthru) {
+    /* FixPoint1616_t / uint16_t = FixPoint1616_t */
+    FixPoint1616_t StoredMeanRange(sum_ranging + roundedScale(sum_fractions, RangeDatum::epsilon), total_count);
+    /* Rounding distances to Whole Number.
+     * Note that the cal distance is in mm, therefore no resolution is lost.
+     * 980f: but why not retain the fractional part for tracability of the value? Rounding to resolution is unnecessary */
+    int32_t OffsetMicroMeter = (CalDistanceMilliMeter.rounded() - StoredMeanRange.rounded()) * 1000;
 
-  /* Apply the calculated offset */
-  nb.Data.CurrentParameters.RangeOffsetMicroMeters = OffsetMicroMeter;//record
-  nb.SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);//send to device
+    /* Apply the calculated offset */
+    nb.Data.CurrentParameters.RangeOffsetMicroMeters = OffsetMicroMeter;//record
+    nb.SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);//send to device
 //  nb.logError(VL53L0X::ERROR_NONE, __FUNCTION__);
-  /* Restore the TCC */
-  if (SequenceStepWasEnabled) {
-    nb.SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
+    /* Restore the TCC */
+    if (SequenceStepWasEnabled) {
+      nb.SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
+    }
+  } else {
+    //undo damage
   }
-  return false;//done
+  return passthru;//done
 }
 
 void NonBlocking::OffsetProcess::startNext() {
@@ -551,55 +593,54 @@ void NonBlocking::OffsetProcess::startNext() {
 /////////////////////////////////////////////////////
 
 void NonBlocking::CalProcess::startNext() {
-  uint8_t magic = lastStep ? 0 : Bitter(6);
+  uint8_t magic = doingVhv ? Bitter(6) : 0;
   nb.set_SequenceConfig(magic, false);//todo: debate the false here, it may have been a bug in the original code.
   nb.comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | magic);
 }
 
 bool NonBlocking::CalProcess::begin() {
   MeasurementProcess::begin();
-  lastStep = false;
   startNext();
   return true;
 }
 
 bool NonBlocking::CalProcess::onMeasurement(bool successful) {
-  if (lastStep) {
-    /* if measurement ok */{
-      p = nb.get_ref_calibration();
+  if (successful) {
+    if (take(doingVhv)) {
+      startNext();
+    } else {
+      nb.agent.arg.refCal = nb.get_ref_calibration();
+      //todo: signal done
+      /* restore the previous Sequence Config */
+      nb.set_SequenceConfig(seqConfigCache, true);
+      return true;
     }
-    /* restore the previous Sequence Config */
-    nb.set_SequenceConfig(seqConfigCache, true);
-    return false;
-  } else {
-    //vhv done
-    lastStep = true;
-    startNext();
-    return true;
   }
+  return successful;
 }
 
 NonBlocking::CalProcess::CalProcess(NonBlocking &dev) : MeasurementProcess(dev) {
   //no actions.
 }
 
-bool NonBlocking::RefSignalProcess::onMeasurement(bool successful) {
-  // if measurement ok:
-  rate = nb.FFread<uint16_t>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
-  done();
-  return false;
+bool NonBlocking::RateProcess::onMeasurement(bool successful) {
+  if(successful) {
+    nb.agent.arg.peakSignal = nb.FFread<FixPoint<9,7>>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
+  }
+  bedone(successful);
+  return successful;
 }
 
-bool NonBlocking::RefSignalProcess::begin() {
-  //todo: startNext
+bool NonBlocking::RateProcess::begin() {
+   startNext();
   return true;
 }
 
-void NonBlocking::RefSignalProcess::startNext() {
+void NonBlocking::RateProcess::startNext() {
   nb.set_SequenceConfig(0xC0, false);
 }
 
-NonBlocking::RefSignalProcess::RefSignalProcess(NonBlocking &dev) : MeasurementProcess(dev), rate(0) {
+NonBlocking::RateProcess::RateProcess(NonBlocking &dev) : MeasurementProcess(dev) {
   //do nothing here
 }
 
@@ -620,44 +661,14 @@ void NonBlocking::Waiting::abandonAll() {
   *this = {};//sometimes C++ is wonderful. This sets all fields to their constructor defaults.
 }
 
-bool NonBlocking::SpadSetupProcess::stage1() {
-  targetRefRate = nb.PALDevDataGet(targetRefRate);//different data types, convert just once.
-  /*
-   * Initialize Spad arrays.
-   * Currently the good spad map is initialised to 'All good'.
-   * This is a short term implementation. The good spad map will be
-   * provided as an input.
-   */
-  nb.Data.SpadData.enables.clear();
-  {
-    SysPopper ffer = nb.push(Private_Pager, 0x01, 0x00);
-    nb.comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0);
-    nb.comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, SpadArray::MaxCount);
-  }
-
-  nb.comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
-  nb.comm.WrByte(REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
-//perform_ref_calibration
-  nb.requesting.vhv = true;
-  nb.requesting.phase = true;
-  return true; //resumes at stage2
-}
 
 /* called after vhv and phase measurements are successfully completed */
-bool NonBlocking::SpadSetupProcess::stage2() {
-  scanner.restart();
-  /* Enable Minimum NON-APERTURE Spads */
-  sc = {minimumSpadCount, false};
-
-  if (!scanner(sc)) {
-    return false;//todo process failure
-  }
-  nb.requesting.rate = true;
-  return true; //continues at stage3
+bool NonBlocking::SpadSetupProcess::refreshCalibration() {
+  return true; //continues at forEachMeasurement
 }
 
 //on rate measurements:
-bool NonBlocking::SpadSetupProcess::stage3() {
+bool NonBlocking::SpadSetupProcess::forEachMeasurement() {
   auto peakSignalRateRef = nb.agent.arg.peakSignal; //perform_ref_signal_measurement(0);
 
   if (peakSignalRateRef > targetRefRate) { /* Signal rate measurement too high, switch to APERTURE SPADs */
@@ -729,17 +740,13 @@ bool NonBlocking::SpadSetupProcess::onMeasurement(bool successful) {
   }
   switch (nb.agent.arg.theLastMeasurement) {
     case forRate:
-      stage3();
+      forEachMeasurement();
       return true;
     case forVHV: //then issue phase measurement
       nb.requesting.phase = true; //probably already is
       return true;
     case forPhase:
-      //if (!perform_ref_calibration()) {
-      //    return false;
-      //  }
-      //todo: if no error:
-      stage2();
+      refreshCalibration();
       return true;
 
     case forSpads:
@@ -754,4 +761,39 @@ bool NonBlocking::SpadSetupProcess::onMeasurement(bool successful) {
 
 NonBlocking::SpadSetupProcess::SpadSetupProcess(NonBlocking &dev) : MeasurementProcess(dev), scanner(dev.Data.SpadData.goodones, dev.Data.SpadData.enables) {
   //other fields default constructors are fine.
+}
+
+bool NonBlocking::SpadSetupProcess::precheck() {
+    scanner.restart();//clear all spad selects and set search pointer to 0th
+    /* Enable Minimum NON-APERTURE Spads */
+    sc = {minimumSpadCount, false};
+
+    if (!scanner(sc)) {//if we can't find the minimum we don't even try. This is about existence, not utility.
+      return false;//todo process failure
+    }
+
+    targetRefRate = nb.PALDevDataGet(targetRefRate);//different data types, convert just once.
+
+  {
+    SysPopper ffer = nb.push(Private_Pager, 0x01, 0x00);
+    nb.comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0);
+    nb.comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, SpadArray::MaxCount);
+  }
+
+  nb.comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
+  nb.comm.WrByte(REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
+  nb.requesting.vhv = true;
+  nb.requesting.phase = true;
+  nb.requesting.spads=true;
+  //loop() actually fires up the measurement of vhv
+  return true;
+}
+
+bool NonBlocking::SpadSetupProcess::setAndCheck() {
+  nb.set_ref_spad_map(scanner.spadArray);
+
+  SpadArray checkSpadArray;
+  nb.get_ref_spad_map(checkSpadArray);
+  /* Compare spad maps. If not equal report error. */
+  return scanner.spadArray != checkSpadArray;
 }

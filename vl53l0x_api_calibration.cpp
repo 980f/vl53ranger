@@ -210,7 +210,7 @@ namespace VL53L0X {
     return true;
   } // VL53L0X_apply_offset_adjustment
 
-
+//todo: after testing replace innards here with SpadArray::Scanner
   bool Api::enable_ref_spads(SpadCount req, const SpadArray &goodSpadArray, SpadArray &spadArray, SpadArray::Index &scanner) {
     /*
      * This function takes in a spad array which may or may not have SPADS
@@ -280,7 +280,7 @@ namespace VL53L0X {
     {
       SysPopper popper = push(Private_Pager, 0x01, 0);//bug: prior error handling could leave FF set to 1
       comm.WrByte(REG_DYNAMIC_SPAD_REF_EN_START_OFFSET, 0x00);
-      comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, 0x2C);//ick: seems to be SpadArray::MaxCount
+      comm.WrByte(REG_DYNAMIC_SPAD_NUM_REQUESTED_REF_SPAD, SpadArray::MaxCount);//ick: 0x2C seems to be SpadArray::MaxCount
     }
     comm.WrByte(REG_GLOBAL_CONFIG_REF_EN_START_SELECT, startSelect.absolute());
 

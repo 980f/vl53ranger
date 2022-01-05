@@ -581,7 +581,6 @@ namespace VL53L0X {
   } // VL53L0X_set_measurement_timing_budget_micro_seconds
 
   uint32_t Core::get_measurement_timing_budget_micro_seconds() {
-    LOG_FUNCTION_START
     SchedulerSequenceSteps_t SchedulerSequenceSteps = get_sequence_step_enables();
 
     /* Start and end overhead times always present */
@@ -1031,7 +1030,7 @@ namespace VL53L0X {
 
       /* sqrt(FixPoint3232) = FixPoint1616 */
       FixPoint1616_t sqrtResult(quadrature_sum(sigmaEstRtn, cSigmaEstRef));
-      /*
+      /* Yet another orphaned comment:
        * Note that the Shift by 4 bits increases resolution prior to
        * the sqrt, therefore the result must be shifted by 2 bits to
        * the right to revert back to the FixPoint1616 format.
@@ -1053,7 +1052,6 @@ namespace VL53L0X {
     auto seqbit = bitFor(StepId);
     if (seqbit == ~0) {
       THROW(ERROR_INVALID_PARAMS);//bypassed enum
-      return false;
     }
     uint8_t SequenceConfig = get_SequenceConfig();
     return getBit(seqbit, SequenceConfig);

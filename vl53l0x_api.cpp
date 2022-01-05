@@ -438,7 +438,7 @@ namespace VL53L0X {
   } // VL53L0X_SetDeviceMode
 
   DeviceModes Api::GetDeviceMode() {
-    return Data.CurrentParameters.DeviceMode;
+    return PALDevDataGet(CurrentParameters).DeviceMode;
   }
 
   void Api::SetRangeFractionEnable(bool Enable) {
@@ -457,6 +457,7 @@ namespace VL53L0X {
 
 
   uint32_t Api::GetMeasurementTimingBudgetMicroSeconds() {
+    LOG_FUNCTION_START
     return get_measurement_timing_budget_micro_seconds();
   }
 

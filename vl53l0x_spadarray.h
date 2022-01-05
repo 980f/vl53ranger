@@ -137,14 +137,18 @@ public:
 
     void restart() {
       scanner = 0;
+      spadArray.clear();
     }
 
     Scanner(const SpadArray &goodSpadArray, SpadArray &spadArray);
 
-    /** move pointer based on inherent type, ignoring the arrays*/
+    /** move pointer based on inherent type, ignoring the content of the arrays
+     * @returns whether a spad of the desired type exists past the @param bias search offset */
     bool moveto(bool isAperature, SpadArray::Index bias);
 
-    /** set req.quantity spads of type req.isAperture in the wrapped spadArray */
+    /** set req.quantity spads of type req.isAperture in the wrapped spadArray
+     * @returns whether it succeeded.
+     * @note the spadArray will usually have been altered even on failure. */
     bool operator()(SpadCount req);
 
     /** clear/disable the last bit enabled, making no other changes */

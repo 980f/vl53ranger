@@ -43,7 +43,7 @@ SpadArray::Index SpadArray::nextSet(SpadArray::Index curr) const {
 }
 
 bool SpadArray::Scanner::moveto(bool isAperature, SpadArray::Index bias) {
-  while (scanner.isValid() && !(bias + scanner).is_aperture()) {
+  while (scanner.isValid() && (bias + scanner).is_aperture()!=isAperature) {
     ++scanner;
   }
   return scanner.isValid();

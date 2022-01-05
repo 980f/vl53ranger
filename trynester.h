@@ -1,18 +1,14 @@
 // Copyright 2021 by Andy Heilveil (github/980f)
 // Created by andyh on 12/28/21.
-/** These classes wrap setjmp/longjmp usage for microcontrollers for which c++'s exception handling is too expensive.
+/**
+ * These classes wrap setjmp/longjmp usage for microcontrollers for which c++'s exception handling is too expensive.
  * It is not sane to use these with interrupts or multiple threads, although a threadlocal instance might work as expected.
  *
  * Unlike true exception handling you do NOT get destruction of items on the stack. That means that if you have any dynamic allocation going on you should not use this.
  * One could complexify the class by registering destructors with it, but then you should probably not be disabling exceptions, this module is intended for resource limited microcontrollers.
  *
- * Each Thrower is independent of others, if you have multiple ones it will be confusing to deal with that.
- * Each caller of a function which might throw has to know all of the Throwers in the call tree.
- *
- * The TryNester allows you to trap exceptions at differ call depths.
- *
- * The LocationStack is an addon for getting better info on the cause of an exception.
- * It is tempting to force one on the user, but we will use a pointer to make that optional.
+ * The LocationStack is an attempt at getting better info on the cause of an exception.
+ * todo: a trace element from the exact point of throw, present it is just of the try block
  * */
 
 #ifndef TRYNESTER_H
@@ -35,9 +31,8 @@ public:
  * */
   static Stacked *tos;
 
-  /** this will only work for certain classes and certain compilers */
   static Element *top() {
-    return reinterpret_cast<Element *>(tos);
+    return tos ? tos->guts() : nullptr;
   }
 
   /**
@@ -46,22 +41,50 @@ public:
     return this != nullptr;
   }
 
+  /**
+  /** this will only work for certain classes and certain compilers:
+   * the thing stacked, must be declared class MyStackedThing:public Stacked<MyStackedThing>[, other bases] {..}  any other base class MUST follow the Stacked<> one for this to work.
+   * This is necessary due to insisting that we operate with RTTI disabled, which is common if you are disabling exeptions which disablement is the reason this module exists.
+   * */
+  Element *guts() {
+    return reinterpret_cast<Element *>(this);
+  }
+
   /** the visitor is given a pointer to what is a base class of the class being stacked.
    * return true if walk is to continue, false to stop it (useful for pealing off part of the top such as only the stack from the try to the throw) */
-  using Visitor = bool (*)(Stacked &);
-
-  static void walk(Visitor visitor) {
-    for (Stacked *item = tos; item && visitor(*item); item = item->stacked) {
+//  using Visitor = bool (*)(Stacked *);
+  template<typename Visitor>
+  static void walk(Visitor &&visitor) {
+    for (Stacked *item = tos; item && visitor(item->guts()); item = item->stacked) {
     }
   }
 
-  using Invisitor = bool (*)(Element &);
+//  using Invisitor = bool (*)(Element *);
+//
+//  /** the visitor is given a pointer to what is presumed to be the derived being stacked, but that only works for some such classes.
+//   * return true if walk is to continue, false to stop it */
+//  static void walk(Invisitor visitor) {
+//    for (Stacked *item = tos; item && visitor(*reinterpret_cast<Element *>(item)); item = item->stacked) ;
+//  }
 
-  /** the visitor is given a pointer to what is presumed to be the derived being stacked, but that only works for some such classes.
-   * return true if walk is to continue, false to stop it */
-  static void walk(Invisitor visitor) {
-    for (Stacked *item = tos; item && visitor(*reinterpret_cast<Element *>(item)); item = item->stacked) {
+  /** @returns what to feed to unwind to restore stack to present state */
+  static Stacked *mark() {
+    return tos;
+  }
+
+  static void unwind(Stacked<Element> *mark) {
+    if (mark == nullptr) {
+      tos = nullptr;
+      return;
     }
+
+    walk([mark](Stacked *stackentry) {
+      if (stackentry == mark) {//equal addresses
+        tos = mark;
+        return false;
+      }
+      return true;
+    });
   }
 
 protected:
@@ -89,7 +112,7 @@ protected:
  * Until we find a use for more than one we make our life easy by having a static instance.
  * */
 class LocationStack : public Stacked<LocationStack> {
-  /** a STATIC one of these may be created for each function, so that a backtrace can be printed after an exception has been caught without using stale objects.
+  /** a STATIC one of these Elements may be created for each function, so that a backtrace can be printed after an exception has been caught without using stale objects.
     * static construction also allows you to have a per-instance flag to control reporting on function exit and perhaps entrance that you can get to with a debugger.
    * */
 public:
@@ -140,36 +163,39 @@ public:
   ~LocationStack() {
     pop(false);
   }
-
 };
 
+//you can put a TRACE_ENTRY inside any block statement.
 #define TRACE_ENTRY    static LocationStack::Element tracer(__FUNCTION__, __FILE__, __LINE__);LocationStack namedoesntmatter(tracer);
 
 /** wrap a class around jmp_buf for exception handling via longjmp.
- * There is one of these for each exception source, which is not all that convenient if you have more than one.
- *
  * */
-class Thrower : public Stacked<Thrower> {
+class Thrower : public Stacked<Thrower> {  //class Stacked provides a static member so only one Thrower stack is allowed
   jmp_buf opaque; //an array of bytes that magically gets us back to where setjmp was called.
 
   /** for passing the longjmp provided value out of the constructor which contains the setjmp */
   int thrown = 0;
 
+  /** thing used by locationstack to synch with try block */
+  Stacked<LocationStack> *mark;
 public:
+  /** this is the global accessor for throwing a psuedo exception.*/
   static int Throw(int error) {
-    (*top())(error);
+    (*top())(error);//this longjmp's (if stack has been initialized properly and there are no other bugs in this module)
     return error;//appeases compiler, and perhaps we might not actually throw when there is no try block active
   }
 
-  /** construction pushes on the exception context stack and runs the setjmp.
+  /** construction pushes this object onto the exception context stack and runs the setjmp.
   Thrown exceptions appear at the object construction point in the code, but after the execution of allocation of the object.
    */
-  Thrower() {
+  Thrower() { // NOLINT(cppcoreguidelines-pro-type-member-init)
+    mark = LocationStack::mark();
     //# base constructor places this on the top of the throw stack before the setjmp is called
     thrown = setjmp(opaque);
     if (thrown) {//then we got here due to a throw on the tos instance, or rarely a "throw to self"
       //we have a design decision to make here, where should exceptions in the exception handlers get handled?
       //if we do what C++ does (a reasonable choice by the principle of least surprise) then:
+      LocationStack::unwind(mark);//not part of pop as its own destructor takes care of popping it under normal circumstances.
       pop();//can't wait until context exits to point exceptions outside of this instance
       //if we have a peculiar need to join some other catch clause of the present handler we can throw via its local thrower.
     }
@@ -180,7 +206,7 @@ public:
     return thrown == 0;
   }
 
-  /** read only to public, operator int() not used as compiler gets it confused with operator bool */
+  /** read only to public */
   operator int() const {
     return thrown;
   }
@@ -207,7 +233,7 @@ public:
 
 //see example in matching cpp file for limitations on using the following macros
 
-#define TRY  switch (Thrower Throw; int(Throw)) { case 0:
+#define TRY   switch (Thrower Throw; int(Throw)) { case 0:
 
 #define CATCH(code) } break; case code: {
 

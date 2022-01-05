@@ -16,7 +16,7 @@ VL53Ranger api;
 
 VL53Ranger::VL53Ranger() noexcept : NonBlocking(static_cast<NonBlocking::UserAgent &> (*this)){}
 
-void VL53Ranger::afterProcess(NonBlocking::ProcessRequest process, NonBlocking::ProcessResult stage) {
+void VL53Ranger::processEvent(NonBlocking::ProcessRequest process, NonBlocking::ProcessResult stage) {
   switch (process) {
     case OneShot:
       //?act on a measurement, or has that already been done?
