@@ -105,7 +105,7 @@ void NonBlocking::loop() {
       }
       //- if we are asked to init data and similar actions then we need to abandon all unrelated tasks
       if (requesting.dataInit) {
-        abandonTasks();
+        abandonTasks();//COA
         allowing.nothing = false;//time to try again!
         DataInit();//long but not blocking
         requesting.dataInit = false;//follow DataInit to allow for exceptions
@@ -522,6 +522,11 @@ bool NonBlocking::endProcess(bool successful) {
   return successful;
 }
 
+bool NonBlocking::update() {
+  agent.processEvent(activeProcess, waiting.forSomething() ? Busy : Succeeded);
+  return inProgress!= nullptr;
+}
+
 #endif
 ////////////////////////////////////////////
 
@@ -535,6 +540,7 @@ void NonBlocking::AveragingProcess::begin() {
   total_count = 0;
 
   measurementRemaining = 50;
+  nb.requesting.range= true;
 }
 
 void NonBlocking::AveragingProcess::onMeasurement(bool successful) {
@@ -568,12 +574,12 @@ void NonBlocking::AveragingProcess::onMeasurement(bool successful) {
 }
 
 void NonBlocking::XtalkProcess::begin() {
-  AveragingProcess::begin();
 /* Disable the XTalk compensation */
   nb.SetXTalkCompensationEnable(false);
   /* Disable the RIT */
   nb.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
-  nb.startMeasurement(forRange);
+
+  AveragingProcess::begin();
 }
 
 void NonBlocking::XtalkProcess::alsoSum() {
@@ -631,14 +637,13 @@ NonBlocking::OffsetProcess::OffsetProcess(NonBlocking &dev) : AveragingProcess(d
 }
 
 void NonBlocking::OffsetProcess::begin() {
-  AveragingProcess::begin();
   /* Get the value of the TCC */
   SequenceStepWasEnabled = nb.GetSequenceStepEnable(SEQUENCESTEP_TCC);
   /* Disable the TCC */
   nb.SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
   /* Disable the RIT */
   nb.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);//ick: why don't we save and restore this?
-  nb.startMeasurement(forRange);
+  AveragingProcess::begin();
 }
 
 bool NonBlocking::OffsetProcess::finish(bool passthru) {
@@ -703,6 +708,24 @@ NonBlocking::MeasurementProcess::MeasurementProcess(NonBlocking &dev) : nb(dev) 
 ////////////////////////////////////////////////
 void NonBlocking::Waiting::abandonAll() {
   *this = {};//sometimes C++ is wonderful. This sets all fields to their constructor defaults.
+}
+bool NonBlocking::Waiting::forSomething()const {
+  if(tuning){
+    return true;
+  }
+  if(compact.remaining){
+    return true;
+  }
+  if(onMeasurement){
+    return true;
+  }
+  if(onStart){
+    return true;
+  }
+  if(forStop){
+    return false;//todo: review ignoring waiting for stop.
+  }
+  return false;
 }
 /////////////////////////////////////////////////////////////////////////
 /* called after vhv and phase measurements are successfully completed */

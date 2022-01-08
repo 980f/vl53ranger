@@ -42,7 +42,7 @@ namespace VL53L0X {
   public:
     /** once the comm member of the Physical interface is given an abstract interface we can build one and pass it in here instead of passing in its constructor args.
      * before that we can make a macro for the arg list so that we don't have to change it at the three levels ...*/
-    Api(Arg &&args) : Core(std::forward<Arg>(args)) {
+    explicit Api(Arg &&args) : Core(std::forward<Arg>(args)) {
       //do nothing so that we may static construct.
     }
 
@@ -203,6 +203,7 @@ namespace VL53L0X {
  */
     uint16_t GetLinearityCorrectiveGain();
 
+#if IncludeNotimplemented
 /**
  * Set Group parameter Hold state
  *
@@ -232,7 +233,7 @@ namespace VL53L0X {
  * @return  extreme value for type
  */
     uint16_t GetUpperLimitMilliMeter();
-
+#endif
 /**
  * @brief Get the Total Signal Rate
  * @par Function Description
@@ -332,6 +333,7 @@ namespace VL53L0X {
  */
     bool StaticInit();
 
+#if IncludeNotimplemented
 /**
  * @brief Wait for device booted after chip enable (hardware standby)
  * This function can be run only when State is STATE_POWERDOWN.
@@ -343,6 +345,7 @@ namespace VL53L0X {
  * todo: can use i2c address probe to detect device ready to communicate.
  */
     bool WaitDeviceBooted();
+#endif
 
 /**
  * @brief Do an hard reset or soft reset (depending on implementation) of the
@@ -772,6 +775,7 @@ namespace VL53L0X {
  *  @{
  */
 
+#if IncludeBlockers
 /**
  * @brief Single shot measurement.
  *
@@ -873,6 +877,7 @@ namespace VL53L0X {
  * @return Success
  * */
     bool StartMeasurement();
+#endif
 
 /**
  * @brief Stop device measurement
@@ -1285,6 +1290,7 @@ namespace VL53L0X {
  */
     uint8_t GetSpadAmbientDamperFactor(); //ick: former code expanded to 16 bits locally. It is just 8 in the device, let us not hide that.
 
+#if IncludeBlockers
 /**
  * @brief Performs Reference Spad Management
  *
@@ -1300,7 +1306,7 @@ namespace VL53L0X {
  * @return Success. Values are available in the PALData
  */
     bool PerformRefSpadManagement();
-
+#endif
 /**
  * @brief Applies Reference SPAD configuration
  *
@@ -1334,22 +1340,25 @@ namespace VL53L0X {
     bool check_part_used(uint8_t &Revision, DeviceInfo_t &pDeviceInfo);
     bool get_device_info(DeviceInfo_t &pDeviceInfo);
 
+#if IncludeBlockers
     bool perform_ref_spad_management();//#staying with reference parameter for error handling ease in one place
-
+#endif
     SpadCount get_reference_spads();
     Api::CalibrationParameters get_ref_calibration();
 
   private: //calibration.h was high level actions hidden from direct use in api
 
+#if IncludeBlockers
     bool perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter);
-
+#endif
     void set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter);
     int32_t get_offset_calibration_data_micro_meter();
 
     bool apply_offset_adjustment();
 
+#if IncludeBlockers
     bool perform_ref_calibration();
-
+#endif
     void set_ref_calibration(CalibrationParameters p, bool setv, bool setp);
 
   protected:
@@ -1369,9 +1378,9 @@ namespace VL53L0X {
 
     bool CheckAndLoadInterruptSettings(bool StartNotStopFlag);//move to core?
 
+#if IncludeBlockers
     /** the factoring and rework relies upon registers CB and EE not being affected by the cal procedure for the other.
      * if that is not the case then their values will have to be captured between the acquisitions which trigger their updates.
-     *
      * */
     bool perform_single_ref_calibration(uint8_t vhv_init_byte);
 
@@ -1383,8 +1392,9 @@ namespace VL53L0X {
     uint16_t perform_ref_signal_measurement(uint16_t iffails);
     bool perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance);
 
-    bool set_reference_spads(SpadCount ref);
     bool perform_phase_calibration(bool restore_config);
+#endif
+    bool set_reference_spads(SpadCount ref);
     void SetGpioOsc();
   };
 }//end namespace

@@ -137,6 +137,9 @@ namespace VL53L0X {
        * */
     bool startProcess(ProcessRequest process);
 
+    /** make driver call the agent with some status info */
+    bool update();
+
 #if IncludeBlockers
     /** initially run the old code as cleaned up by 980F, eventually will be rebuilt using nonblockngs pieces. */
     bool doBlocking(ProcessRequest process);
@@ -183,6 +186,7 @@ namespace VL53L0X {
       bool nothing = true;//cleared by datainit, but could be set by static init
     } allowing;
 
+    bool forSomething();
     struct Waiting {
       /** when there are enough writes to the chip that you have to break them up into groups to not stall the whole program: */
       const uint8_t *tuning = nullptr;         //tuning table with terminator record (does items in tranches)
@@ -197,6 +201,7 @@ namespace VL53L0X {
       unsigned onMeasurement = 0;  //wait on measurement data ready (check gpio or flag captured by ISR or poll device, 10 polls per call)
       /** drop all expectations */
       void abandonAll();
+      bool forSomething() const;
     } waiting;
 
     /** sets sequence config and issues a start */
@@ -210,17 +215,8 @@ namespace VL53L0X {
     //placeholder for what to do when a wait on measurement complete is successful
     void doMeasurementComplete(bool successful);
 
-//    void waitForMeasurement(unsigned loops = 250) {
-//      waiting.onMeasurement = loops;
-//      //if functional rather than virtual here is where we record the action to take on completion.
-//    }
-//
-//    void waitForStop(unsigned loops = 250) {
-//      waiting.forStop = loops;
-//      //if functional rather than virtual here is where we record the action to take on completion.
-//    }
 //////////////////////////////////////////////////////////////////////
-  private: //results were moved into agent.arg instead of the related process class
+  private: //results were moved into agent.arg instead of the related process class, so these classes are now totally hidden
 
     class MeasurementProcess {
       friend class NonBlocking;

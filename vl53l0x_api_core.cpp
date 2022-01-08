@@ -1372,7 +1372,7 @@ namespace VL53L0X {
       case GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH:
         return get_threshold(REG_SYSTEM_THRESH_HIGH) > BigEough;
       case GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT:
-        return ((get_threshold(REG_SYSTEM_THRESH_LOW) > BigEough) || (get_threshold(REG_SYSTEM_THRESH_HIGH) > BigEough));
+        return (get_threshold(REG_SYSTEM_THRESH_LOW) > BigEough) || (get_threshold(REG_SYSTEM_THRESH_HIGH) > BigEough);
       default:
         return true;
     }

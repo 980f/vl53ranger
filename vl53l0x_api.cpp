@@ -41,12 +41,11 @@ Copyright 2021 by Andy Heilveil github/980f via extensive rewrite of stuff origi
 
 #include "versioninfo.h"
 
-#define  VL53L0X_NYI(fakeout)   LOG_ERROR(ERROR_NOT_IMPLEMENTED); return fakeout;
 
-//stuff like this should be in platform_log, not in drive code
-//#ifdef VL53L0X_LOG_ENABLE
-//#define trace_print(level, ...)   trace_print_module_function(TRACE_MODULE_API, level, TRACE_FUNCTION_NONE, ## __VA_ARGS__)
-//#endif
+//will be trying to remove all copying and just return pointers.
+#define COPYSTRING(target, string) target=string
+
+//#define  VL53L0X_NYI(fakeout)   LOG_ERROR(ERROR_NOT_IMPLEMENTED); return fakeout;
 
 namespace VL53L0X {
 
@@ -55,7 +54,6 @@ namespace VL53L0X {
   const Version_t PalSpecVersion {{VL53L0X_SPECIFICATION_VER_MAJOR, VL53L0X_SPECIFICATION_VER_MINOR}, VL53L0X_SPECIFICATION_VER_SUB, VL53L0X_SPECIFICATION_VER_REVISION};
 
 #if IncludeBlockers
-
   /* Group PAL General Functions */
   bool Api::measurement_poll_for_completion() {
     LOG_FUNCTION_START
@@ -258,13 +256,6 @@ namespace VL53L0X {
     /* Get default parameters */
     auto CurrentParameters = GetDeviceParameters();
 
-    //todo: failure no longer flows here:
-//      /* initialize PAL values */
-//      CurrentParameters.DeviceMode = DEVICEMODE_SINGLE_RANGING;
-//      CurrentParameters.HistogramMode = HISTOGRAMMODE_DISABLED;
-//      PALDevDataSet(CurrentParameters, CurrentParameters);
-//
-
     /* Sigma estimator variable */
     PALDevDataSet(SigmaEst.RefArray, 100);
     PALDevDataSet(SigmaEst.EffPulseWidth, 900);
@@ -276,7 +267,7 @@ namespace VL53L0X {
 
     {
       auto magic = magicWrapper();
-      comm.RdByte(REG_SYSRANGE_stopper, &PALDevDataGet(StopVariable));//fed back to be set before starting a measurment or measurement cycler.
+      comm.RdByte(REG_SYSRANGE_stopper, &PALDevDataGet(StopVariable));//fed back to be set before starting a measurement or measurement cycler.
     }
     /* Limit default values */
     SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 18.0});
@@ -321,7 +312,7 @@ namespace VL53L0X {
     ranger.VcselPulsePeriod = GetVcselPulsePeriod(periodType);
     ranger.TimeoutMicroSecs = GetSequenceStepTimeout(stepId);
   }
-
+#if IncludeBlockers
   bool Api::StaticInit() {
     LOG_FUNCTION_START
 
@@ -373,6 +364,7 @@ namespace VL53L0X {
     initRanger(VCSEL_PERIOD_FINAL_RANGE, SEQUENCESTEP_FINAL_RANGE, Data.DeviceSpecificParameters.FinalRange);
     return true;
   }
+#endif
 
   bool Api::waitOnResetIndicator(bool disappear) {
     for (uint8_t Byte = disappear ? ~0 : 0; disappear == (Byte != 0);) {//BUG: potentially infinite loop
@@ -421,8 +413,6 @@ namespace VL53L0X {
 
 
   bool Api::SetDeviceMode(DeviceModes deviceMode) {
-    LOG_FUNCTION_START
-
     switch (deviceMode) {
       case DEVICEMODE_SINGLE_RANGING:
       case DEVICEMODE_CONTINUOUS_RANGING:
@@ -443,7 +433,6 @@ namespace VL53L0X {
 
   void Api::SetRangeFractionEnable(bool Enable) {
     LOG_FUNCTION_START
-//    Error(" %u", Enable);
     comm.WrByte(REG_SYSTEM_RANGE_CONFIG, Enable);
     PALDevDataSet(RangeFractionalEnable, Enable);
   } // VL53L0X_SetRangeFractionEnable
@@ -686,8 +675,7 @@ namespace VL53L0X {
       return false;
     } else {
       /* User parameters */
-      PALDevDataSet(dmaxCal.RangeMilliMeter, p.RangeMilliMeter);
-      PALDevDataSet(dmaxCal.SignalRateRtnMegaCps, p.SignalRateRtnMegaCps);
+      PALDevDataSet(dmaxCal, p);
       return true;
     }
   } // VL53L0X_SetDmaxCalParameters
@@ -726,6 +714,7 @@ namespace VL53L0X {
   } // VL53L0X_PerformSingleMeasurement
 #endif
 
+#if IncludeBlockers
   bool Api::PerformRefCalibration() {
     LOG_FUNCTION_START
     return perform_ref_calibration();
@@ -748,7 +737,7 @@ namespace VL53L0X {
     }
     return perform_offset_calibration(CalDistanceMilliMeter);
   }
-
+#endif
   bool Api::CheckAndLoadInterruptSettings(bool StartNotStopFlag) {
     uint8_t InterruptConfig = VL53L0X_GETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality);
 
@@ -772,6 +761,7 @@ namespace VL53L0X {
     return true;
   } // VL53L0X_CheckAndLoadInterruptSettings
 
+#if IncludeBlockers
   bool Api::StartMeasurement() {
     LOG_FUNCTION_START
 
@@ -814,6 +804,7 @@ namespace VL53L0X {
 
     return false;
   } // VL53L0X_StartMeasurement
+#endif
 
   bool Api::StopMeasurement() {
     LOG_FUNCTION_START
@@ -900,7 +891,7 @@ namespace VL53L0X {
   MegaCps Api::GetMeasurementRefSignal() {
     return PALDevDataGet(LastSignalRefMcps);
   }
-
+#if IncludeBlockers
   bool Api::PerformSingleRangingMeasurement(RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START
     /* This function will do a complete single ranging
@@ -912,6 +903,7 @@ namespace VL53L0X {
     }
     return false;
   } // VL53L0X_PerformSingleRangingMeasurement
+#endif
 
 #if HaveRoiZones
   bool Api::SetNumberOfROIZones(uint8_t NumberOfROIZones) {
@@ -1268,11 +1260,10 @@ namespace VL53L0X {
   bool Api::EnableInterruptMask(uint8_t InterruptMask) {//ick: prior code used 32 bits when getMask only returns at most 8
     VL53L0X_NYI(false)
   }
-
+#endif
   SpadCount Api::GetReferenceSpads() {
     LOG_FUNCTION_START
     return get_reference_spads();
   }
 
-#endif
 }//end namespace
