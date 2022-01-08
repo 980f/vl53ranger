@@ -35,26 +35,13 @@ using namespace VL53L0X; //# this file exists to manage entities from this names
 
 void NonBlocking::abandonTasks() {
   onStopComplete(false);
-  doMeasurementComplete(false);
+  doMeasurementComplete(false);//expected to notify process(failed)
   waiting.abandonAll();
-  activeProcess = Idle;
-  inProgress = nullptr;
+  setProcess(Idle);
 }
 
-//bool NonBlocking::afterSpadsSet(SpadCount &ref) {
-//  if (!set_reference_spads(ref)) {
-//    allowing.nothing = true;
-//    return false;
-//  }
-//
-//  waiting.tuning = GetTuningSettingBuffer();//refresh tunings
-//  return true;//not quite done yet
-//}
-
-//call after tuning settings load.
+//called after tuning settings load.
 void NonBlocking::endStaticInit() {
-  /* Set interrupt config to new sample ready. Failure is now ignored as we are using enums and all real errors will THROW */
-  allowing.gpioAsReadyBit = SetGpioConfig(0, {GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
 
   VL53L0X_SETDEVICESPECIFICPARAMETER(OscFrequencyMHz, (FFread<FixPoint<4, 12>>(RegSystem(0x84))));//# extra parens required by macro processor.
   /* Disable MSRC and TCC by default */
@@ -139,7 +126,8 @@ void NonBlocking::loop() {
           }
         }
       }
-      //No else here so that the meas complete action can invoke a waitOnStop and get a quick check
+      ///the doMeasurementComplete(true) call often sets requesting.someflag, we wish to review them asap.
+      ///it may issue a Stop.
       if (waiting.forStop) {
         if (GetStopCompletedStatus() == 0x00) {
 //          //todo: deal with climask clear false.
@@ -154,31 +142,31 @@ void NonBlocking::loop() {
       }
 
       if (take(requesting.rate)) {//set by user or by spads
-        if(inProgress== nullptr){//there must be a receiver or we don't start a measurement
+        if (inProgress == nullptr) {//there must be a receiver or we don't start a measurement
           //wtf!
-          inProgress=&theRateProcess;//to avert NPE's
+          inProgress = &theRateProcess;//to avert NPE's
         }
         //todo: crank up the measurement
         return;
       }
       if (take(requesting.range)) {//set by user or xtalk or offset
-        if(inProgress== nullptr){//there must be a receiver or we don't start a measurement
+        if (inProgress == nullptr) {//there must be a receiver or we don't start a measurement
           //wtf if not OneShot or Continuous
-          inProgress=&theRangeProcess;
+          inProgress = &theRangeProcess;
         }
         inProgress->startNext();
       }
       if (requesting.vhv || requesting.phase) {//traditionally vhv was done prior to phase, and sometimes phase is done by itself
-        if(inProgress== nullptr){
-          theCalProcess.doingVhv=take(requesting.vhv);
-          inProgress=&theCalProcess;
+        if (inProgress == nullptr) {
+          theCalProcess.doingVhv = take(requesting.vhv);
+          inProgress = &theCalProcess;
         }
         inProgress->startNext();
         //todo: have to clear .phase eventually
         return;
       }
       if (requesting.spads) { //powerup (aka staticinit), diagnostics
-        if(inProgress!= &theSpadder){
+        if (inProgress != &theSpadder) {
           //todo: signal WTF
         }
         //vhv,phase,rate should all have intercepted this.
@@ -243,73 +231,82 @@ void NonBlocking::doMeasurementComplete(bool successful) {
     }
     return;
   }
-
-  auto measok = GetRangingMeasurementData(agent.arg.theRangingMeasurementData);
-  if (measok == VL53L0X::ERROR_NONE) {
-    agent.arg.theLastMeasurement = take(measurementInProgress);
-    agent.arg.peakSignal = GetMeasurementRefSignal();//GetRangingMeasurementData stores this value on the device rather than the associatd measurement.
-
-    if (inProgress) {
-      if (!inProgress->onMeasurement(successful)) {
-        abandonTasks();//clean up
-      }
-    } else {
-      //wtf!
+  GetRangingMeasurementData(agent.arg.theRangingMeasurementData);
+  agent.arg.theLastMeasurement = take(measurementInProgress);//record user and acknowledge data copied
+  agent.arg.peakSignal = GetMeasurementRefSignal();//GetRangingMeasurementData stores this value on the device rather than the associated measurement.
+  if (inProgress) {
+    if (!inProgress->onMeasurement(successful)) {
+      abandonTasks();//clean up
     }
   } else {
-    measurementInProgress = Abandoned;
-    //todo: notify process failure
+    //wtf!
   }
 }
 
 bool NonBlocking::startMeasurement(NonBlocking::MeasurementAction action) {
+  uint8_t seqsteps = seqConfigCache;
+  switch (action) {
+
+    case Abandoned:
+
+      break;
+    case forVHV:
+
+      break;
+    case forPhase:
+      break;
+    case forRate:
+      break;
+    case forSpads:
+      break;
+    case forRange:
+      break;
+    case forOffset:
+      break;
+    case forXtalk:
+      break;
+  }
   //any setting of seqconfig or the like has been done
   //if not continuous then:
   measurementInProgress = action;
   return true;
 }
 
-void NonBlocking::setup() {
-  //nothing to do so far.
-  //we don't want to delay the loop() for init, we do that with a statemachine in the loop
-  //this would be a place to declare the  mode of our use if it doesn't change dynamically.
-  //usage modes:
-  //  continuous gauge supplying a value stream
-  //  ditto but using a GPIO as data ready indicator
-  //  set thresholds and GPIO is simple "present" detector.
+void NonBlocking::setup(OperatingMode mode) {
+  requesting.dataInit = true;
+  agent.arg.operatingMode = mode;
 }
 
-void NonBlocking::setProcess(NonBlocking::ProcessRequest process){
-  switch (activeProcess=process) {//record and test
+void NonBlocking::setProcess(NonBlocking::ProcessRequest process) {
+  switch (activeProcess = process) {//record and test
     case Idle:
+      inProgress = nullptr;
       break;
     case InitI2c:
       break;
     case InitData:
       break;
     case InitStatic:
-      inProgress=&theCalProcess;//the only thing static waits on if it doesn't do spads
+      inProgress = &theCalProcess;//the only thing static waits on if it doesn't do spads
       break;
     case SetupSpads:
-      inProgress=&theSpadder;
+      inProgress = &theSpadder;
       break;
     case CalVhvPhase:
     case CalPhase:
-      inProgress=&theCalProcess;
+      inProgress = &theCalProcess;
       break;
-    case OneShot:
-      break;
-    case Continuous:
-      //??
+    case Operate:
+      inProgress = &theRangeProcess;
       break;
     case RateTest:
-      inProgress=&theRateProcess;
+      inProgress = &theRateProcess;
       break;
     case Offset:
-      inProgress=&theOffsetProcess;
+      inProgress = &theOffsetProcess;
       break;
     case CrossTalk:
-      inProgress=&theXtalkProcess;
+      inProgress = &theXtalkProcess;
       break;
   }
 }
@@ -370,10 +367,9 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
       break;
 
     case SetupSpads:
-      if( theSpadder.precheck()){
-        requesting.spads =true;//move to in precheck
-        inProgress=&theSpadder;
-        activeProcess=SetupSpads;
+      if (theSpadder.precheck()) {
+        requesting.spads = true;//move to in precheck
+        setProcess(SetupSpads);
         return true;
       }
       return false;
@@ -389,15 +385,37 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
       }
       break;
 
-    case OneShot:
-      SetDeviceMode(DeviceModes::DEVICEMODE_SINGLE_RANGING);
-      startMeasurement(forRange);
-      break;
+    case Operate: {
+      switch (agent.arg.operatingMode) {
 
-    case Continuous:
-      SetDeviceMode(agent.arg.sampleRate_ms == 0 ? DeviceModes::DEVICEMODE_CONTINUOUS_RANGING : DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
-      startMeasurement(forRange);
-      break;
+        case Powerdown:
+          //todo: power down stuff
+          break;
+        case OnDemand:
+          if (allowing.ranging) {
+            allowing.gpioAsReadyBit = SetGpioConfig(0, {GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
+            SetDeviceMode(DeviceModes::DEVICEMODE_SINGLE_RANGING);
+            return true;
+          } else {
+            return false;
+          }
+          break;
+        case Proximity:
+          if (!allowing.ranging) {
+            return false; //not ready to start
+          }
+          //todo: configure gpio mode according to window values
+          //and set those thresholds too!
+          CheckAndLoadInterruptSettings(true);//todo: nonblocking via tuning!
+          [[fallthrough]];
+        case DataStream:
+          /* Set interrupt config to new sample ready. Failure is now ignored as we are using enums and all real errors will THROW */
+          allowing.gpioAsReadyBit = SetGpioConfig(0, {GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
+          SetDeviceMode(agent.arg.sampleRate_ms == 0 ? DeviceModes::DEVICEMODE_CONTINUOUS_RANGING : DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
+          startMeasurement(forRange);
+          break;
+      }
+    }
   }
   //software defect!
   return false;
@@ -406,7 +424,6 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
 bool NonBlocking::gpioReady() {
   return agent.gpioSignal();
 }
-
 
 #if IncludeBlockers
 
@@ -428,18 +445,24 @@ bool NonBlocking::doBlocking(ProcessRequest process) {
       return PerformRefCalibration();
     case CalPhase:
       return perform_phase_calibration(true);
-    case OneShot:
-      //NB: data is stored in the PAL: PALDevDataGet(LastRangeMeasure) = pRangingMeasurementData;
-      //it would be efficient if we were to dig down to that instead of having a duplicate
-      return PerformSingleRangingMeasurement(agent.arg.theRangingMeasurementData);
-    case Continuous:
-      if (agent.arg.sampleRate_ms) {
-        SetMeasurementTimingBudgetMicroSeconds(agent.arg.sampleRate_ms * 1000);
-        SetDeviceMode(DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
-      } else {
-        SetDeviceMode(DeviceModes::DEVICEMODE_CONTINUOUS_RANGING);
+    case Operate:
+      switch (agent.arg.operatingMode) {
+        case Powerdown:
+          SetPowerMode(POWERMODE_STANDBY_LEVEL1);
+          return true;
+        case OnDemand:
+          return PerformSingleRangingMeasurement(agent.arg.theRangingMeasurementData);
+        case DataStream:
+        case Proximity:
+          if (agent.arg.sampleRate_ms > 0) {
+            SetMeasurementTimingBudgetMicroSeconds(agent.arg.sampleRate_ms * 1000);
+            SetDeviceMode(DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
+          } else {
+            SetDeviceMode(DeviceModes::DEVICEMODE_CONTINUOUS_RANGING);
+          }
+          StartMeasurement();
+          return true;
       }
-      StartMeasurement();
       break;
     case RateTest:
       //todo: was this available in api?
@@ -452,14 +475,15 @@ bool NonBlocking::doBlocking(ProcessRequest process) {
   return false;
 }
 
-NonBlocking::NonBlocking(NonBlocking::UserAgent &agent, uint8_t i2c_addr, uint8_t busNumber) : Api({busNumber, i2c_addr, 400})
-                                                                                               , agent(agent)
-                                                                                               , theRangeProcess(*this)
-                                                                                               , theXtalkProcess(*this)
-                                                                                               , theOffsetProcess(*this)
-                                                                                               , theCalProcess(*this)
-                                                                                               , theRateProcess(*this)
-                                                                                               , theSpadder(*this) {
+NonBlocking::NonBlocking(NonBlocking::UserAgent &agent, uint8_t i2c_addr, uint8_t busNumber) :
+  Api({busNumber, i2c_addr, 400})
+  , agent(agent)
+  , theRangeProcess(*this)
+  , theXtalkProcess(*this)
+  , theOffsetProcess(*this)
+  , theCalProcess(*this)
+  , theRateProcess(*this)
+  , theSpadder(*this) {
   //do no real actions so that we can statically construct
 }
 
@@ -467,7 +491,7 @@ NonBlocking::NonBlocking(NonBlocking::UserAgent &agent, uint8_t i2c_addr, uint8_
 ////////////////////////////////////////////
 
 bool NonBlocking::MeasurementProcess::onMeasurement(bool successful) {
-  nb.agent.processEvent(nb.activeProcess,successful?ProcessResult::Succeeded:ProcessResult::Failed);
+  nb.agent.processEvent(nb.activeProcess, successful ? ProcessResult::Succeeded : ProcessResult::Failed);
   return false;//default is task is done
 }
 
@@ -621,7 +645,7 @@ void NonBlocking::OffsetProcess::startNext() {
 
 void NonBlocking::CalProcess::startNext() {
   uint8_t magic = doingVhv ? Bitter(6) : 0;
-  nb.set_SequenceConfig(magic, false);//todo: debate the false here, it may have been a bug in the original code.
+  nb.set_SequenceConfig(magic);
   nb.comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | magic);
 }
 
@@ -638,9 +662,7 @@ bool NonBlocking::CalProcess::onMeasurement(bool successful) {
     } else {
       nb.agent.arg.refCal = nb.get_ref_calibration();
       //todo: signal done
-      /* restore the previous Sequence Config */
-      nb.set_SequenceConfig(seqConfigCache, true);
-      return true;
+      return bedone(true);
     }
   }
   return successful;
@@ -651,43 +673,40 @@ NonBlocking::CalProcess::CalProcess(NonBlocking &dev) : MeasurementProcess(dev) 
 }
 
 bool NonBlocking::RateProcess::onMeasurement(bool successful) {
-  if(successful) {
-    nb.agent.arg.peakSignal = nb.FFread<FixPoint<9,7>>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
+  if (successful) {
+    nb.agent.arg.peakSignal = nb.FFread<FixPoint<9, 7>>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
   }
   bedone(successful);
   return successful;
 }
 
 bool NonBlocking::RateProcess::begin() {
-   startNext();
+  startNext();
   return true;
 }
 
 void NonBlocking::RateProcess::startNext() {
-  nb.set_SequenceConfig(0xC0, false);
+  nb.set_SequenceConfig(0xC0);
 }
 
 NonBlocking::RateProcess::RateProcess(NonBlocking &dev) : MeasurementProcess(dev) {
   //do nothing here
 }
 
-NonBlocking::MeasurementProcess::MeasurementProcess(NonBlocking &dev) : nb(dev), seqConfigCache(0) {
+NonBlocking::MeasurementProcess::MeasurementProcess(NonBlocking &dev) : nb(dev) {
   //do nothing here
 }
 
 void NonBlocking::MeasurementProcess::startNext() {
-  {
-    auto popper = nb.magicWrapper();
-    nb.comm.WrByte(REG_SYSRANGE_stopper, nb.PALDevDataGet(StopVariable));
-  }
-  nb.comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | REG_SYSRANGE_MODE_SINGLESHOT);
+  nb.magicStop();
+  //single shot:
+  nb.comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP);
   nb.waiting.onStart = VL53L0X_DEFAULT_MAX_LOOP;//legacy, need to tune per platform or convert to uSec and wait on a timer.
 }
 
 void NonBlocking::Waiting::abandonAll() {
   *this = {};//sometimes C++ is wonderful. This sets all fields to their constructor defaults.
 }
-
 
 /* called after vhv and phase measurements are successfully completed */
 bool NonBlocking::SpadSetupProcess::refreshCalibration() {
@@ -723,17 +742,14 @@ bool NonBlocking::SpadSetupProcess::forEachMeasurement() {
     auto rateExcess = peakSignalRateRef - targetRefRate;//no abs() required as we have checked the relative sizes.
     if (rateExcess > rateDeficit) { /* Previous spad map produced a closer measurement, so choose this. */
       scanner.undoLast();
-      --sc.quantity;//tradition, is anyone going to look at this?
-      if (setAndCheck()) {
-        return laststage();
-      } else {
+      --sc.quantity;//tradition, is anyone going to look at this? todo: see if old code sent this to the DevData
+      if (!setAndCheck()) {
         //signal failure.
         return false;
       }
-    } else {
-      //present is best that we can do
-      return laststage();
     }
+    //present is best that we can do
+    return laststage();
   } else {
     rateDeficit = targetRefRate - peakSignalRateRef;//no abs() required as we have checked the relative sizes.
     //increase spad count
@@ -791,15 +807,15 @@ NonBlocking::SpadSetupProcess::SpadSetupProcess(NonBlocking &dev) : MeasurementP
 }
 
 bool NonBlocking::SpadSetupProcess::precheck() {
-    scanner.restart();//clear all spad selects and set search pointer to 0th
-    /* Enable Minimum NON-APERTURE Spads */
-    sc = {minimumSpadCount, false};
+  scanner.restart();//clear all spad selects and set search pointer to 0th
+  /* Enable Minimum NON-APERTURE Spads */
+  sc = {minimumSpadCount, false};
 
-    if (!scanner(sc)) {//if we can't find the minimum we don't even try. This is about existence, not utility.
-      return false;//todo process failure
-    }
+  if (!scanner(sc)) {//if we can't find the minimum we don't even try. This is about existence, not utility.
+    return false;//todo process failure
+  }
 
-    targetRefRate = nb.PALDevDataGet(targetRefRate);//different data types, convert just once.
+  targetRefRate = nb.PALDevDataGet(targetRefRate);//different data types, convert just once.
 
   {
     SysPopper ffer = nb.push(Private_Pager, 0x01, 0x00);
@@ -811,7 +827,7 @@ bool NonBlocking::SpadSetupProcess::precheck() {
   nb.comm.WrByte(REG_POWER_MANAGEMENT_GO1_POWER_FORCE, 0);
   nb.requesting.vhv = true;
   nb.requesting.phase = true;
-  nb.requesting.spads=true;
+  nb.requesting.spads = true;
   //loop() actually fires up the measurement of vhv
   return true;
 }
@@ -829,8 +845,10 @@ NonBlocking::RangeProcess::RangeProcess(NonBlocking &dev) : MeasurementProcess(d
 }
 
 bool NonBlocking::RangeProcess::onMeasurement(bool successful) {
-  if(nb.activeProcess==Continuous){//then "may I have another"
-    nb.requesting.range=true;//here is where we would restart a timer that defers checking ready until it is nearly due
+  if (nb.activeProcess == Operate) {//then "may I have another"
+    if(nb.agent.arg.operatingMode>OperatingMode::OnDemand) {
+      nb.requesting.range = true;//here is where we would restart a timer that defers checking ready until it is nearly due
+    }
   }
   return MeasurementProcess::onMeasurement(successful);
 }

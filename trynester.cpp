@@ -4,13 +4,20 @@
 
 #include "trynester.h"
 
-template <> Stacked<Thrower>* Stacked<Thrower>::tos=nullptr;
+template<> Stacked<Thrower> *Stacked<Thrower>::tos = nullptr;
 
-template <> Stacked<LocationStack>* Stacked<LocationStack>::tos=nullptr;
+template<> Stacked<LocationStack> *Stacked<LocationStack>::tos = nullptr;
 
- LocationStack::TickSource LocationStack::stamper= nullptr ;
+LocationStack::Logger *LocationStack::logger = nullptr;
 
- LocationStack::Reporter LocationStack::reportElapsed= nullptr ;
+void LocationStack::logException(int thrown) {
+  logger->exception(thrown);
+  auto now = logger->stamper();//read clock just once, roughly the time of the exception.
+  walk([now](LocationStack *item) {
+    logger->reportElapsed(item->element, now - item->timestamp);
+    return true;//report full context, not just back to catch point
+  });
+}
 
 void Thrower::operator()(int errorcode) {
   if (stacked) {//using as an 'initialized' boolean
@@ -20,8 +27,6 @@ void Thrower::operator()(int errorcode) {
   }
 }
 
-
-
 /** recursive routines don't play nice in this system. We should move the timestamp to the stacker. */
 static void tracer_example(unsigned recurse) {
   static LocationStack::Element tracer(__FUNCTION__, __FILE__, __LINE__);
@@ -30,13 +35,12 @@ static void tracer_example(unsigned recurse) {
     tracer_example(recurse);
   } else {
     //check:  should see records identical except for timestamp
-    LocationStack:: walk([](Stacked<LocationStack> *item) {
+    LocationStack::walk([](Stacked<LocationStack> *item) {
       //item.element.timestamp = ~0;//testing access
       return true;
     });
   }
 }
-
 
 static int throw_example() {
   TRACE_ENTRY  //without one of these you don't get a proper idea of where the problem occured.
@@ -54,3 +58,26 @@ static int throw_example() {
   }
   return 0;
 }
+
+#include <Arduino.h>
+class DummyLogger : public LocationStack::Logger{
+public:
+  LocationStack::Ticks stamper() override {
+    return micros();
+  }
+
+  void reportElapsed(const LocationStack::Element &element, LocationStack::Ticks elapsed) override {
+    Serial.print(element.function);
+    Serial.print(" took ");
+    Serial.print(elapsed);
+    Serial.print(" (");
+    Serial.print(element.file);
+    Serial.print(element.line);
+    Serial.print(") ");
+  }
+
+  void exception(int throwncode) override {
+    Serial.print(throwncode);
+    Serial.println(F("Stack trace:"));
+  }
+};

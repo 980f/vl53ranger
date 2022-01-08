@@ -1,17 +1,25 @@
-//
+/**
 // Copyright 2021 by Andy Heilveil (github/980f)
 // Created by andyh on 12/19/21.
-//
+
+ Manipulations of bit maps used to select which spad's (sensor diodes) to use.
+
+ todo: see what version of std library we are willing to insist on and if it has bit arrays we can use instead of doing them ourselves.
+
+ did not use std::array because we have a special accessor class without which access is verbose.
+
+*/
 
 #ifndef VL53_VL53L0X_SPADARRAY_H
 #define VL53_VL53L0X_SPADARRAY_H
 
 #include "bitmanipulators.h"
 
-/** legacy combination. */
+/** frequent combination.
+ * 980F was tempted to use the sign bit for 'isAperture' for runtime efficiency, but the instances of abs() negated the advantage of atomicity.*/
 struct SpadCount {
-  uint8_t quantity = 0;//ReferenceSpadCount;  /* used for ref spad management */
-  bool isAperture = false;//ReferenceSpadType;   /* used for ref spad management */
+  uint8_t quantity = 0;//ST's ReferenceSpadCount;
+  bool isAperture = false;//ST's ReferenceSpadType;
 
   bool isValid() const {
     return quantity > 0; //not this guy's job to enforce minSpadCount
@@ -89,12 +97,17 @@ public:
 public:
   static const Index badSpad;//sentinel return value
   /** zero init is excessive since all instances load before use, but ensures that the excess bits are zero*/
-  SpadArray() {
+  SpadArray() { // NOLINT(cppcoreguidelines-pro-type-member-init)
     clear();
   }
 
-  /** sometimes it is an array of 6 integers */
+  /** sometimes it is an array of 6 integers.
+   * an invalid address @returns the address of a trashable byte.
+   * 980f was temmpted to slip in a nullpointer exception, but that might be nasty on an embedded platform. A shared garbage byte should let minor errors slide. */
   uint8_t &operator[](unsigned coarseindex) {
+    if(coarseindex>=NumberOfBytes){
+      return raw[NumberOfBytes];
+    }
     return raw[coarseindex];//vulnerable to bad index just like raw array code was.
   }
 
@@ -127,7 +140,9 @@ public:
   /** @returns the index of the next bit that is set, which may the value passed in. */
   Index nextSet(Index curr) const;
 
-  /** wraps what was once called enable_ref_spad */
+  /** wraps what was once called enable_ref_spad.
+   * This retains state on last search, which is used as starting point for next one.
+   * cf. sretok in c library, except quite a bit fancier. */
   class Scanner {
     const SpadArray &goodSpadArray;
     SpadArray::Index scanner;
@@ -151,7 +166,8 @@ public:
      * @note the spadArray will usually have been altered even on failure. */
     bool operator()(SpadCount req);
 
-    /** clear/disable the last bit enabled, making no other changes */
+    /** clear/disable the last bit enabled, making no other changes.
+     * This is idempotent, it undoes the last search-and-set, not the lastmost bit that is set. */
     void undoLast() {
       spadArray.set(lastSet, false);
       //and what do we do to guard against ill use? nothing, leave this idempotent

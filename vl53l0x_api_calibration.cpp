@@ -43,13 +43,7 @@ namespace VL53L0X {
 
   bool Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance) {
     TRACE_ENTRY
-    //checked in public method, this is the internal one.
-//    if (XTalkCalDistance.raw <= 0) {//ICK: type was unsigned, and so this is a compare to zero.
-//      THROW(ERROR_INVALID_PARAMS);//bad user input (for blocking procedure)
-//    }
-    /* Disable the XTalk compensation */
     SetXTalkCompensationEnable(false);
-    /* Disable the RIT */
     SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
     /* Perform 50 measurements and compute the averages */
     unsigned sum_ranging = 0;//bug: former use of 16 bit begs for integer overflow
@@ -117,9 +111,6 @@ namespace VL53L0X {
   } // VL53L0X_perform_xtalk_calibration
 
   bool Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter) {
-//    if (CalDistanceMilliMeter.raw <= 0) {//ick,unsigned numbers are never negative, todo: need a maximum check here.
-//      return LOG_ERROR(ERROR_INVALID_PARAMS);
-//    }
     SetOffsetCalibrationDataMicroMeter(0);
     /* Get the value of the TCC */
     bool SequenceStepWasEnabled = GetSequenceStepEnable(SEQUENCESTEP_TCC);

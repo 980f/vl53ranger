@@ -4,34 +4,42 @@
 #include <Arduino.h>
 #include "vl53l0x_api_strings.h"
 
-static void elapsedTimeReporter(const LocationStack::Element &loc, LocationStack::Ticks elapsed, bool onException) {
-  bool showmillis=elapsed>10000;
+#include "trynester.h"
 
-  Serial.print(loc.function);
-  Serial.print(loc.file);
-  Serial.print(loc.line);
-  if(showmillis){
-    Serial.print(elapsed/1000);
-    Serial.print("ms");
-  } else {
-    Serial.print(elapsed);
-    Serial.print("us");
+class MyLogger : public LocationStack::Logger{
+public:
+  LocationStack::Ticks stamper() override {
+    return micros();
   }
-  if (onException) {
-    auto thrown= int(Thrower::top());
-    Serial.print(thrown);
-    Serial.print(VL53L0X::pal_error_string(static_cast<VL53L0X::Error>(thrown)));
-    Serial.println(", but shit happened");
-  } else {
-    Serial.println();
-  }
-}
 
-static LocationStack::Ticks stamper() {
-  return micros();
-}
+  void reportElapsed(const LocationStack::Element &loc, LocationStack::Ticks elapsed) override {
+    bool showmillis=elapsed>10000;
+
+    Serial.print(loc.function);
+    Serial.print(loc.file);
+    Serial.print(loc.line);
+    if(showmillis){
+      Serial.print(elapsed/1000);
+      Serial.print("ms");
+    } else {
+      Serial.print(elapsed);
+      Serial.print("us");
+    }
+  }
+
+  void exception(int throwncode) override {
+    Serial.print(throwncode);
+    Serial.print(": ");
+    Serial.print(VL53L0X::pal_error_string(static_cast<VL53L0X::Error>(throwncode)));
+    Serial.println(F("Stack trace, mot recent first:"));
+  }
+};
+MyLogger myLogger;
 
 void VL53L0X::initLogging() {
-  LocationStack::reportElapsed = &elapsedTimeReporter;
-  LocationStack::stamper = &stamper;
+  LocationStack::logger = &myLogger;
+  //in case we want to restart all:
+  LocationStack::unwind( nullptr);
+  Thrower::unwind(nullptr);
+  Serial.println("VL53l0X logging initialized" );
 }

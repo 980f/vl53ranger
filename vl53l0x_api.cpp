@@ -276,7 +276,7 @@ namespace VL53L0X {
 
     {
       auto magic = magicWrapper();
-      comm.RdByte(REG_SYSRANGE_stopper, &PALDevDataGet(StopVariable));
+      comm.RdByte(REG_SYSRANGE_stopper, &PALDevDataGet(StopVariable));//fed back to be set before starting a measurment or measurement cycler.
     }
     /* Limit default values */
     SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 18.0});
@@ -286,7 +286,7 @@ namespace VL53L0X {
     SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_MSRC, false);//ick: threshold ambiguous
     SetLimitCheckEnable(CHECKENABLE_SIGNAL_RATE_PRE_RANGE, false);//ick: threshold ambiguous
     /** initially all sequence steps are enabled */
-    set_SequenceConfig(0xFF, true);
+    set_SequenceConfig(0xFF);
     /* Set PAL state to tell that we are waiting for call to StaticInit */
     PALDevDataSet(PalState, STATE_WAIT_STATICINIT);
 
@@ -361,7 +361,7 @@ namespace VL53L0X {
     PALDevDataSet(RangeFractionalEnable, fe);
     PALDevDataSet(CurrentParameters, CurrentParameters);
 
-    /* read the sequence config and save it */
+    /* init sequence config cache */
     PALDevDataSet(SequenceConfig, get_SequenceConfig());
 
     /* Disable MSRC and TCC by default */
@@ -432,7 +432,7 @@ namespace VL53L0X {
         return true;
       default:
         /* Unsupported mode */
-        return LOG_ERROR(ERROR_MODE_NOT_SUPPORTED, deviceMode);
+        return LOG_ERROR(ERROR_MODE_NOT_SUPPORTED);
     } // switch
 
   } // VL53L0X_SetDeviceMode
@@ -484,7 +484,7 @@ namespace VL53L0X {
     }
 
     if (SequenceConfigNew != SequenceConfig) {
-      set_SequenceConfig(SequenceConfigNew, true);
+      set_SequenceConfig(SequenceConfigNew);
       /* Recalculate timing budget */
       SetMeasurementTimingBudgetMicroSeconds(VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds));
     }
@@ -759,7 +759,7 @@ namespace VL53L0X {
       FixPoint1616_t BigEough(255.0F);//was 255 * 65536 which is the same as 255.0
       if ((Threshold.Low > BigEough) || (Threshold.High > BigEough)) {
         if (StartNotStopFlag) {
-          load_compact(InterruptThresholdSettings, sizeof(InterruptThresholdSettings) / sizeof(*InterruptThresholdSettings));
+          load_compact(InterruptThresholdSettings, SizeofInterruptThresholdSettings);
         } else {
           comm.WrByte(Private_Pager, 0x04);
           comm.WrByte(0x70, 0x00);
@@ -776,18 +776,15 @@ namespace VL53L0X {
     LOG_FUNCTION_START
 
     DeviceModes DeviceMode = GetDeviceMode();
-    {
-      auto popper = magicWrapper();
-      comm.WrByte(REG_SYSRANGE_stopper, PALDevDataGet(StopVariable));
-    }
+    magicStop();
     switch (DeviceMode) {
       case DEVICEMODE_SINGLE_RANGING:
-        comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP | REG_SYSRANGE_MODE_SINGLESHOT);
+        comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_START_STOP );//bit<0>
         /* Wait until start bit has been cleared */
         for (unsigned LoopNb = VL53L0X_DEFAULT_MAX_LOOP; LoopNb-- > 0;) {
           uint8_t flags;
           fetch(flags, REG_SYSRANGE_START);
-          if (getBit<0>(flags) == 0) {
+          if (getBit<0>(flags) == 0) {// bit<0> is REG_SYSRANGE_MODE_START_STOP
             return true;
           }
         }
@@ -820,12 +817,8 @@ namespace VL53L0X {
 
   bool Api::StopMeasurement() {
     LOG_FUNCTION_START
-
-    comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_SINGLESHOT);
-    {
-      auto popper = MagicDuo(comm);
-      comm.WrByte(REG_SYSRANGE_stopper, 0x00);
-    }
+    comm.WrByte(REG_SYSRANGE_START, 0);//enum formerly here was a coincidence.
+    magicStop(true);
 
     /* Set PAL State to Idle */
     PALDevDataSet(PalState, STATE_IDLE);
@@ -849,7 +842,7 @@ namespace VL53L0X {
   } // GetMeasurementDataReady
 
 
-  bool Api::GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData) {
+  void Api::GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData) {
     LOG_FUNCTION_START
     /*
      * use multi read even if some registers are not useful, result will be more efficient than reading onesies and twosies due to I2C overhead
@@ -902,8 +895,6 @@ namespace VL53L0X {
 
     /* Copy last read data into Dev buffer */
     PALDevDataGet(LastRangeMeasure) = pRangingMeasurementData;
-
-    return true;
   } // GetRangingMeasurementData
 
   MegaCps Api::GetMeasurementRefSignal() {
@@ -1008,28 +999,26 @@ namespace VL53L0X {
 
 
   void Api::set_threshold(RegSystem index, FixPoint1616_t ThresholdLow) {
-    /* no dependency on DeviceMode for Ewok
-   * Need to divide by 2 because the FW will apply a x2*/
-    uint16_t Threshold16 = ThresholdLow.shrink(17) & Mask<11, 0>::shifted;
+    /* 32->16 also Need to divide by 2 because the FW will apply a x2*/
+    uint16_t Threshold16 = ThresholdLow.shrink(16+1) & Mask<11, 0>::places;
     comm.WrWord(index, Threshold16);
   }
 
   FixPoint1616_t Api::get_threshold(RegSystem index) {
     uint16_t Threshold12;
     comm.RdWord(REG_SYSTEM_THRESH_LOW, &Threshold12);
-    /* Need to multiply by 2 because the FW will apply a x2 */
-    return {getBits<11, 0>(Threshold12) << 17, 1};
+    /* 16->32 and Need to multiply by 2 because the FW will apply a x2 */
+    return {getBits<11, 0>(Threshold12) , 1,16+1};
   }
 
-  void Api::SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold) {
+  void Api::SetInterruptThresholds(DeviceModes ignored, RangeWindow Threshold) {
     LOG_FUNCTION_START
-    /* no dependency on DeviceMode for Ewok
-     * Need to divide by 2 because the FW will apply a x2*/
+    /* no dependency on DeviceMode for Ewok*/
     set_threshold(REG_SYSTEM_THRESH_LOW, Threshold.Low);
     set_threshold(REG_SYSTEM_THRESH_HIGH, Threshold.High);
   } // VL53L0X_SetInterruptThresholds
 
-  Api::RangeWindow Api::GetInterruptThresholds(DeviceModes DeviceMode) {
+  Api::RangeWindow Api::GetInterruptThresholds(DeviceModes ignored) {
     LOG_FUNCTION_START
     /* no dependency on DeviceMode for Ewok */
     RangeWindow pThreshold;
@@ -1040,17 +1029,11 @@ namespace VL53L0X {
 
   uint8_t Api::GetStopCompletedStatus() {
     LOG_FUNCTION_START
-
-    uint8_t Byte;
-    {//must close before going onto writing 0x91
-      auto pager = push(Private_Pager, 1, 0);
-      fetch(Byte, Private_04);
+    uint8_t stopCompletion=FFread<uint8_t>(Private_04);
+    if (stopCompletion == 0) {
+      magicStop();
     }
-    if (Byte == 0) {
-      auto magic = magicWrapper();
-      comm.WrByte(REG_SYSRANGE_stopper, PALDevDataGet(StopVariable));
-    }
-    return Byte;
+    return stopCompletion;
   } // GetStopCompletedStatus
 
 /* Group PAL Interrupt Functions */

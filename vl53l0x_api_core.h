@@ -269,6 +269,17 @@ namespace VL53L0X {
       return {comm};
     }
 
+    /** this guy gets called in close proximity to starting or stopping measurements, and in only one case uses 0 instead of a value fetched in DataInit() */
+    void magicStop(bool zerof = false) {
+      if(zerof){ //just duo
+        auto popper= MagicDuo(comm);
+        comm.WrByte(REG_SYSRANGE_stopper,  0);
+      } else {
+        auto popper = magicWrapper();
+        comm.WrByte(REG_SYSRANGE_stopper, PALDevDataGet(StopVariable));
+      }
+    }
+
     /** creating one of these saves sequence config, sets it, and on destruction restores what was saved. */
     class SeqConfigStacker {
       Core &core;
@@ -277,14 +288,14 @@ namespace VL53L0X {
     public:
       SeqConfigStacker(Core &core, bool restore_config, uint8_t settit) : core(core) {
         mycache = core.get_SequenceConfig();
-        core.set_SequenceConfig(settit, false);//todo:0 probably should set andCache true, else could use the dev cached one instead of our own.
+        core.set_SequenceConfig(settit);
         restore_it = restore_config; //maydo: don't restore if we failed to set.
       }
 
       ~SeqConfigStacker() {
         if (restore_it) {
           /* restore the previous Sequence Config */
-          core.set_SequenceConfig(mycache, true);
+          core.set_SequenceConfig(mycache);
         }
       }
     };
@@ -303,9 +314,22 @@ namespace VL53L0X {
       fetch<typename FixPoint<whole, fract>::RawType>(reg, item.raw);
     }
 
+    /** sets a value that is affected by VCSELPulsePeriodPCLK */
     void setValidPhase(uint8_t high, uint8_t low = 8);
 
+    /** sets a value that is affected by VCSELPulsePeriodPCLK */
     void setPhasecalLimit(uint8_t value);
+
+    /** this group is set from constants. This struct is a step towards using a const map instead of a switch.
+     * wrapping them with a struct enables the compiler to pass them as a single 32 bit stack item on cortexM microcontrollers. */
+    struct Wad {
+      uint8_t phaseHigh;
+      uint8_t globalVcsel;
+      uint8_t algoPhase;
+      uint8_t phaseCal;
+    };
+    /** sets values that are affected by VCSELPulsePeriodPCLK */
+    void setWad(const Wad &wad);
 
   protected: //some of this functionality was in api.cpp but used by core.cpp
     /** spin until a particular byte is non-zero.
@@ -374,7 +398,7 @@ namespace VL53L0X {
     /** @returns the sequence config byte reading it from the device */
     uint8_t get_SequenceConfig();
     /** sets the sequence config byte, and if @param andCache is true copies the value to the DeviceParameters place where we often trust has the value */
-    void set_SequenceConfig(uint8_t packed, bool andCache = true);
+    void set_SequenceConfig(uint8_t packed);
 
     void load_compact(const DeviceByte *bunch, unsigned quantity);
 

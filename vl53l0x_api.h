@@ -952,7 +952,7 @@ namespace VL53L0X {
  * @param   pRangingMeasurementData  Pointer to the data structure to fill up.
  * @return  Success.  on failure the object may be partially altered. If successful a copy is made on the PALData object
  */
-    bool GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData);
+    void GetRangingMeasurementData(RangingMeasurementData_t &pRangingMeasurementData);
 #if IncludeHistogramming
     /**
      * @brief  Set a new Histogram mode

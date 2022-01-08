@@ -35,8 +35,6 @@ static TwoWire * const Wires[]={
 #endif
 } ;
 
-///** RAII widget to allow us easy bailout on tx buffer overflow was contrary to what was desired. */
-
 bool ArduinoWirer::write_multi(uint8_t index, const uint8_t *pdata, int count) {
   tracer.count = count;
   tracer.index = index;

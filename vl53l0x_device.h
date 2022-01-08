@@ -152,8 +152,8 @@ namespace VL53L0X {
   enum SysRange {
     /** bit 0 in #REG_SYSRANGE_START write 1 toggles state in continuous mode and arms next shot in single shot mode */
     REG_SYSRANGE_MODE_START_STOP = (1 << 0)
-    ,/** bit 1 write 0 in #REG_SYSRANGE_START set single shot mode */
-    REG_SYSRANGE_MODE_SINGLESHOT = (0 << 1)
+//    ,/** bit 1 write 0 in #REG_SYSRANGE_START set single shot mode */
+//    REG_SYSRANGE_MODE_SINGLESHOT = (0 << 1)
     , /** bit 1 write 1 in #REG_SYSRANGE_START set back-to-back operation mode */
     REG_SYSRANGE_MODE_BACKTOBACK = (1 << 1)
     , /** bit 2 write 1 in #REG_SYSRANGE_START set timed operation mode */

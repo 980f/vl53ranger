@@ -46,14 +46,15 @@ template<typename Intish> Intish squared(Intish num) {
 
 /** @returns @param num divided by @param denom, rounded
  *
- * @note: divide by zero returns ZERO  due to frequency of ternaries doing that in first project to use this code */
+ * @note: divide by zero returns ZERO  due to frequency of ternaries doing that in first project to use this code.
+ * If you  don't like that then add  ,IntishOver dvz=0 */
 template<typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom) {
   return (denom != 0) ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
 }
 
 /** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
 template<typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned powerof2) {
-  if (powerof2 == 0) {//avert UB of shift computed as -1
+  if (powerof2 == 0) {//avert UB of shift in rounding term computed as -1
     return num;
   }
   if (powerof2 >= 8 * sizeof(IntishOver)) {//avert UB of shifting more than bits in the datum
@@ -68,10 +69,12 @@ template<typename IntishOver> IntishOver kilo(IntishOver num) {
   return roundedDivide(num, 1000);
 }
 
-/** @returns @param value multiplied by @param shift power of 2*/
-template<typename Intish> constexpr Intish boost(unsigned shift, Intish value) {
-  return value << shift;
-}
+//deprecated due to weird operand order and all uses were removed.
+///** @returns @param value multiplied by @param shift power of 2
+// * @note operand order, shift precedes value  */
+//template<typename Intish> constexpr Intish boost(unsigned shift, Intish value) {
+//  return value << shift;
+//}
 
 /** alters @param value to be no greater than @param max */
 template<typename Intish> constexpr void lessen(Intish &value, Intish max) {
@@ -79,6 +82,14 @@ template<typename Intish> constexpr void lessen(Intish &value, Intish max) {
     value = max;
   }
 }
+
+/** alters @param value to be no greater than @param max */
+template<typename Intish> constexpr void ensure(Intish &value, Intish min) {
+  if (value < min) {
+    value = min;
+  }
+}
+
 
 /** use where fractional values are expected
  * Formerly the gyrations in here were explicitly repeated in very many places, each having to be checked for rogue tile error.
@@ -245,15 +256,15 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   }
 
   bool operator>(const FixPoint &rhs) const {
-    return rhs < *this;
+    return raw>rhs.raw;
   }
 
   bool operator<=(const FixPoint &rhs) const {
-    return !(rhs < *this);
+    return raw <= rhs.raw;
   }
 
   bool operator>=(const FixPoint &rhs) const {
-    return !(*this < rhs);
+    return raw >= rhs.raw;
   }
 
   bool operator==(const FixPoint &rhs) const {
@@ -261,7 +272,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   }
 
   bool operator!=(const FixPoint &rhs) const {
-    return !(rhs == *this);
+    return raw != rhs.raw;
   }
 
   RawType operator+(const FixPoint &rhs) {
@@ -320,8 +331,6 @@ template<unsigned whole, unsigned fract> struct FixPoint {
     return *this;
   }
 
-
-
   /** rounding /= */
   template<typename Intish> FixPoint &divideby(Intish denom) {
     raw = roundedDivide(raw, denom);
@@ -331,11 +340,11 @@ template<unsigned whole, unsigned fract> struct FixPoint {
 
 /** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
 template<unsigned whole, unsigned fract> auto roundedScale(FixPoint<whole, fract> num, unsigned powerof2) -> typename decltype(num)::RawType {
-  return (num.raw + (1 << (powerof2 - 1))) >> powerof2;//# fully parenthesized for clarity ;)
+  return ::roundedScale(num.raw, powerof2);//# fully parenthesized for clarity ;)
 }
 
 /** @returns @param num divided by @param denom, rounded */
 template<unsigned whole, unsigned fract, typename IntishUnder>
 auto roundedDivide(FixPoint<whole, fract> num, IntishUnder denom) -> typename decltype(num)::RawType {
-  return (denom != 0) ? (num.raw + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
+  return ::roundedDivide(num.raw, denom);
 }

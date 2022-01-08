@@ -4,73 +4,95 @@
 
 #include "nonblocking.h" // the driver
 #include "vl53ranger.h"  // this basic demo application
-
+#include "vl53l0x_platform_log.h"
 
 //#ifndef ARDUINO  //then dummy up the interface so that we can compile
-unsigned  digitalRead(unsigned ){ return 0;}
+unsigned digitalRead(unsigned) {
+  return 0;
+}
+
+
 //#endif
 
 using namespace VL53L0X;
 
 VL53Ranger api;
 
-VL53Ranger::VL53Ranger() noexcept : NonBlocking(static_cast<NonBlocking::UserAgent &> (*this)){}
+VL53Ranger::VL53Ranger() noexcept: NonBlocking(static_cast<NonBlocking::UserAgent &> (*this)) {
+}
 
 void VL53Ranger::processEvent(NonBlocking::ProcessRequest process, NonBlocking::ProcessResult stage) {
   switch (process) {
-    case OneShot:
-      //?act on a measurement, or has that already been done?
+    case Operate: //receives measurements
+    switch(stage){
+
+      case Busy:
+        break;
+      case Queued:
+        break;
+      case Active:
+        break;
+      case Succeeded: {
+          auto distance = agent.arg.theRangingMeasurementData.Range.distance();
+        }
+        break;
+      case Failed:
+        break;
+    }
       break;
-    case Idle:
+    case Idle: //acknowledges pwower down et al.
       break;
-    case InitI2c:
+    case InitI2c://unnecessary
       break;
-    case InitStatic:
+    case InitStatic://unnecessary or start operating
       break;
     case InitData:
-      if(stage==Succeeded){
-        startProcess(InitStatic);
+      if (stage == Failed) {
+        //serious system issue. Likely no I2C connection.
       }
       break;
-    case Continuous:
+    case RateTest://here's your diagnostic data
       break;
-    case RateTest:
+    case SetupSpads://only static init should care
       break;
-    case SetupSpads:
+    case Offset: //you may wish to backup parameters
       break;
-    case Offset:
+    case CalVhvPhase://you may wish to backup parameters
       break;
-    case CalVhvPhase:
+    case CalPhase://you may wish to backup parameters
       break;
-    case CalPhase:
-      break;
-    case CrossTalk:
+    case CrossTalk://you may wish to backup parameters
       break;
   }
 }
 
+/** */
 bool VL53Ranger::gpioSignal() {
-  return digitalRead(arg.gpioPin)==0;//hard coding low active until we have configuration for it through the layers
+  return digitalRead(arg.gpioPin) == 0;//hard coding low active until we have configuration for it through the layers
 }
-
 
 /////////////////////////////
 
-void setup(){
-  api.agent.arg.sampleRate_ms=33;// a leisurely rate. Since it is nonzero continuous measurement will be initiated when the device is capable of it
-  api.agent.arg.gpioPin=3;
-  api.setup();
+
+void setup() {
+  api.agent.arg.sampleRate_ms = 33;// a leisurely rate. Since it is nonzero continuous measurement will be initiated when the device is capable of it
+  api.agent.arg.gpioPin = 3;//todo: #define near top of file/class
+  VL53L0X::initLogging(); //api doesn't know how logging is configured
+  api.setup(NonBlocking::DataStream);//stream data.
 }
 
-void loop(){
+void loop() {
+  //check UI for continuous on/off/powerdown
   api.loop();
 }
 
-
+///
+//pretend to be an Arduino for testing compilation.
 #pragma ide diagnostic ignored "EndlessLoop"
-int main(){
+
+int main() {
   setup();
-  while(true){
+  while (true) {
     loop();
   }
 }

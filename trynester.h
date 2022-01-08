@@ -24,7 +24,11 @@
 template<typename Element> class Stacked {
 protected:
   Stacked *stacked = nullptr;
-
+//todo
+//  /** cache depth value for printing convenience */
+//  unsigned depth;
+//
+//  static unsigned Depth;
 public:
   /** all throws should be called on this object:
  * if using threads this must be a thread_local
@@ -51,27 +55,20 @@ public:
   }
 
   /** the visitor is given a pointer to what is a base class of the class being stacked.
-   * return true if walk is to continue, false to stop it (useful for pealing off part of the top such as only the stack from the try to the throw) */
-//  using Visitor = bool (*)(Stacked *);
+   * Visitor returns true if walk is to continue, false to stop it (useful for pealing off part of the top such as only the stack from the try to the throw) */
   template<typename Visitor>
   static void walk(Visitor &&visitor) {
-    for (Stacked *item = tos; item && visitor(item->guts()); item = item->stacked) {
+    for (Stacked *item = Stacked<Element>::tos; item && visitor(item->guts()); item = item->stacked) {
     }
   }
-
-//  using Invisitor = bool (*)(Element *);
-//
-//  /** the visitor is given a pointer to what is presumed to be the derived being stacked, but that only works for some such classes.
-//   * return true if walk is to continue, false to stop it */
-//  static void walk(Invisitor visitor) {
-//    for (Stacked *item = tos; item && visitor(*reinterpret_cast<Element *>(item)); item = item->stacked) ;
-//  }
 
   /** @returns what to feed to unwind to restore stack to present state */
   static Stacked *mark() {
     return tos;
   }
 
+  /** remove stack elements without notifying anyone. Stops the unwind when it finds @param mark, leaving mark as top of stack.
+   * if mark is not in stack then tos is unchanged. */
   static void unwind(Stacked<Element> *mark) {
     if (mark == nullptr) {
       tos = nullptr;
@@ -88,7 +85,7 @@ public:
   }
 
 protected:
-  /** pop is used when chopping the stack when an exception is thrown, as well as when the stack frame is ended via normal execution.
+  /** pop is used when the stack frame is ended via normal execution.
    * it is idempotent= no matter how many times it is called on an object the stack just pops once. */
   void pop() const {
     if (stacked != nullptr) {
@@ -124,32 +121,46 @@ public:
     const char *const file;
     const unsigned line;
     //mutable for debugger based fiddling:
-    bool reportOnExit = false;
+    mutable bool reportOnExit;
 
     //constructor for static use case:
-    Element(const char *function, const char *file, unsigned line) : function(function), file(file), line(line) {
+    Element(const char *function, const char *file, unsigned line,bool reportOnExit = false) : function(function), file(file), line(line) ,reportOnExit(reportOnExit){
     }
   };
 
-  using Ticks = unsigned long; //declspec your timestamp source.
+  using Ticks = unsigned long; //todo: take in the class for Ticks via a #define
+  struct Logger {
+    virtual Ticks stamper() = 0;
+    /** this gets called as each routine exits */
+    virtual void reportElapsed(const Element &, Ticks elapsed) = 0;
+    /** this gets called just before reportElapsed gets called on all stack members */
+    virtual void exception(int throwncode) = 0;
+  };
+
+  static Logger *logger;
+
+  /** designed to only be called on TOS, but can make sense using a local one since that is usually the top of the stack:
+   * @return @param throwcode !=0 as a convenience for a migration from another system's error logging call */
+  static bool logTrace(int throwcode, const char *function, const char *file, unsigned line) {
+    if (logger) {
+      //todo: a list of "errors worth tracing" could be checked here, IE filter out trivial/convenience throws.
+      LocationStack::Element tracer(function, file, line);
+      tracer.reportOnExit = true;//always trace this guy
+      LocationStack convenientrick(tracer);//puts this blocks tracer on top of stack
+      logException(throwcode);
+    }
+    return throwcode != 0;
+  }
+
 private:
   const Element &element;
-
-  Ticks timestamp = 0;
-
-public:// until we have setters your application does assignments to these function pointers:
-
-  using TickSource = Ticks(*)();
-  static TickSource stamper;
-
-  using Reporter = void (*)(const Element &, Ticks /*elapsed*/, bool /*onException*/);
-  static Reporter reportElapsed;
+  Ticks timestamp = 0;//timestamp is on object that manages the push and pop so that Element with location information can be const static.
 
 private:
-  void pop(bool onException = false) {
+  void pop() {
     if (element.reportOnExit) {
-      if (reportElapsed) {
-        reportElapsed(element, stamper() - timestamp, onException);
+      if (logger) {
+        logger->reportElapsed(element, logger->stamper() - timestamp);
       }
     }
     Stacked::pop();
@@ -157,12 +168,14 @@ private:
 
 public:
   LocationStack(Element &element) : element(element) {
-    timestamp = stamper ? stamper() : 0;//todo:2 might make this conditional upon reportOnExit, but the timestamp could be handy when debugging
+    timestamp = logger ? logger->stamper() : 0;//todo:2 might make this conditional upon reportOnExit, but the timestamp could be handy when debugging
   }
 
   ~LocationStack() {
-    pop(false);
+    pop();
   }
+
+  static void logException(int thrown);
 };
 
 //you can put a TRACE_ENTRY inside any block statement.
@@ -193,6 +206,7 @@ public:
     //# base constructor places this on the top of the throw stack before the setjmp is called
     thrown = setjmp(opaque);
     if (thrown) {//then we got here due to a throw on the tos instance, or rarely a "throw to self"
+      LocationStack::logException(thrown);
       //we have a design decision to make here, where should exceptions in the exception handlers get handled?
       //if we do what C++ does (a reasonable choice by the principle of least surprise) then:
       LocationStack::unwind(mark);//not part of pop as its own destructor takes care of popping it under normal circumstances.

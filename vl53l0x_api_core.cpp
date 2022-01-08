@@ -466,6 +466,19 @@ namespace VL53L0X {
     FFwrap(REG_ALGO_PHASECAL_LIM, value);
   }
 
+  struct Wad {
+    uint8_t phaseHigh;
+    uint8_t globalVcsel;
+    uint8_t algoPhase;
+    uint8_t phaseCal;
+  };
+
+  void Core::setWad(const Wad&wad){
+    setValidPhase(wad.phaseHigh);
+    comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, wad.globalVcsel);
+    comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, wad.algoPhase);
+    setPhasecalLimit(wad.phaseCal);
+  }
 
 ////////////////////////////////////////
 
@@ -998,7 +1011,7 @@ namespace VL53L0X {
       pwMult.square();
 
       /* (FixPoint3430 >> 14) = Fix1616 */
-      pwMult.shrunk(14);
+      pwMult.shrunk(14);//16 - 2 * what pwMult was shrunk by
 
       /* FixPoint1616 * uint32 = FixPoint1616 */
       FixPoint1616_t sqr1(pwMult.raw * sigmaEstimateP1.raw);
@@ -1248,31 +1261,19 @@ namespace VL53L0X {
 
     /* Apply specific settings for the requested clock period */
     if (isFinal) {
-      switch (VCSELPulsePeriodPCLK) {
+      //each quad is: {REG_FINAL_RANGE_CONFIG_VALID_PHASE_HIGH , (REG_FINAL_RANGE_CONFIG_VALID_PHASE_LOW=8),REG_GLOBAL_CONFIG_VCSEL_WIDTH,REG_ALGO_PHASECAL_CONFIG_TIMEOUT,REG_ALGO_PHASECAL_LIM}
+      switch (VCSELPulsePeriodPCLK) { //todo: code squeeze via function
         case 8:
-          setValidPhase(0x10);
-          comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x02);
-          comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x0C);
-          setPhasecalLimit(0x30);
+          setWad({0x10, 0x02, 0x0C,0x30 });
           break;
         case 10:
-          setValidPhase(0x28);
-          comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
-          comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x09);
-          setPhasecalLimit(0x20);
+          setWad({0x28,0x03, 0x09,0x20});
           break;
         case 12:
-          setValidPhase(0x38);
-          comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
-          comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x08);
-          setPhasecalLimit(0x20);
+          setWad({0x38, 0x03, 0x08,0x20});
           break;
         case 14:
-          setValidPhase(0x048);
-          comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, 0x03);
-          comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, 0x07);
-          setPhasecalLimit(0x20);
-          break;
+          setWad({0x048, 0x03, 0x07,0x20});
           break;
         default:
           break;
@@ -1329,10 +1330,8 @@ namespace VL53L0X {
     return set_measurement_timing_budget_micro_seconds(VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds));
   } // VL53L0X_set_vcsel_pulse_period
 
-  void Core::set_SequenceConfig(uint8_t packed, bool andCache) {
+  void Core::set_SequenceConfig(uint8_t packed) {
     comm.WrByte(REG_SYSTEM_SEQUENCE_CONFIG, packed);
-    if (andCache) {
-      PALDevDataSet(SequenceConfig, packed);
-    }
+    PALDevDataSet(SequenceConfig, packed);//only save if write doesn't fault?
   }
 } //end namespace

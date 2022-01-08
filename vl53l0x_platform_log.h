@@ -49,16 +49,17 @@ namespace VL53L0X {
 
 #if VL53L0X_LOG_ENABLE
 
+//legacy name
 #define LOG_FUNCTION_START  TRACE_ENTRY
 
-//todo: write to exception trace but don't throw:
-#define LOG_ERROR(errcode, ...) errcode
+//todo: pass in funcname/file/line and produce a stacktrace, but don't throw anything, then return false
+#define LOG_ERROR(errcode)  LocationStack::logTrace(errcode, __FUNCTION__, __FILE__, __LINE__)
 
 
 #else
 #define LOG_FUNCTION_START
 
-#define LOG_ERROR(errcode)  (errcode)
+#define LOG_ERROR(errcode, ...) false
 
 #endif
 

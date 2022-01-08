@@ -17,11 +17,54 @@ namespace VL53L0X {
    *
    * Adding a new process entails distributing its logic into the various phase handlers.
    * There is a base class MeasurementProcess which you should extend, allowing to bring the source for some of the phases into close proximity in the source code.
+   * //////////////////////////////////////////////////////////////////////////////////////////////////
+   * There are actions which are requested by processes, and processes are requested by the application.
+   * Multiple actions can be pending and they have a fixed priority.
+   * Only one process can be active.
+   *
+   * There are types of measurement, the differences are in SequenceConfig and Start bit written to the start register.
+   *
+   * arguments needed by the processes, and results of them are in a structure allocated on the agent.
+   * An agent is the application's interface to the background activities of the API.
    *
    * */
   class NonBlocking : public VL53L0X::Api {
 
   public:
+
+  enum OperatingMode {
+    //not operating
+    Powerdown=0,
+    /** app will request measurements when it wants one*/
+    OnDemand,
+    /** app wants a stream of values */
+    DataStream,
+    /** app sets up GPIO to be an "in range" indicator and then ignores it.*/
+    Proximity,
+  };
+
+/** actions that must complete before others are attempted */
+    enum ProcessRequest {
+      Idle          //STOPS any active process
+      , InitI2c     //400kHz and if more than one device reset pins and setAddress calls are made
+      , InitData    //includes tuning table and other settings that shouldn't need to change often
+      , InitStatic  //does SetupSpads, some tuning parameters
+      , SetupSpads  //part of init data but callable for debug of device
+      , CalVhvPhase //call when vcsel pulse width changes, and static init
+      , CalPhase    //call when vcsel pulse width changes, save and restore from nvm?
+      , Offset      //zero the distance readings
+      , CrossTalk   //remove effects of internal reflections and the like.
+      , RateTest   //use may wish to evaluate ambient light when evaluating sensor behavior
+      , Operate  //see operatingMode
+    };
+
+    enum ProcessResult {
+      Busy        //such a process is in progress
+      , Queued    //accepted, doesn't get initiated until the next loop() is called
+      , Active    //chugging along
+      , Succeeded //finished, data will have been delivered via pointers in ProcessArg
+      , Failed
+    };
 
     /** among other things determines the code that starts a measurement  */
     enum MeasurementAction : uint8_t {
@@ -34,42 +77,17 @@ namespace VL53L0X {
       , forOffset  //50 times
       , forXtalk   //50 times
     };
-
-/** actions that must complete before others are attempted */
-    enum ProcessRequest {
-      Idle
-      , InitI2c    //400kHz and if more than one device reset pins and setAddress calls are made
-      , InitData   //includes tuning table and other settings that shouldn't need to change often
-      , InitStatic //does SetupSpads, some tuning parameters
-      , SetupSpads //part of init data but callable for debug of device
-      , CalVhvPhase    // call when ??? staticinit
-      , CalPhase      //call when vcsel pulse width changes, save and restore from nvm?
-      , OneShot
-      , Continuous //references 'timed', will use non timed version for sample rate of 0
-      , RateTest   //use may wish to evaluate ambient light when deciding upon
-      , Offset
-      , CrossTalk
-    };
-
-    enum ProcessResult {
-      Busy        //such a process is in progress
-      , Queued    //accepted, doesn't get initiated until the next loop() is called
-      , Active    //chugging along
-      , Succeeded //finished, data will have been delivered via pointers in ProcessArg
-      , Failed
-    };
-
     /** data shared by background processing and the user application */
     struct ProcessArg {
-      /** when you have enough writes to the chip that you have to break them up into groups to not stall the whole program: */
-      uint8_t *tuningTable = nullptr;//todo: implement the "only byte writes" version.
+      //application parameters
+      OperatingMode operatingMode=Powerdown;
       /** sample interval for continuous measurement, 0 for untimed */
       unsigned sampleRate_ms = 0;
       /** hardware reset control. will be a 'virtual pin number' where values beyond the Arduino GPIO refer to other means of controlling the XSHUT pin */
       unsigned gpioPin = ~0;//~0 is clearly not a legitimate Arduino pin designation
       /** //for offset and xtalk calibrations, 0 may not be valid, suggested is 400mm */
       MilliMeter sampleDistance_mm {0};
-
+//responses to application
       /** diagnostic for who asked for the measurement, set when data is updated */
       MeasurementAction theLastMeasurement = Abandoned;
       //data targets
@@ -106,7 +124,7 @@ namespace VL53L0X {
     UserAgent &agent;
 
     /** intended for call from Arduino setup. will reset state as best we can. */
-    void setup();
+    void setup(OperatingMode mode);//or just set ProcessArgs.
 
     /** call this from your dispatcher, such as loop() in Arduino  or   while(1){WFE(); ... }*/
     void loop();
@@ -137,6 +155,7 @@ namespace VL53L0X {
 #else
 #define RQBIT(rq) bool rq
 #endif
+
     /** these are inspected when no activity is in progress, usually set by startProcess, cleared by the related process finishing */
     struct Requesting {
       RQBIT(vhv);   //periodically for drift compensation, powerup
@@ -149,10 +168,10 @@ namespace VL53L0X {
       RQBIT(resetSoft); //error recovery, powerup
       RQBIT(resetHard);//error recovery, powerup
       void clear() {
-        vhv=phase=rate=spads=range=staticInit=dataInit=resetSoft=resetHard=false;
+        vhv = phase = rate = spads = range = staticInit = dataInit = resetSoft = resetHard = false;
       }
 
-      Requesting(){ // NOLINT(cppcoreguidelines-pro-type-member-init)
+      Requesting() { // NOLINT(cppcoreguidelines-pro-type-member-init)
         clear();
       }
     } requesting;
@@ -167,12 +186,10 @@ namespace VL53L0X {
       bool nothing = true;//cleared by datainit, but could be set by static init
     } allowing;
 
-    ProcessRequest activeProcess = Idle;
-    MeasurementAction measurementInProgress = Abandoned;
-
     struct Waiting {
+      /** when there are enough writes to the chip that you have to break them up into groups to not stall the whole program: */
       const uint8_t *tuning = nullptr;         //tuning table (does items in tranches)
-      unsigned interruptClear = 0; //expect 3 lsbs of mask are zero, number of polls for timeout
+      unsigned interruptClear = 0; //(NYI, still inlined) expect 3 lsbs of mask are zero, number of polls for timeout
       unsigned forStop = 0;        //wait on stop complete,, number of polls for timeout
       unsigned onStart = 0;        //wait on start acknowledge (10 samples per call), number of polls for timeout
       unsigned onMeasurement = 0;  //wait on measurement data ready (check gpio or flag captured by ISR or poll device, 10 polls per call)
@@ -180,6 +197,7 @@ namespace VL53L0X {
       void abandonAll();
     } waiting;
 
+    uint8_t seqConfigCache=0;
     /** sets sequence config then issues a start */
     bool startMeasurement(MeasurementAction action);
 
@@ -208,13 +226,13 @@ namespace VL53L0X {
 
     protected:
       NonBlocking &nb;
-      uint8_t seqConfigCache;//for seq value
+
     protected:
       explicit MeasurementProcess(NonBlocking &dev);
     protected:
       /** overrides must call this, it caches seq config*/
       virtual bool begin() {
-        seqConfigCache = nb.PALDevDataGet(SequenceConfig);//in case we keep the PAL updated at all times, unlike what might have been a bug in the past
+        nb.seqConfigCache = nb.PALDevDataGet(SequenceConfig);//in case we keep the PAL updated at all times, unlike what might have been a bug in the past
         return true;
       }
 
@@ -228,21 +246,25 @@ namespace VL53L0X {
       bool bedone(bool failed) {
         /* restore the previous Sequence Config */
         //perhaps conditional on match of Get(SequenceConfig)
-        nb.set_SequenceConfig(seqConfigCache, true);
+        nb.set_SequenceConfig(nb.seqConfigCache);
         return failed;
       }
 
     public:
-
     };
 
+    ProcessRequest activeProcess = Idle;
+    /** object that is notified when data is ready */
+    MeasurementProcess *inProgress = nullptr;
+    MeasurementAction measurementInProgress = Abandoned;
+///////////////////////////////////////////////////////////////////////////////////////////////
     /** serves oneshot and continuous range requests */
-    class RangeProcess:public MeasurementProcess {
+    class RangeProcess : public MeasurementProcess {
     public:
       explicit RangeProcess(NonBlocking &dev);
     protected:
       bool onMeasurement(bool successful) override;
-    }theRangeProcess;
+    } theRangeProcess;
 
     /** common base for Xtalk and Offset process
      *
@@ -344,11 +366,12 @@ namespace VL53L0X {
       void startNext() override;
     } theRateProcess;
 
-    /** complicated bugger:
-     * it does the CalProcess for vhv and phase then it does a variable number rate measurements.
-     * From ST source code (with errors corrected):
+    /** Spad selection process: a complicated bugger:
+     * it does the CalProcess for vhv and phase then it does a variable number of rate measurements as it changes which spads are selected.
+     *
+     * From ST source code (with some errors corrected):
      * This initialization procedure determines the minimum amount of reference spads to be enables to achieve a target reference signal rate and should be performed once during initialization.
-     *  Either aperture or non-aperture spads are applied but never both.
+     * Either aperture or non-aperture spads are applied but never both.
      * Firstly non-aperture spads are set, beginning with minSpadCount spads, and increased one spad at a time until the closest measurement to the target rate is achieved.
      *
     * If the target rate is exceeded when minSpadCount non-aperture spads are enabled, initialization is performed instead with aperture spads.
@@ -357,14 +380,15 @@ namespace VL53L0X {
     *
     * This procedure operates within a SPAD window of interest of a maximum 44 spads (SpadArray::maxcount).
     * The start point is fixed to 180 (Api::startSelect), which lies towards the end of the non-aperture quadrant and runs in to the adjacent aperture quadrant.
+     * //end ST's comment
      *
      * From ST's actual code:
-     * try minimum nonapeture spads, if too great do the rest of the algorithm with aperture spads
+     * try minimum non-aperture spads, if too great do the rest of the algorithm with aperture spads
      * while too low add spads, if greater then compare excess to deficit of prior test to choose between the two.
      *
      * our code:
      * start with min + non
-     * if too great then if non switch to aper else compare to previous pick one and exit
+     * if too great then if non switch to aper else compare to previous, pick one of them and exit
      * else add one of the present type.
  */
 
@@ -386,9 +410,6 @@ namespace VL53L0X {
       bool onMeasurement(bool successful) override;
       bool precheck();
     } theSpadder;
-
-    /** object that is notified when data is ready */
-    MeasurementProcess *inProgress = nullptr;
 
   protected:
     //// state machine fragments:
@@ -417,8 +438,7 @@ namespace VL53L0X {
       return false;
     }
 
-    static
-    void assignAddresses(unsigned tableLength, Resetter *table) {
+    static void assignAddresses(unsigned tableLength, Resetter *table) {
       //todo: apply reset to all
       //todo: spin for minimum reset time
       while (tableLength-- > 0) {
