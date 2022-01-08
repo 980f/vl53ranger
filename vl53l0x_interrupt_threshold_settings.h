@@ -1,4 +1,5 @@
 /*******************************************************************************
+ * Copyright 2022 Andrew Heilveil (github/980f) via serious reformatting of file:
 Copyright 2016, STMicroelectronics International N.V.
 All rights reserved.
 
@@ -31,7 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #define _VL53L0X_INTERRUPT_THRESHOLD_SETTINGS_H_
 
-#include "vl53l0x_device.h" //for symbols
+#include "vl53l0x_device.h" //for symbols and DeviceByte type
 
 using namespace VL53L0X;
 const DeviceByte InterruptThresholdSettings[] = {
@@ -77,11 +78,12 @@ const DeviceByte InterruptThresholdSettings[] = {
   {0x78, 0x00}, {0x79, 0xA0}, {0x7A, 0x00}, {0x7B, 0x04},
 
   {Private_Pager, 0x04},
-  {0x79, 0x1D}, {0x7B, 0x27},
-
+  {0x79, 0x1D},
+  {0x7B, 0x27},
   {0x96, 0x0E}, {0x97, 0xFE}, {0x98, 0x03}, {0x99, 0xEF}, {0x9A, 0x02}, {0x9B, 0x44},
 
-  {0x73, 0x07}, {0x70, 0x01}, {Private_Pager, 0x01}, {0x00, 0x01},
+  {0x73, 0x07}, {0x70, 0x01},
+  {Private_Pager, 0x01}, {0x00, 0x01},
   {Private_Pager, 0x00}
 
   };

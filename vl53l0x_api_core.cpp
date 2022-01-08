@@ -98,8 +98,8 @@ namespace VL53L0X {
   } // VL53L0X_isqrt
 
   uint32_t quadrature_sum(uint32_t a, uint32_t b) {
-    static constexpr uint32_t toobig= 1<<(std::numeric_limits<decltype(a)>::digits/2);
-    if (a >=toobig || b >=toobig) {//then square overflows 32 bits
+    static constexpr uint32_t toobig = 1 << (std::numeric_limits<decltype(a)>::digits / 2);
+    if (a >= toobig || b >= toobig) {//then square overflows 32 bits
       return std::numeric_limits<uint16_t>::max();//sq root of max 32 bit sum of product.
     }
     //ick: the sum below can overflow, but that isn't checked
@@ -473,7 +473,7 @@ namespace VL53L0X {
     uint8_t phaseCal;
   };
 
-  void Core::setWad(const Wad&wad){
+  void Core::setWad(const Wad &wad) {
     setValidPhase(wad.phaseHigh);
     comm.WrByte(REG_GLOBAL_CONFIG_VCSEL_WIDTH, wad.globalVcsel);
     comm.WrByte(REG_ALGO_PHASECAL_CONFIG_TIMEOUT, wad.algoPhase);
@@ -633,7 +633,7 @@ namespace VL53L0X {
 
   bool Core::oneTuning(const uint8_t *&pTuningSettingBuffer) {
     uint8_t NumberOfWrites = *pTuningSettingBuffer++;
-    if(NumberOfWrites==0){
+    if (NumberOfWrites == 0) {
       return false;
     }
     if (NumberOfWrites == 0xFF) {
@@ -652,7 +652,7 @@ namespace VL53L0X {
           PALDevDataSet(targetRefRate, big16(pTuningSettingBuffer));
           return true;
         default: /* invalid parameter */
-        //todo: maybe THROW(something)
+          //todo: maybe THROW(something)
           return false;
       } // switch
     }
@@ -663,8 +663,8 @@ namespace VL53L0X {
       pTuningSettingBuffer += NumberOfWrites;
       return true;
     }
-      //todo: maybe THROW(something)
-      return false;
+    //todo: maybe THROW(something)
+    return false;
   }
 
   /**
@@ -674,7 +674,7 @@ namespace VL53L0X {
    * */
   unsigned int Core::load_tuning_settings(const uint8_t *pTuningSettingBuffer) {
     LOG_FUNCTION_START
-    unsigned checkcount=0;
+    unsigned checkcount = 0;
     while (oneTuning(pTuningSettingBuffer)) {
       ++checkcount;
     }
@@ -724,7 +724,7 @@ namespace VL53L0X {
 
     /* uint32 * FixPoint1616 = FixPoint1616 */
 
-    FixPoint1616_t SignalAt0mm  {dmaxCalRange_mm * dmaxCalSignalRateRtn_mcps.raw};
+    FixPoint1616_t SignalAt0mm {dmaxCalRange_mm * dmaxCalSignalRateRtn_mcps.raw};
 
     /* FixPoint1616 >> 8 = FixPoint2408 */
     SignalAt0mm.shrunk(8);
@@ -755,7 +755,7 @@ namespace VL53L0X {
 
     /* FixPoint1616 >> 16 =	 uint32  */
     minSignalNeeded_p2.shrunk();//integer value,
-     /* then  uint32 * uint32	=  uint32 */
+    /* then  uint32 * uint32	=  uint32 */
     minSignalNeeded_p2.square();
 
     /* Check sigmaEstimateP2
@@ -764,7 +764,7 @@ namespace VL53L0X {
      * a very small dmax.
      */
 
-    FixPoint1616_t sigmaEstP2Tmp( sigmaEstimateP2.rounded(), cAmbEffWidthSigmaEst_ns);
+    FixPoint1616_t sigmaEstP2Tmp(sigmaEstimateP2.rounded(), cAmbEffWidthSigmaEst_ns);
     sigmaEstP2Tmp.raw *= cAmbEffWidthDMax_ns;//todo: multiplyByRatio function. Can be given greater range than is easy to achieve inline.
 
     FixPoint1616_t minSignalNeeded_p3;
@@ -786,7 +786,7 @@ namespace VL53L0X {
     FixPoint1616_t sigmaLimitTmp {squared(roundedDivide(cSigmaLimit << 14, 1000))};
 
     /* FixPoint1616 * FixPoint1616 = FixPoint3232 */
-    FixPoint1616_t sigmaEstSqTmp  (cSigmaEstRef.squared());
+    FixPoint1616_t sigmaEstSqTmp(cSigmaEstRef.squared());
 
     /* FixPoint3232 >> 4 = FixPoint0428 */
     sigmaEstSqTmp = sigmaEstSqTmp.shrink(4);
@@ -795,13 +795,13 @@ namespace VL53L0X {
     sigmaLimitTmp.raw -= sigmaEstSqTmp.raw;
 
     /* uint32_t * FixPoint0428 = FixPoint0428 */
-    FixPoint1616_t minSignalNeeded_p4 (4 * 12 * sigmaLimitTmp.raw);
+    FixPoint1616_t minSignalNeeded_p4(4 * 12 * sigmaLimitTmp.raw);
 
     /* FixPoint0428 >> 14 = FixPoint1814 */
     minSignalNeeded_p4.shrunk(14);
 
     /* uint32 + uint32 = uint32 */
-    FixPoint1616_t minSignalNeeded (minSignalNeeded_p2 + minSignalNeeded_p3);
+    FixPoint1616_t minSignalNeeded(minSignalNeeded_p2 + minSignalNeeded_p3);
 
     /* uint32 / uint32 = uint32 */
     minSignalNeeded = roundedDivide(minSignalNeeded, peakVcselDuration_us);
@@ -825,13 +825,13 @@ namespace VL53L0X {
     minSignalNeeded = roundedDivide(minSignalNeeded, 1000);//BUG: perhaps 980F screwed this up? Rounding each division by 1000 to get to /1000,000 is wrong if rounded twice.
 
     /* FixPoint2408/FixPoint2408 = uint32 */
-    FixPoint1616_t dmaxAmbient  (isqrt(roundedDivide(SignalAt0mm.raw, minSignalNeeded.raw)));
+    FixPoint1616_t dmaxAmbient(isqrt(roundedDivide(SignalAt0mm.raw, minSignalNeeded.raw)));
 
     /* FixPoint1616 >> 8 = FixPoint2408 */
-    FixPoint1616_t signalLimitTmp  (cSignalLimit.shrink(8));
+    FixPoint1616_t signalLimitTmp(cSignalLimit.shrink(8));
 
     /* FixPoint2408/FixPoint2408 = uint32 */
-    FixPoint1616_t dmaxDark (isqrt(roundedDivide(SignalAt0mm.raw, signalLimitTmp.raw)));//former check for zero moved into roundedDivide
+    FixPoint1616_t dmaxDark(isqrt(roundedDivide(SignalAt0mm.raw, signalLimitTmp.raw)));//former check for zero moved into roundedDivide
 
     dmaxDark.lessen(dmaxAmbient);
     return dmaxDark.raw;
@@ -876,7 +876,7 @@ namespace VL53L0X {
      * We work in kcps rather than mcps as this helps keep within the confines of the 32bit Fix1616 type.
      */
 
-    FixPoint1616_t ambientRate_kcps (pRangingMeasurementData.AmbientRateRtnMegaCps.millis());//980f: now rounded instead of truncated
+    FixPoint1616_t ambientRate_kcps(pRangingMeasurementData.AmbientRateRtnMegaCps.millis());//980f: now rounded instead of truncated
 
     MegaCps correctedSignalRate_mcps = pRangingMeasurementData.SignalRateRtnMegaCps;
 
@@ -886,7 +886,7 @@ namespace VL53L0X {
       get_total_xtalk_rate(pRangingMeasurementData);
 
     /* Signal rate measurement provided by device is the peak signal rate, not average.  */
-    FixPoint1616_t peakSignalRate_kcps (totalSignalRate_mcps.millis());
+    FixPoint1616_t peakSignalRate_kcps(totalSignalRate_mcps.millis());
     uint32_t xTalkCompRate_kcps = std::min(xTalkCompRate_mcps.raw * 1000, cMaxXTalk_kcps.raw);
 
 
@@ -955,7 +955,7 @@ namespace VL53L0X {
        * (in ps).
        */
 
-      FixPoint1616_t sigmaEstimateP1  (cPulseEffectiveWidth_centi_ns);
+      FixPoint1616_t sigmaEstimateP1(cPulseEffectiveWidth_centi_ns);
 
       /* ((FixPoint1616 << 16)* uint32)/uint32 = FixPoint1616 */
       FixPoint1616_t sigmaEstimateP2(ambientRate_kcps.boosted(16), peakSignalRate_kcps.raw);
@@ -982,7 +982,7 @@ namespace VL53L0X {
       diff1_mcps.boosted(8);
 
       /* FixPoint0824/FixPoint1616 = FixPoint2408 */
-      FixPoint1616_t xTalkCorrection (abs(((long long) diff1_mcps.raw / diff2_mcps.raw)));//BUG: useless increase of precision, too late to matter.
+      FixPoint1616_t xTalkCorrection(abs(((long long) diff1_mcps.raw / diff2_mcps.raw)));//BUG: useless increase of precision, too late to matter.
 
       /* FixPoint2408 << 8 = FixPoint1616 */
       xTalkCorrection.boosted(8);
@@ -1018,7 +1018,7 @@ namespace VL53L0X {
       /* (FixPoint1616 >> 16) = FixPoint3200 */
       sqr1.shrunk(16);
 
-      FixPoint1616_t sqr2 (sigmaEstimateP2);
+      FixPoint1616_t sqr2(sigmaEstimateP2);
       /* (FixPoint1616 >> 16) = FixPoint3200 */
       sqr2.shrunk(16);
 
@@ -1052,7 +1052,7 @@ namespace VL53L0X {
       if ((peakSignalRate_kcps.raw < 1) || (vcselTotalEventsRtn < 1) || (sigmaEstimate.raw > cSigmaEstMax.raw)) {
         sigmaEstimate = cSigmaEstMax;
       }
-      pRangingMeasurementData.RangeDMaxMilliMeter =  calc_dmax(totalSignalRate_mcps, correctedSignalRate_mcps, pwMult, sigmaEstimateP1, sigmaEstimateP2, peakVcselDuration_us);
+      pRangingMeasurementData.RangeDMaxMilliMeter = calc_dmax(totalSignalRate_mcps, correctedSignalRate_mcps, pwMult, sigmaEstimateP1, sigmaEstimateP2, peakVcselDuration_us);
       PALDevDataSet(SigmaEstimate, sigmaEstimate);
       return sigmaEstimate;
     }
@@ -1264,16 +1264,16 @@ namespace VL53L0X {
       //each quad is: {REG_FINAL_RANGE_CONFIG_VALID_PHASE_HIGH , (REG_FINAL_RANGE_CONFIG_VALID_PHASE_LOW=8),REG_GLOBAL_CONFIG_VCSEL_WIDTH,REG_ALGO_PHASECAL_CONFIG_TIMEOUT,REG_ALGO_PHASECAL_LIM}
       switch (VCSELPulsePeriodPCLK) { //todo: code squeeze via function
         case 8:
-          setWad({0x10, 0x02, 0x0C,0x30 });
+          setWad({0x10, 0x02, 0x0C, 0x30});
           break;
         case 10:
-          setWad({0x28,0x03, 0x09,0x20});
+          setWad({0x28, 0x03, 0x09, 0x20});
           break;
         case 12:
-          setWad({0x38, 0x03, 0x08,0x20});
+          setWad({0x38, 0x03, 0x08, 0x20});
           break;
         case 14:
-          setWad({0x048, 0x03, 0x07,0x20});
+          setWad({0x048, 0x03, 0x07, 0x20});
           break;
         default:
           break;
@@ -1333,5 +1333,48 @@ namespace VL53L0X {
   void Core::set_SequenceConfig(uint8_t packed) {
     comm.WrByte(REG_SYSTEM_SEQUENCE_CONFIG, packed);
     PALDevDataSet(SequenceConfig, packed);//only save if write doesn't fault?
+  }
+
+  void Core::set_threshold(RegSystem index, FixPoint1616_t ThresholdLow) {
+    /* 32->16 also Need to divide by 2 because the FW will apply a x2*/
+    uint16_t Threshold16 = ThresholdLow.shrink(16 + 1) & Mask<11, 0>::places;
+    comm.WrWord(index, Threshold16);
+  }
+
+  FixPoint1616_t Core::get_threshold(RegSystem index) {
+    uint16_t Threshold12;
+    comm.RdWord(REG_SYSTEM_THRESH_LOW, &Threshold12);
+    /* 16->32 and Need to multiply by 2 because the FW will apply a x2 */
+    return {getBits<11, 0>(Threshold12), 1, 16 + 1};
+  }
+
+  void Core::SetInterruptThresholds(DeviceModes ignored, RangeWindow Threshold) {
+    LOG_FUNCTION_START
+    /* no dependency on DeviceMode for Ewok*/
+    set_threshold(REG_SYSTEM_THRESH_LOW, Threshold.Low);
+    set_threshold(REG_SYSTEM_THRESH_HIGH, Threshold.High);
+  } // VL53L0X_SetInterruptThresholds
+
+  Core::RangeWindow Core::GetInterruptThresholds(DeviceModes ignored) {
+    LOG_FUNCTION_START
+    /* no dependency on DeviceMode for Ewok */
+    RangeWindow pThreshold;
+    pThreshold.Low = get_threshold(REG_SYSTEM_THRESH_LOW);
+    pThreshold.High = get_threshold(REG_SYSTEM_THRESH_HIGH);
+    return pThreshold;
+  } // GetInterruptThresholds
+
+  bool Core::validThresholds() {
+    static const FixPoint1616_t BigEough(255.0F);//was 255 * 65536 which is the same as 255.0
+    switch (VL53L0X_GETDEVICESPECIFICPARAMETER(Pin0GpioFunctionality)) {
+      case GPIOFUNCTIONALITY_THRESHOLD_CROSSED_LOW:
+        return get_threshold(REG_SYSTEM_THRESH_LOW) > BigEough;
+      case GPIOFUNCTIONALITY_THRESHOLD_CROSSED_HIGH:
+        return get_threshold(REG_SYSTEM_THRESH_HIGH) > BigEough;
+      case GPIOFUNCTIONALITY_THRESHOLD_CROSSED_OUT:
+        return ((get_threshold(REG_SYSTEM_THRESH_LOW) > BigEough) || (get_threshold(REG_SYSTEM_THRESH_HIGH) > BigEough));
+      default:
+        return true;
+    }
   }
 } //end namespace

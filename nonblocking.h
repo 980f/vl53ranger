@@ -9,8 +9,8 @@
 
 namespace VL53L0X {
 
-  /** one instance for each sensor.
-   * sensor address management is outside the scope of this driver
+  /** make one instance for each sensor.
+   * sensor address management is outside the scope of this driver (except see Resetter in this file)
    *
    * This guy entails all of the various processes of ST's Api that took more than most of a millisecond.
    * It is a bit gnarly as each such process is decomposed into phases and there are subclasses in here that for each phase consider all the processes.
@@ -26,12 +26,13 @@ namespace VL53L0X {
    *
    * arguments needed by the processes, and results of them are in a structure allocated on the agent.
    * An agent is the application's interface to the background activities of the API.
-   *
+   * the background execution is in a member called loop() named for where to call it, not for what it does.
    * */
   class NonBlocking : public VL53L0X::Api {
 
   public:
 
+    /** intended use after initialization and calibration */
   enum OperatingMode {
     //not operating
     Powerdown=0,
@@ -46,7 +47,6 @@ namespace VL53L0X {
 /** actions that must complete before others are attempted */
     enum ProcessRequest {
       Idle          //STOPS any active process
-      , InitI2c     //400kHz and if more than one device reset pins and setAddress calls are made
       , InitData    //includes tuning table and other settings that shouldn't need to change often
       , InitStatic  //does SetupSpads, some tuning parameters
       , SetupSpads  //part of init data but callable for debug of device
@@ -58,36 +58,37 @@ namespace VL53L0X {
       , Operate  //see operatingMode
     };
 
+    /** notification of process progress. Busy only occurs when the application tries to poke the driver. */
     enum ProcessResult {
-      Busy        //such a process is in progress
-      , Queued    //accepted, doesn't get initiated until the next loop() is called
-      , Active    //chugging along
+      Busy        //such a process is already in progress, might enable sending with each measurement as a watchdog reset kind of thing or to allow progress reports
       , Succeeded //finished, data will have been delivered via pointers in ProcessArg
-      , Failed
+      , Failed    //finished, don't expect results although partial success might have altered state.
     };
 
-    /** among other things determines the code that starts a measurement  */
+    /** type of acquisition.
+     * among other things determines the code that starts a measurement  */
     enum MeasurementAction : uint8_t {
       Abandoned = 0   //for state machine reset.
       , forVHV   //vhv and phase
       , forPhase //
       , forRate     //rate requests, direct and spad setup
       , forRange  //prime use, user measurement (single or continuous)
-//      , forSpads  //part of StaticInit
-//      , forOffset  //50 times
-//      , forXtalk   //50 times
     };
+
     /** data shared by background processing and the user application */
     struct ProcessArg {
       //application parameters
       OperatingMode operatingMode=Powerdown;
       /** sample interval for continuous measurement, 0 for untimed */
       unsigned sampleRate_ms = 0;
+      /** for proximity mode */
+      RangeWindow proximity;
       /** hardware reset control. will be a 'virtual pin number' where values beyond the Arduino GPIO refer to other means of controlling the XSHUT pin */
       unsigned gpioPin = ~0;//~0 is clearly not a legitimate Arduino pin designation
       /** //for offset and xtalk calibrations, 0 may not be valid, suggested is 400mm */
       MilliMeter sampleDistance_mm {0};
-//responses to application
+      //////////////////////////////////////
+      //responses to application
       /** diagnostic for who asked for the measurement, set when data is updated */
       MeasurementAction theLastMeasurement = Abandoned;
       //data targets
@@ -104,14 +105,10 @@ namespace VL53L0X {
     public:
       ProcessArg arg;
 
-      /** called when data has been generated, or an error has occured while doing so.
+      /** called when data has been generated, or an error has occurred while doing so.
        * might send progress reports once we have enables for doing so.
        * */
       virtual void processEvent(ProcessRequest process, ProcessResult stage) {
-      };
-
-      /** called when something couldn't be handled. Expectation is report to user and a call to reset. Caught exceptions might be reported here, then a processEvent will be called. */
-      virtual void unexpected() {
       };
 
       /** called when we are waiting for a measurement and have been told to configure the VL53 signal and so on.*/
@@ -141,7 +138,7 @@ namespace VL53L0X {
     bool startProcess(ProcessRequest process);
 
 #if IncludeBlockers
-    /** initially run the old code */
+    /** initially run the old code as cleaned up by 980F, eventually will be rebuilt using nonblockngs pieces. */
     bool doBlocking(ProcessRequest process);
 #endif
 
@@ -176,7 +173,7 @@ namespace VL53L0X {
       }
     } requesting;
 
-    /** some state bits */
+    /** some state bits. todo: actually set and honor them all */
     struct Allowing {
       bool gpioAsReadyBit = false;//set when configured
       bool measurements = false;//set when inits are completed enough to invoke acquisition,
@@ -188,16 +185,21 @@ namespace VL53L0X {
 
     struct Waiting {
       /** when there are enough writes to the chip that you have to break them up into groups to not stall the whole program: */
-      const uint8_t *tuning = nullptr;         //tuning table (does items in tranches)
-      unsigned interruptClear = 0; //(NYI, still inlined) expect 3 lsbs of mask are zero, number of polls for timeout
-      unsigned forStop = 0;        //wait on stop complete,, number of polls for timeout
+      const uint8_t *tuning = nullptr;         //tuning table with terminator record (does items in tranches)
+      //uniform tuning table with count (does items in tranches)
+      struct CompactTable {
+        const DeviceByte *item = nullptr;
+        unsigned remaining=0;
+        bool operator()(NonBlocking &nb);
+      } compact;
+      unsigned forStop = 0;        //wait on stop complete, number of polls for timeout
       unsigned onStart = 0;        //wait on start acknowledge (10 samples per call), number of polls for timeout
       unsigned onMeasurement = 0;  //wait on measurement data ready (check gpio or flag captured by ISR or poll device, 10 polls per call)
       /** drop all expectations */
       void abandonAll();
     } waiting;
 
-    /** sets sequence config then issues a start */
+    /** sets sequence config and issues a start */
     bool startMeasurement(MeasurementAction action);
 
     /** signal failure on active task and clear all requests */
@@ -208,45 +210,38 @@ namespace VL53L0X {
     //placeholder for what to do when a wait on measurement complete is successful
     void doMeasurementComplete(bool successful);
 
-    void waitForMeasurement(unsigned loops = 250) {
-      waiting.onMeasurement = loops;
-      //if functional rather than virtual here is where we record the action to take on completion.
-    }
-
-    void waitForStop(unsigned loops = 250) {
-      waiting.forStop = loops;
-      //if functional rather than virtual here is where we record the action to take on completion.
-    }
-
-  protected:
+//    void waitForMeasurement(unsigned loops = 250) {
+//      waiting.onMeasurement = loops;
+//      //if functional rather than virtual here is where we record the action to take on completion.
+//    }
+//
+//    void waitForStop(unsigned loops = 250) {
+//      waiting.forStop = loops;
+//      //if functional rather than virtual here is where we record the action to take on completion.
+//    }
+//////////////////////////////////////////////////////////////////////
+  private: //results were moved into agent.arg instead of the related process class
 
     class MeasurementProcess {
       friend class NonBlocking;
 
     protected:
       NonBlocking &nb;
-
-    protected:
       explicit MeasurementProcess(NonBlocking &dev);
-    protected:
-      struct AcquisitionType {
-        uint8_t steps;
-        uint8_t startcode;
-      };
-      /** triggers what is presumed to be a single shot measurement (someone else must set DeviceMode before this gets called )*/
-      void startNext(AcquisitionType at);
+
       /** the non-blocking loop calls this when a measurement is ready.
       @return whether it has been deal with, ELSE the loop will abaondonAllTasks!
        */
       virtual void onMeasurement(bool successful);
-
-    public:
     };
 
     ProcessRequest activeProcess = Idle;
     /** object that is notified when data is ready */
     MeasurementProcess *inProgress = nullptr;
     MeasurementAction measurementInProgress = Abandoned;
+
+    void setProcess(ProcessRequest process);
+    bool endProcess(bool successful);
 ///////////////////////////////////////////////////////////////////////////////////////////////
     /** serves oneshot and continuous range requests */
     class RangeProcess : public MeasurementProcess {
@@ -256,7 +251,7 @@ namespace VL53L0X {
     protected:
       void onMeasurement(bool successful) override;
     } theRangeProcess;
-
+/////////////////////////////////////////////////////////////////////////////////////////////////
     /** common base for Xtalk and Offset process
      *
       * Perform 50 measurements and compute the averages
@@ -291,7 +286,7 @@ namespace VL53L0X {
       };
       virtual void begin();
     };
-
+///////////////////////////////////////////////////////////////////////////////////////
     /** makes a bunch of measurements then sets XTalkCompensationRateMegaCps.
      * usage:
      * place reflector at known distance
@@ -307,7 +302,7 @@ namespace VL53L0X {
       void alsoSum() override;
       bool finish(bool successful) override;
     } theXtalkProcess;
-
+//////////////////////////////////////////////////////////////////////////////////////////
     /** makes a bunch of measurements then sets offset.
      * usage:
      * place reflector at known distance
@@ -323,9 +318,8 @@ namespace VL53L0X {
       /** @returns whether to continue the process. if not then nb.lastError details why  */
       bool finish(bool successful) override;
     } theOffsetProcess;
-
-    /** vhv or phasecal
-     * */
+////////////////////////////////////////////////////////////////////////////////////////////////
+    /** vhv or phasecal */
     class CalProcess : public MeasurementProcess {
     public:
       explicit CalProcess(NonBlocking &dev);
@@ -336,7 +330,7 @@ namespace VL53L0X {
       /** @returns whether to continue the process. if not then nb.lastError details why  */
       void onMeasurement(bool successful) override;
     } theCalProcess;
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
     /** single measurement from which a reference signal rate is extracted */
     class RateProcess : public MeasurementProcess {
     public:
@@ -347,6 +341,7 @@ namespace VL53L0X {
       void onMeasurement(bool successful) override;
     } theRateProcess;
 
+////////////////////////////////////////////////////////////////////////////////////
     /** Spad selection process: a complicated bugger:
      * it does the CalProcess for vhv and phase then it does a variable number of rate measurements as it changes which spads are selected.
      *
@@ -400,10 +395,10 @@ namespace VL53L0X {
     //// state machine fragments:
     void endStaticInit();
     bool gpioReady();
-    void setProcess(ProcessRequest process);
-    bool endProcess(bool successful);
-  };
 
+    bool startStream();
+  };
+////////////////////////////////////////////////////////////////////////////////////
   /** NYI
    *
    * each sensor has to have some reset pin control, typically a GPIO pin but if dealing with 8 or more could be an spi register or an I2C expander.

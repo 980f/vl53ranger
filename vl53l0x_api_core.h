@@ -163,6 +163,49 @@ namespace VL53L0X {
       return collector;
     }
 
+    /** yet another handy tuple. May import a range class from other libraries,*/
+    struct RangeWindow {
+      FixPoint1616_t Low;
+      FixPoint1616_t High;
+    };
+
+    void set_threshold(RegSystem index, FixPoint1616_t ThresholdLow);
+    FixPoint1616_t get_threshold(RegSystem index);
+    /**
+    * @brief  Get high and low Interrupt thresholds for a given mode
+      *  (ranging, ALS, ...) for a given device
+    *
+    * @par Function Description
+      * Get high and low Interrupt thresholds for a given mode (ranging, ALS, ...)
+    * for a given device
+    *
+    * @note This function Access to the device
+    *
+    * @note DeviceMode is ignored for the current device
+    *
+    * @param   DeviceMode       ignored, arbitrary default added as most likely choice associated with feature.
+    * @return  pair of threshold values
+    */
+    RangeWindow GetInterruptThresholds(DeviceModes DeviceMode = DeviceModes::DEVICEMODE_CONTINUOUS_RANGING);
+
+/**
+ * @brief Set low and high Interrupt thresholds for a given mode
+ * (ranging, ALS, ...) for a given device
+ *
+ * @par Function Description
+ * Set low and high Interrupt thresholds for a given mode (ranging, ALS, ...)
+ *
+ * @note This function Access to the device
+ *
+ * @note DeviceMode is ignored for the current device
+ *
+ * @param   DeviceMode       ignored on present device
+ * @param   Threshold    Low and high for compare to undocumented value, presumably mm
+ */
+    void SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold);
+
+
+    ///////////////////////////////////////
     /**
      * An instance of this class ensures that a matching operation such as clearing a pause bit in the device occurs even when a procedure bails out early.
      * You may see otherwise extraneous {} surround code to control the timing of that second operation.
@@ -408,6 +451,7 @@ namespace VL53L0X {
     }
 
     bool oneTuning(const uint8_t *&pTuningSettingBuffer);
+    bool validThresholds();
   };
 }//end namespace
 #endif /* _VL53L0X_API_CORE_H_ */

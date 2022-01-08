@@ -1172,44 +1172,6 @@ namespace VL53L0X {
  */
     GpioConfiguration GetGpioConfig(uint8_t Pin = 0);
 
-    /** yet another handy tuple. May import a range class from other libraries,*/
-    struct RangeWindow {
-      FixPoint1616_t Low;
-      FixPoint1616_t High;
-    };
-
-/**
- * @brief Set low and high Interrupt thresholds for a given mode
- * (ranging, ALS, ...) for a given device
- *
- * @par Function Description
- * Set low and high Interrupt thresholds for a given mode (ranging, ALS, ...)
- *
- * @note This function Access to the device
- *
- * @note DeviceMode is ignored for the current device
- *
- * @param   DeviceMode       ignored on present device
- * @param   Threshold    Low and high for compare to undocumented value, presumably mm
- */
-    void SetInterruptThresholds(DeviceModes DeviceMode, RangeWindow Threshold);
-
-/**
- * @brief  Get high and low Interrupt thresholds for a given mode
- *  (ranging, ALS, ...) for a given device
- *
- * @par Function Description
- * Get high and low Interrupt thresholds for a given mode (ranging, ALS, ...)
- * for a given device
- *
- * @note This function Access to the device
- *
- * @note DeviceMode is ignored for the current device
- *
- * @param   DeviceMode       ignored, arbitrary default added as most likely choice associated with feature.
- * @return  pair of threshold values
- */
-    RangeWindow GetInterruptThresholds(DeviceModes DeviceMode = DeviceModes::DEVICEMODE_CONTINUOUS_RANGING);
 
 /**
  * @brief Return device stop completion status
@@ -1421,8 +1383,6 @@ namespace VL53L0X {
     uint16_t perform_ref_signal_measurement(uint16_t iffails);
     bool perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance);
 
-    void set_threshold(RegSystem index, FixPoint1616_t ThresholdLow);
-    FixPoint1616_t get_threshold(RegSystem index);
     bool set_reference_spads(SpadCount ref);
     bool perform_phase_calibration(bool restore_config);
     void SetGpioOsc();

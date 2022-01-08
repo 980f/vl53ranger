@@ -24,26 +24,20 @@ VL53Ranger::VL53Ranger() noexcept: NonBlocking(static_cast<NonBlocking::UserAgen
 void VL53Ranger::processEvent(NonBlocking::ProcessRequest process, NonBlocking::ProcessResult stage) {
   switch (process) {
     case Operate: //receives measurements
-    switch(stage){
-
-      case Busy:
-        break;
-      case Queued:
-        break;
-      case Active:
-        break;
-      case Succeeded: {
+      switch (stage) {
+        case Busy:
+          break;
+        case Succeeded: {
           auto distance = agent.arg.theRangingMeasurementData.Range.distance();
         }
-        break;
-      case Failed:
-        break;
-    }
+          break;
+        case Failed:
+          break;
+      }
       break;
     case Idle: //acknowledges pwower down et al.
       break;
-    case InitI2c://unnecessary
-      break;
+
     case InitStatic://unnecessary or start operating
       break;
     case InitData:

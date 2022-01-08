@@ -40,7 +40,7 @@ namespace VL53L0X {
   const int16_t cOffsetMask = Mask<11, 0>::places; //bit field 11=>0
   const int16_t cOffsetMax = cOffsetMask >> 1;//max positive value of 12 bits
   const int16_t cOffsetMin = -(cOffsetMask + 1);//most negative value
-
+#if IncludeBlockers
   bool Api::perform_xtalk_calibration(FixPoint1616_t XTalkCalDistance) {
     TRACE_ENTRY
     SetXTalkCompensationEnable(false);
@@ -110,6 +110,7 @@ namespace VL53L0X {
     return true;
   } // VL53L0X_perform_xtalk_calibration
 
+
   bool Api::perform_offset_calibration(FixPoint1616_t CalDistanceMilliMeter) {
     SetOffsetCalibrationDataMicroMeter(0);
     /* Get the value of the TCC */
@@ -156,6 +157,7 @@ namespace VL53L0X {
     }
     return true;
   } // VL53L0X_perform_offset_calibration
+#endif
 
   void Api::set_offset_calibration_data_micro_meter(int32_t OffsetCalibrationDataMicroMeter) {
 //BUG:    const int32_t cMaxOffsetMicroMeter = 511000;//effectively 2044 rather than 2047 for max positive value.
@@ -239,6 +241,8 @@ namespace VL53L0X {
     return (spadArray == checkSpadArray) ;
   } // enable_ref_spads
 
+#if IncludeBlockers
+
   uint16_t Api::perform_ref_signal_measurement(uint16_t iffails) {
 /*This function performs a reference signal rate measurement.    */
     SeqConfigStacker popper(*this, true, Mask<7, 6>::places);
@@ -250,6 +254,7 @@ namespace VL53L0X {
     }
     return FFread<uint16_t>(REG_RESULT_PEAK_SIGNAL_RATE_REF);
   } // perform_ref_signal_measurement
+#endif
 
 
   bool Api::set_reference_spads(SpadCount ref) {

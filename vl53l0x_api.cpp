@@ -998,34 +998,6 @@ namespace VL53L0X {
   } // GetGpioConfig
 
 
-  void Api::set_threshold(RegSystem index, FixPoint1616_t ThresholdLow) {
-    /* 32->16 also Need to divide by 2 because the FW will apply a x2*/
-    uint16_t Threshold16 = ThresholdLow.shrink(16+1) & Mask<11, 0>::places;
-    comm.WrWord(index, Threshold16);
-  }
-
-  FixPoint1616_t Api::get_threshold(RegSystem index) {
-    uint16_t Threshold12;
-    comm.RdWord(REG_SYSTEM_THRESH_LOW, &Threshold12);
-    /* 16->32 and Need to multiply by 2 because the FW will apply a x2 */
-    return {getBits<11, 0>(Threshold12) , 1,16+1};
-  }
-
-  void Api::SetInterruptThresholds(DeviceModes ignored, RangeWindow Threshold) {
-    LOG_FUNCTION_START
-    /* no dependency on DeviceMode for Ewok*/
-    set_threshold(REG_SYSTEM_THRESH_LOW, Threshold.Low);
-    set_threshold(REG_SYSTEM_THRESH_HIGH, Threshold.High);
-  } // VL53L0X_SetInterruptThresholds
-
-  Api::RangeWindow Api::GetInterruptThresholds(DeviceModes ignored) {
-    LOG_FUNCTION_START
-    /* no dependency on DeviceMode for Ewok */
-    RangeWindow pThreshold;
-    pThreshold.Low = get_threshold(REG_SYSTEM_THRESH_LOW);
-    pThreshold.High = get_threshold(REG_SYSTEM_THRESH_HIGH);
-    return pThreshold;
-  } // GetInterruptThresholds
 
   uint8_t Api::GetStopCompletedStatus() {
     LOG_FUNCTION_START
