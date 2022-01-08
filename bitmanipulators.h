@@ -65,7 +65,7 @@ template<unsigned bitnum, typename Intish> constexpr void setBit(Intish &data, b
  * e.g. for bits 6..3 0x78   Mask<6,3>::places
  * for masking after shifting field to line up lsb use Mask<4,3>::shifted  which will be 0x03
  * */
-template<unsigned msbit, unsigned lsbit> struct Mask {
+template<unsigned msbit, unsigned lsbit=msbit> struct Mask {
   static_assert(msbit >= lsbit, "operand order is msbit,lsbit ");//require ordered to simplify the code
   //by using unsigned we don't need to check for negatives
   enum {

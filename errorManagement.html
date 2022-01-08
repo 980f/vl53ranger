@@ -398,6 +398,15 @@
     &nbsp;&nbsp;&nbsp; send 0<br>
     &nbsp;&nbsp;&nbsp; read<br>
     &nbsp;&nbsp;&nbsp; done of bits&lt;2,0&gt; are all zero.<br>
-    return success
+    return success<br>
+    <br>
+    <hr>New Feature Proposal for ST:<br>
+    Have GPIO set for open collector mode with pullup.<br>
+    On transition to low begin a single ranging measurement and <br>
+    drive it low until measurement is ready.<br>
+    <br>
+    This allows for a signal external to the host processor to precisely trigger a measurement, and to have the VL53L report complete for the host to then collect the value.<br>
+    <br>
+    It would be nice if instead of a true OC mode if the VL53L were to active drive high before releasing the line.<br>
   </body>
 </html>

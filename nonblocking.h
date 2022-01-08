@@ -72,10 +72,10 @@ namespace VL53L0X {
       , forVHV   //vhv and phase
       , forPhase //
       , forRate     //rate requests, direct and spad setup
-      , forSpads  //part of StaticInit
       , forRange  //prime use, user measurement (single or continuous)
-      , forOffset  //50 times
-      , forXtalk   //50 times
+//      , forSpads  //part of StaticInit
+//      , forOffset  //50 times
+//      , forXtalk   //50 times
     };
     /** data shared by background processing and the user application */
     struct ProcessArg {
@@ -135,7 +135,7 @@ namespace VL53L0X {
        * request is not accepted if
        * - any is in progress that is not abandonable
        * - system is not initialized
-       *
+       * - any per process requirement not met such as realistic sample distance for xtalk and offset measurements
        * TBD: processEvent(process, reasonForFailure) may be called before this returns false.
        * */
     bool startProcess(ProcessRequest process);
@@ -161,7 +161,7 @@ namespace VL53L0X {
       RQBIT(vhv);   //periodically for drift compensation, powerup
       RQBIT(phase); //periodically for drift compensation, powerup
       RQBIT(rate);  //spad, diagnostics,
-      RQBIT(spads); //powerup, diagnostics
+      RQBIT(spads); //request process
       RQBIT(range); //oneshot, sticks on for continuous, xtalk, offset
       RQBIT(staticInit);//error recovery, powerup
       RQBIT(dataInit);  //error recovery, powerup
@@ -197,7 +197,6 @@ namespace VL53L0X {
       void abandonAll();
     } waiting;
 
-    uint8_t seqConfigCache=0;
     /** sets sequence config then issues a start */
     bool startMeasurement(MeasurementAction action);
 
@@ -230,25 +229,16 @@ namespace VL53L0X {
     protected:
       explicit MeasurementProcess(NonBlocking &dev);
     protected:
-      /** overrides must call this, it caches seq config*/
-      virtual bool begin() {
-        nb.seqConfigCache = nb.PALDevDataGet(SequenceConfig);//in case we keep the PAL updated at all times, unlike what might have been a bug in the past
-        return true;
-      }
-
+      struct AcquisitionType {
+        uint8_t steps;
+        uint8_t startcode;
+      };
       /** triggers what is presumed to be a single shot measurement (someone else must set DeviceMode before this gets called )*/
-      virtual void startNext();
+      void startNext(AcquisitionType at);
       /** the non-blocking loop calls this when a measurement is ready.
       @return whether it has been deal with, ELSE the loop will abaondonAllTasks!
        */
-      virtual bool onMeasurement(bool successful);
-
-      bool bedone(bool failed) {
-        /* restore the previous Sequence Config */
-        //perhaps conditional on match of Get(SequenceConfig)
-        nb.set_SequenceConfig(nb.seqConfigCache);
-        return failed;
-      }
+      virtual void onMeasurement(bool successful);
 
     public:
     };
@@ -261,9 +251,10 @@ namespace VL53L0X {
     /** serves oneshot and continuous range requests */
     class RangeProcess : public MeasurementProcess {
     public:
+      uint8_t sequenceConfig;//it is not clear how this gets set, apparently applications directly do so.
       explicit RangeProcess(NonBlocking &dev);
     protected:
-      bool onMeasurement(bool successful) override;
+      void onMeasurement(bool successful) override;
     } theRangeProcess;
 
     /** common base for Xtalk and Offset process
@@ -288,21 +279,17 @@ namespace VL53L0X {
       explicit AveragingProcess(NonBlocking &dev) : MeasurementProcess(dev) {
       }
 
-      /** overrides must call this */
-      bool begin() override;
-      /** begin and onmeasurement will call this, it must start a measurement */
-      void startNext() override = 0;
-      /** implements receiving measurement,  calls averaging stuff then finish of last measurement */
-      bool onMeasurement(bool successful) override;
+      void onMeasurement(bool successful) override;
 
       /** @returns whether to continue the process. if not then nb.lastError details why  */
       virtual void alsoSum() {
       }
 
       /** overrides called when last measurement has been summed into dataset */
-      virtual bool finish(bool passthru) {
-        return passthru;
+      virtual bool finish(bool successful) {
+        return successful;
       };
+      virtual void begin();
     };
 
     /** makes a bunch of measurements then sets XTalkCompensationRateMegaCps.
@@ -316,8 +303,7 @@ namespace VL53L0X {
       unsigned sum_spads = 0;//... which we will tolerate only on processors whose natural int is 16 bits
     public:
       explicit XtalkProcess(NonBlocking &dev);
-      bool begin() override;
-      void startNext() override;
+      void begin() override;
       void alsoSum() override;
       bool finish(bool successful) override;
     } theXtalkProcess;
@@ -333,10 +319,9 @@ namespace VL53L0X {
     private:
       bool SequenceStepWasEnabled = false;
     public:
-      bool begin() override;
+      void begin() override;
       /** @returns whether to continue the process. if not then nb.lastError details why  */
       bool finish(bool successful) override;
-      void startNext() override;
     } theOffsetProcess;
 
     /** vhv or phasecal
@@ -348,10 +333,8 @@ namespace VL53L0X {
       bool doingVhv = false;//which of two measurements
 
     public:
-      bool begin() override;
       /** @returns whether to continue the process. if not then nb.lastError details why  */
-      bool onMeasurement(bool successful) override;
-      void startNext() override;
+      void onMeasurement(bool successful) override;
     } theCalProcess;
 
     /** single measurement from which a reference signal rate is extracted */
@@ -360,10 +343,8 @@ namespace VL53L0X {
       explicit RateProcess(NonBlocking &dev);
     private:
     public:
-      bool begin() override;
       /** @returns whether to continue the process. if not then nb.lastError details why  */
-      bool onMeasurement(bool successful) override;
-      void startNext() override;
+      void onMeasurement(bool successful) override;
     } theRateProcess;
 
     /** Spad selection process: a complicated bugger:
@@ -401,13 +382,17 @@ namespace VL53L0X {
       /** send spad settings to device, read back and report on whether the settings stuck */
       bool setAndCheck();
 
-      bool refreshCalibration();
+      /** handles vhv/phase cal measurements*/
+      void refreshCalibration();
+      /** handles rate measurements*/
       bool forEachMeasurement();
+      /** cleanup after spads determined */
       bool laststage();
 
     public:
       explicit SpadSetupProcess(NonBlocking &dev);
-      bool onMeasurement(bool successful) override;
+      void onMeasurement(bool successful) override;
+      /** does pre first measurement stuff, which might fail */
       bool precheck();
     } theSpadder;
 
@@ -416,6 +401,7 @@ namespace VL53L0X {
     void endStaticInit();
     bool gpioReady();
     void setProcess(ProcessRequest process);
+    bool endProcess(bool successful);
   };
 
   /** NYI

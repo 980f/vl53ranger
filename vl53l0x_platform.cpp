@@ -92,7 +92,10 @@ namespace VL53L0X {
   }
 
 //ick: below is a parameter that must be tuned per platform, but is buried deep in the source:
+#ifndef VL53L0X_POLLINGDELAY_LOOPNB
 #define VL53L0X_POLLINGDELAY_LOOPNB 250
+#endif
+
   void Dev_t::PollingDelay() {
     for (volatile unsigned i = VL53L0X_POLLINGDELAY_LOOPNB; i-- > 0;) {
       // Do nothing, except keep compiler from dropping loop due to no side-effects!

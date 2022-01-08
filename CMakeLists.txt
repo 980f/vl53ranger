@@ -53,6 +53,7 @@ SET(platform
   /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/USB/PluggableUSB.cpp
   /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/USB/SAMD21_USBDevice.cpp
   /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/USB/USBCore.cpp
+  /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/cores/arduino/SERCOM.cpp
   )
 
 SET(adafruit
