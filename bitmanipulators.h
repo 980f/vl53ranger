@@ -80,10 +80,9 @@ template<unsigned msbit, unsigned lsbit = msbit, unsigned outof = msbit + 1> str
   //we use unsigned as very few of the numbers are signed and the math really does not depend upon signedness
   using RawType = typename Unsigned<outof>::type;
   enum : RawType {
-    width = msbit - lsbit + 1
-    ,    //check: needs to be 1 when msbit==lsbit
-    shifted = ~(~0U << width)
-    ,  //check: should be 1 == 1<<0 when msbit==lsbit, width =1 1<<1 = 2, -1 = 1, check should be -1 when msbit=numbits in type-1, and lsbit=0
+    width = msbit - lsbit + 1 , //check: needs to be 1 when msbit==lsbit
+    //the casting for 'shifted' is needed as no matter what I do the compiler reinterprets the data as a signed int in its computations for enums.
+    shifted = RawType(~(RawType(~0U) << width)) ,  //check: should be 1 == 1<<0 when msbit==lsbit, width =1 1<<1 = 2, -1 = 1, check should be -1 when msbit=numbits in type-1, and lsbit=0
     places = shifted << lsbit // suitable for field insertion mask
   };
 };

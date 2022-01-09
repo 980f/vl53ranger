@@ -1267,4 +1267,6 @@ namespace VL53L0X {
     return get_reference_spads();
   }
 
+  Api::Api(Arg &&args) : Core(std::forward<Arg &&>(args)) {
+  }
 }//end namespace

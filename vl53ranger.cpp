@@ -80,7 +80,7 @@ bool VL53Ranger::configSensor(SensorConfiguration vl_config) {
 //        Serial.println("  SENSE_LONG_RANGE");
           SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.1});
           SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 60.0});
-          SetMeasurementTimingBudgetMicroSeconds(33 * 1000);
+          SetMeasurementTimingBudgetMicroSeconds(33000);
           SetVcselPulsePeriod(VCSEL_PERIOD_PRE_RANGE, 18);
           SetVcselPulsePeriod(VCSEL_PERIOD_FINAL_RANGE, 14);
           startProcess(CalVhvPhase, millis());//
@@ -89,14 +89,14 @@ bool VL53Ranger::configSensor(SensorConfiguration vl_config) {
           // Serial.println("  SENSE_HIGH_SPEED");
           SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.25});
           SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 32.0});
-          SetMeasurementTimingBudgetMicroSeconds(30 * 1000);
+          SetMeasurementTimingBudgetMicroSeconds(30000);
 
           break;
         case SENSE_HIGH_ACCURACY:
           // increase timing budget to 200 ms
           SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.25});
           SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 18.0});
-          SetMeasurementTimingBudgetMicroSeconds(200 * 1000);
+          SetMeasurementTimingBudgetMicroSeconds(200000);
           SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
           break;
       }

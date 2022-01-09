@@ -77,7 +77,7 @@ namespace VL53L0X {
      */
 
     uint32_t res = 0;
-    uint32_t bit = 1 << 30;
+    uint32_t bit = Bitter<uint32_t>(30); //AVR needed some help
     /* The second-to-top bit is set:
      *	1 << 14 for 16-bits, 1 << 30 for 32 bits */
 
@@ -103,7 +103,7 @@ namespace VL53L0X {
   } // VL53L0X_isqrt
 
   uint32_t quadrature_sum(uint32_t a, uint32_t b) {
-    static constexpr uint32_t toobig = 1 << (std::numeric_limits<decltype(a)>::digits / 2);
+    static constexpr uint32_t toobig = Bitter<uint32_t>(std::numeric_limits<decltype(a)>::digits / 2);
     if (a >= toobig || b >= toobig) {//then square overflows 32 bits
       return std::numeric_limits<uint16_t>::max();//sq root of max 32 bit sum of product is 16 bits
     }
@@ -983,8 +983,8 @@ namespace VL53L0X {
       diff1_mcps.boosted(8);
 
       /* FixPoint0824/FixPoint1616 = FixPoint2408 */
-      FixPoint1616_t xTalkCorrection(abs(((long long) diff1_mcps.raw / diff2_mcps.raw)));//BUG: useless increase of precision, too late to matter.
-
+//      FixPoint1616_t xTalkCorrection(abs(((long long) diff1_mcps.raw / diff2_mcps.raw)));//BUG: useless increase of precision, too late to matter. //BUG: abs() drops critical information 
+      FixPoint1616_t xTalkCorrection(-diff1_mcps, diff2_mcps,0);//abs() replaced with negative, the application of the number doesn't allow for its sign to vary.
       /* FixPoint2408 << 8 = FixPoint1616 */
       xTalkCorrection.boosted(8);
 

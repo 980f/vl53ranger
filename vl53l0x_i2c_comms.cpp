@@ -14,6 +14,7 @@
 #if __has_include (<utility>)
 #include <utility> //forward
 #else
+#include "forward.h"
 #endif
 
 static TwoWire * const Wires[]={

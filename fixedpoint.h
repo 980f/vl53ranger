@@ -32,7 +32,7 @@ template<typename Intish> Intish squared(Intish num) {
    @note: divide by zero returns ZERO  due to frequency of ternaries doing that in first project to use this code.
    If you  don't like that then add  ,IntishOver dvz=0 */
 template<typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom) {
-  return (denom != 0) ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
+  return denom ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
 }
 
 /** @returns value divided by 2^ @param powerof2 rounded rather than truncated*/
@@ -91,9 +91,9 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   
   using RawType = typename Unsigned<size>::type; //we use unsigned as very few of the numbers are signed and the math really does not depend upon signedness
   enum {
-     mask = Mask<fract-1, 0>::places   //to extract fraction bits from lsbs
-    , unity = Bitter<RawType>(fract) //equals 1.0F
-    , half = Bitter<RawType>(fract - 1)  // 0.5
+    mask = Mask<fract-1, 0, size>::places,   //to extract fraction bits from lsbs
+    unity = Bitter<RawType>(fract), //equals 1.0F
+    half = Bitter<RawType>(fract - 1)  // 0.5
     
   };
 
@@ -153,7 +153,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   template<typename IntishUp, typename IntishDown> constexpr FixPoint(IntishUp num, IntishDown denom, unsigned boostit = fract) {
     raw = num;//expand to 32 bits asap.
     boosted(boostit);
-    if (denom != 1) {//do not round if denom is 1, which would only make a difference if boostit != fract
+    if (denom != IntishDown(1)) {//do not round if denom is 1, which would only make a difference if boostit != fract
       divideby(denom);
     }
   }
