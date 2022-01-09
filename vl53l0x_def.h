@@ -331,7 +331,7 @@ namespace VL53L0X {
 
   struct DeviceSpecificParameters_t {
     FixPoint1616_t OscFrequencyMHz; /* Frequency used */
-
+    /** 3 of the sequence steps share a common timeout: */
     uint16_t LastEncodedTimeout = 0;/* last encoded Time out used for timing budget*/
 
     GpioFunctionality Pin0GpioFunctionality = GPIOFUNCTIONALITY_OFF;/* store the functionality of the GPIO: pin0 */

@@ -67,6 +67,49 @@ bool VL53Ranger::gpioSignal() {
 
 /////////////////////////////
 
+bool VL53Ranger::configSensor(SensorConfiguration vl_config) {
+  // Serial.print(F("VL53L0X: configSensor "));
+  // Serial.println((int)vl_config, DEC);
+  // Enable/Disable Sigma and Signal check
+  TRY {
+      switch (vl_config) {
+        case SENSE_DEFAULT:
+          SetLimitCheck(CHECKENABLE_RANGE_IGNORE_THRESHOLD, {true, 1.5 * 0.023});
+          break;
+        case SENSE_LONG_RANGE:
+//        Serial.println("  SENSE_LONG_RANGE");
+          SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.1});
+          SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 60.0});
+          SetMeasurementTimingBudgetMicroSeconds(33 * 1000);
+          SetVcselPulsePeriod(VCSEL_PERIOD_PRE_RANGE, 18);
+          SetVcselPulsePeriod(VCSEL_PERIOD_FINAL_RANGE, 14);
+          startProcess(CalVhvPhase);//
+          break;
+        case SENSE_HIGH_SPEED:
+          // Serial.println("  SENSE_HIGH_SPEED");
+          SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.25});
+          SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 32.0});
+          SetMeasurementTimingBudgetMicroSeconds(30 * 1000);
+
+          break;
+        case SENSE_HIGH_ACCURACY:
+          // increase timing budget to 200 ms
+          SetLimitCheck(CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, {true, 0.25});
+          SetLimitCheck(CHECKENABLE_SIGMA_FINAL_RANGE, {true, 18.0});
+          SetMeasurementTimingBudgetMicroSeconds(200 * 1000);
+          SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
+          break;
+      }
+      return true;
+    UNCAUGHT
+      return false;
+  }
+
+}
+
+/////////////////////////////
+
+#include "Arduino.h"
 
 void setup() {
   api.agent.arg.sampleRate_ms = 33;// a leisurely rate. Since it is nonzero continuous measurement will be initiated when the device is capable of it
@@ -77,7 +120,7 @@ void setup() {
 
 void loop() {
   //check UI for continuous on/off/powerdown
-  api.loop();
+  api.loop(millis());
 }
 
 ///

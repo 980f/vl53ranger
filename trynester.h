@@ -8,7 +8,6 @@
  * One could complexify the class by registering destructors with it, but then you should probably not be disabling exceptions, this module is intended for resource limited microcontrollers.
  *
  * The LocationStack is an attempt at getting better info on the cause of an exception.
- * todo: a trace element from the exact point of throw, present it is just of the try block
  * */
 
 #ifndef TRYNESTER_H
@@ -143,7 +142,7 @@ public:
    * @return @param throwcode !=0 as a convenience for a migration from another system's error logging call */
   static bool logTrace(int throwcode, const char *function, const char *file, unsigned line) {
     if (logger) {
-      //todo: a list of "errors worth tracing" could be checked here, IE filter out trivial/convenience throws.
+      //todo:m a list of "errors worth tracing" could be checked here, IE filter out trivial/convenience throws.
       LocationStack::Element tracer(function, file, line);
       tracer.reportOnExit = true;//always trace this guy
       LocationStack convenientrick(tracer);//puts this blocks tracer on top of stack

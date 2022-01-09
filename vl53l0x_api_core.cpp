@@ -250,8 +250,8 @@ namespace VL53L0X {
         VL53L0X_SETDEVICESPECIFICPARAMETER(SignalRateMeasFixed400mm, SignalRateMeasFixed400mmFix);
         int32_t OffsetMicroMeters(0);//BUG: was int16, truncating too soon
         if (DistMeasFixed1104_400_mm != 0) {
-          int32_t OffsetFixed1104_mm = static_cast<int32_t>(DistMeasFixed1104_400_mm - DistMeasTgtFixed1104_mm);//was uint32_t despite being an intrinsically signed value. swap operands and we can use unsigned again.
-          OffsetMicroMeters = -roundedScale((OffsetFixed1104_mm * 1000), 4);
+          auto OffsetFixed1104_mm = static_cast<int32_t>(DistMeasTgtFixed1104_mm-DistMeasFixed1104_400_mm) ;//was uint32_t despite being an intrinsically signed value. swapped operands to remove sign from following line
+          OffsetMicroMeters = roundedScale((OffsetFixed1104_mm * 1000), 4);
         }
         PALDevDataSet(Part2PartOffsetAdjustmentNVMMicroMeter, OffsetMicroMeters);
       }
@@ -407,8 +407,6 @@ namespace VL53L0X {
         auto MsrcEncodedTimeOut = saturated<uint8_t>(MsrcRangeTimeOutMClks - 1);
         VL53L0X_SETDEVICESPECIFICPARAMETER(LastEncodedTimeout, MsrcEncodedTimeOut);
         comm.WrByte(REG_MSRC_CONFIG_TIMEOUT_MACROP, MsrcEncodedTimeOut);
-        VL53L0X_SETDEVICESPECIFICPARAMETER(LastEncodedTimeout, MsrcEncodedTimeOut);
-        //todo: check original code, IDE scrambled this a bit.
       }
         break;
       case SEQUENCESTEP_PRE_RANGE: {
@@ -442,10 +440,8 @@ namespace VL53L0X {
           auto FinalRangeTimeOutMClks = calc_timeout_mclks(TimeOutMicroSecs, (uint8_t) CurrentVCSELPulsePeriodPClk);
           FinalRangeTimeOutMClks += PreRangeTimeOutMClks;
           auto FinalRangeEncodedTimeOut = encode_timeout(FinalRangeTimeOutMClks);
-
-          comm.WrWord(0x71, FinalRangeEncodedTimeOut);
+          comm.WrWord(REG_FINAL_RANGE_CONFIG_TIMEOUT_MACROP_HI, FinalRangeEncodedTimeOut);
           VL53L0X_SETDEVICESPECIFICPARAMETER(FinalRange.TimeoutMicroSecs, TimeOutMicroSecs);
-
           return true;
         }
       }
@@ -617,7 +613,7 @@ namespace VL53L0X {
 
     if (SchedulerSequenceSteps.FinalRangeOn) {
       auto FinalRangeTimeoutMicroSeconds = get_sequence_step_timeout(SEQUENCESTEP_FINAL_RANGE);
-      measurementTimingBudgetMicroSeconds += (FinalRangeTimeoutMicroSeconds + FinalRangeOverheadMicroSeconds);
+      measurementTimingBudgetMicroSeconds += FinalRangeTimeoutMicroSeconds + FinalRangeOverheadMicroSeconds;
     }
     VL53L0X_SETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds, measurementTimingBudgetMicroSeconds);
     return measurementTimingBudgetMicroSeconds;

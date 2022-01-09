@@ -90,6 +90,10 @@ template<typename Intish> constexpr void ensure(Intish &value, Intish min) {
   }
 }
 
+/** ceil(num/denom) */
+template<typename IntishOver, typename IntishUnder> IntishOver binsRequired(IntishOver num, IntishUnder denom) {
+  return (num+denom-1)/denom;
+}
 
 /** use where fractional values are expected
  * Formerly the gyrations in here were explicitly repeated in very many places, each having to be checked for rogue tile error.

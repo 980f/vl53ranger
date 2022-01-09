@@ -115,6 +115,7 @@ namespace VL53L0X {
       virtual bool gpioSignal() {
         return false;//user override use arg.gpioPin to report on the hardware signal from the VL53
       }
+
     };
 
     /** a mixin' set at construction time: */
@@ -124,7 +125,7 @@ namespace VL53L0X {
     void setup(OperatingMode mode);//or just set ProcessArgs.
 
     /** call this from your dispatcher, such as loop() in Arduino  or   while(1){WFE(); ... }*/
-    void loop();
+    void loop(uint32_t millisecondClock);
 
     /** user sets process parameters in their UserAgent.arg structure then calls this method.
        *
@@ -176,7 +177,7 @@ namespace VL53L0X {
       }
     } requesting;
 
-    /** some state bits. todo: actually set and honor them all */
+    /** some state bits. todo:1 actually set and honor them all */
     struct Allowing {
       bool gpioAsReadyBit = false;//set when configured
       bool measurements = false;//set when inits are completed enough to invoke acquisition,
@@ -205,7 +206,7 @@ namespace VL53L0X {
     } waiting;
 
     /** sets sequence config and issues a start */
-    bool startMeasurement(MeasurementAction action);
+    bool startMeasurement(NonBlocking::MeasurementAction action, uint32_t now);
 
     /** signal failure on active task and clear all requests */
     void abandonTasks();
@@ -392,7 +393,9 @@ namespace VL53L0X {
     void endStaticInit();
     bool gpioReady();
 
-    bool startStream();
+    bool startStream(uint32_t now);
+    /** max time a measurement might take */
+    uint32_t measurementTime();
   };
 ////////////////////////////////////////////////////////////////////////////////////
   /** NYI

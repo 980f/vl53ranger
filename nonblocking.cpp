@@ -58,6 +58,7 @@ void NonBlocking::endStaticInit() {
   initRanger(VCSEL_PERIOD_PRE_RANGE, SEQUENCESTEP_PRE_RANGE, VL53L0X_GETDEVICESPECIFICPARAMETER(PreRange));
   initRanger(VCSEL_PERIOD_FINAL_RANGE, SEQUENCESTEP_FINAL_RANGE, VL53L0X_GETDEVICESPECIFICPARAMETER(FinalRange));
   PALDevDataSet(PalState, STATE_IDLE);
+  PALDevDataSet(PowerMode, POWERMODE_IDLE_LEVEL1);
   requesting.staticInit = false;
   startProcess(SetupSpads);
   //todo: what if SetupSpads fails to start?
@@ -70,16 +71,16 @@ void NonBlocking::endStaticInit() {
  * measurement requests
  * process steps that need measurements
  * */
-void NonBlocking::loop() {
+void NonBlocking::loop(uint32_t millisecondClock) {
   if (allowing.nothing) {
     return;
   }
   if (requesting.resetHard) {
-    //todo: resetter not yet implemented
+    //todo:0 resetter not yet implemented
     requesting.resetSoft = true;
   }
   if (requesting.resetSoft) {
-    //todo: implement this
+    //todo:0 implement this
     requesting.dataInit = true;
   }
   TRY {
@@ -100,7 +101,7 @@ void NonBlocking::loop() {
           return;
         }
       }
-      if(waiting.compact(*this)){// known user: thresholds for Proximity mode
+      if (waiting.compact(*this)) {// known user: thresholds for Proximity mode
         return;
       }
       //- if we are asked to init data and similar actions then we need to abandon all unrelated tasks
@@ -126,15 +127,14 @@ void NonBlocking::loop() {
         }
       }
       /////////////////////////////////
-      if (waiting.onMeasurement) { //todo: replace this counter with a timer,
+      if (waiting.onMeasurement) {
         if (allowing.gpioAsReadyBit ? gpioReady() : GetMeasurementDataReady()) {
           waiting.onMeasurement = 0;
           doMeasurementComplete(true);
-        } else {
-          if (--waiting.onMeasurement == 0) {
-            //todo: log timeout error
-            doMeasurementComplete(false);//will abandon process and tasks
-          }
+        } else if (waiting.onMeasurement < millisecondClock) {
+          waiting.onMeasurement = 0;
+          //todo: log timeout error
+          doMeasurementComplete(false);//will abandon process and tasks
         }
       }
       ///the doMeasurementComplete(true) call often sets requesting.someflag, we wish to review them asap.
@@ -157,7 +157,7 @@ void NonBlocking::loop() {
           //wtf!
           inProgress = &theRateProcess;//to avert NPE's
         }
-        startMeasurement(forRate);
+        startMeasurement(forRate, millisecondClock);
         return;
       }
 
@@ -166,7 +166,7 @@ void NonBlocking::loop() {
           //wtf if not OneShot or Continuous
           inProgress = &theRangeProcess;
         }
-        startMeasurement(forRange);
+        startMeasurement(forRange, millisecondClock);
         return;
       }
 
@@ -175,7 +175,7 @@ void NonBlocking::loop() {
           theCalProcess.doingVhv = take(requesting.vhv);
           inProgress = &theCalProcess;
         }
-        startMeasurement(theCalProcess.doingVhv ? forVHV : forPhase);
+        startMeasurement(theCalProcess.doingVhv ? forVHV : forPhase, millisecondClock);
         if (!theCalProcess.doingVhv) {
           requesting.phase = false;
         }
@@ -205,35 +205,32 @@ void NonBlocking::loop() {
           //recognize continuous measurement
           break;
         case STATE_ERROR: //should reset? no code instances of it being set
-        //wtf
+          //wtf
           break;
         case STATE_UNKNOWN: //sw developer error
-        //wtf
+          //wtf
           break;
       }
-
-      //todo: if action request act on it:
+      //end of loop normal code
     CATCH(ERROR_MODE_NOT_SUPPORTED:
           case ERROR_GPIO_FUNCTIONALITY_NOT_SUPPORTED :
           case ERROR_GPIO_NOT_EXISTING :
           case ERROR_INVALID_PARAMS)
-      //todo: report developer errors
+      //todo:1 report developer errors
       abandonTasks();
     CATCH(ERROR_CONTROL_INTERFACE)
       requesting.resetHard = true;//because we don't know how far we got, at a minimum we need a soft reset
       abandonTasks();
     UNCAUGHT
-      abandonTasks();
-      //todo: any stored exit routines that apply
       //todo: debug print the error code.
-      //// end catches
-      ////////////////////////////
+      abandonTasks();
   }
   //you get here both on TRY and if you don't return inside any CATCH or the UNCAUGHT clauses
 }
 
 void NonBlocking::onStopComplete(bool b) {
-  //todo: notify stopped
+  allowing.measurements=true;
+  allowing.ranging=true;
 }
 
 void NonBlocking::doMeasurementComplete(bool successful) {
@@ -244,6 +241,10 @@ void NonBlocking::doMeasurementComplete(bool successful) {
     GetRangingMeasurementData(agent.arg.theRangingMeasurementData);
     agent.arg.theLastMeasurement = take(measurementInProgress);//record user and acknowledge data copied
     agent.arg.peakSignal = GetMeasurementRefSignal();//GetRangingMeasurementData stores this value on the device rather than the associated measurement.
+    //todo: only if vhv, phase, single ranging, adafruit on any range
+    ClearInterruptMask(0);
+    //todo: only if vhv, phase, but not single ranging,
+    comm.WrByte(REG_SYSRANGE_START, 0x00);
   }
   if (inProgress) {
     inProgress->onMeasurement(successful);
@@ -252,46 +253,44 @@ void NonBlocking::doMeasurementComplete(bool successful) {
   }
 }
 
-bool NonBlocking::startStream(){
+bool NonBlocking::startStream(uint32_t now) {
   allowing.gpioAsReadyBit = SetGpioConfig(0, {GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
-
-  if (agent.arg.sampleRate_ms > 0) {//maydo: check if time looks like microseconds
-    if(!SetMeasurementTimingBudgetMicroSeconds(agent.arg.sampleRate_ms * 1000)){
+  bool timed = agent.arg.sampleRate_ms > 0;
+  if (timed) {//maydo: check if time looks like microseconds
+    if (!SetMeasurementTimingBudgetMicroSeconds(agent.arg.sampleRate_ms * 1000)) {
       return false;
     }
-    SetDeviceMode(DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
-  } else {
-    SetDeviceMode(DeviceModes::DEVICEMODE_CONTINUOUS_RANGING);
   }
+  SetDeviceMode(timed ? DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING : DeviceModes::DEVICEMODE_CONTINUOUS_RANGING);
 
   if (PALDevDataGet(SequenceConfig) != theRangeProcess.sequenceConfig) {//legacy does this before the stop, might be better after
     set_SequenceConfig(theRangeProcess.sequenceConfig);
   }
   magicStop();
 
-  comm.WrByte(REG_SYSRANGE_START, REG_SYSRANGE_MODE_BACKTOBACK);
+  comm.WrByte(REG_SYSRANGE_START, timed ? REG_SYSRANGE_MODE_TIMED : REG_SYSRANGE_MODE_BACKTOBACK);
   measurementInProgress = forRange;
-  waiting.onMeasurement = VL53L0X_DEFAULT_MAX_LOOP;//todo: convert measurement time into a loop count or make this a time!
+  waiting.onMeasurement =now+ measurementTime();
   return true;
 }
 
-bool NonBlocking::startMeasurement(NonBlocking::MeasurementAction action) {
+bool NonBlocking::startMeasurement(NonBlocking::MeasurementAction action, uint32_t now) {
   //default standard range measurement
-    uint8_t steps{theRangeProcess.sequenceConfig};
-    uint8_t startcode{ REG_SYSRANGE_MODE_START_STOP};
+  uint8_t steps {theRangeProcess.sequenceConfig};
+  uint8_t startcode {REG_SYSRANGE_MODE_START_STOP};
   switch (action) {
     case Abandoned:
       return false;
     case forVHV:
-      steps = Mask<6>::places;
-      startcode = Mask<0>::places;//REG_SYSRANGE_MODE_START_STOP
+      steps = 1;
+      setBit<6>(startcode, true);
       break;
     case forPhase:
-      steps = 0;
-      startcode = Mask<1>::places;
+      steps = 2;
+      //default start
       break;
     case forRate:
-      steps = Mask<7, 6>::places;
+      steps = Mask<7, 6>::places;//0xC0
       //default start
       break;
     case forRange:
@@ -307,7 +306,7 @@ bool NonBlocking::startMeasurement(NonBlocking::MeasurementAction action) {
   //single shot, continuous mode done elsewhere
   waiting.onStart = VL53L0X_DEFAULT_MAX_LOOP;//legacy, need to tune per platform or convert to uSec and wait on a timer.
   measurementInProgress = action;
-  waiting.onMeasurement = VL53L0X_DEFAULT_MAX_LOOP;//todo: convert measurement time into a loop count or make this a time!
+  waiting.onMeasurement=now+ measurementTime();
   return true;
 }
 
@@ -419,9 +418,11 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
 
     case Operate: {
       switch (agent.arg.operatingMode) {
-
         case Powerdown:
-          //todo: power down stuff
+          comm.WrByte(0x80, 0x00);
+          /* Set PAL State to standby */
+          PALDevDataSet(PalState, STATE_STANDBY);
+          PALDevDataSet(PowerMode, POWERMODE_STANDBY_LEVEL1);
           break;
         case OnDemand:
           if (allowing.ranging) {
@@ -435,14 +436,14 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
           if (!allowing.ranging) {
             return endProcess(false); //not ready to start
           }
-          SetInterruptThresholds(DEVICEMODE_CONTINUOUS_RANGING,agent.arg.proximity);//mode is ignored
-          if(!validThresholds()){
+          SetInterruptThresholds(DEVICEMODE_CONTINUOUS_RANGING, agent.arg.proximity);//mode is ignored
+          if (!validThresholds()) {
             return endProcess(false);//compares won't work properly
           }
-          waiting.compact= {InterruptThresholdSettings, SizeofInterruptThresholdSettings};
+          waiting.compact = {InterruptThresholdSettings, SizeofInterruptThresholdSettings};
           [[fallthrough]];
         case DataStream:
-          return startStream();
+          return startStream(0);
       }
     }
   }
@@ -481,7 +482,7 @@ bool NonBlocking::doBlocking(ProcessRequest process) {
           return PerformSingleRangingMeasurement(agent.arg.theRangingMeasurementData);
         case DataStream:
         case Proximity:
-          //todo: apply proximity window
+          //todo:1 apply proximity window
           if (agent.arg.sampleRate_ms > 0) {
             SetMeasurementTimingBudgetMicroSeconds(agent.arg.sampleRate_ms * 1000);
             SetDeviceMode(DeviceModes::DEVICEMODE_CONTINUOUS_TIMED_RANGING);
@@ -493,7 +494,7 @@ bool NonBlocking::doBlocking(ProcessRequest process) {
       }
       break;
     case RateTest:
-      //todo: was this available in api?
+      //todo:1 was this available in api?
       break;
     case Offset:
       return PerformOffsetCalibration(agent.arg.sampleDistance_mm);
@@ -524,7 +525,12 @@ bool NonBlocking::endProcess(bool successful) {
 
 bool NonBlocking::update() {
   agent.processEvent(activeProcess, waiting.forSomething() ? Busy : Succeeded);
-  return inProgress!= nullptr;
+  return inProgress != nullptr;
+}
+
+uint32_t NonBlocking::measurementTime() {
+  //this implementation trust that someone has after any change which affected measurment called the get..microseconds
+  return binsRequired(VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds),1000);
 }
 
 #endif
@@ -540,7 +546,7 @@ void NonBlocking::AveragingProcess::begin() {
   total_count = 0;
 
   measurementRemaining = 50;
-  nb.requesting.range= true;
+  nb.requesting.range = true;
 }
 
 void NonBlocking::AveragingProcess::onMeasurement(bool successful) {
@@ -555,7 +561,7 @@ void NonBlocking::AveragingProcess::onMeasurement(bool successful) {
     ++total_count;
     alsoSum();
     if (--measurementRemaining > 0) {
-      nb.startMeasurement(forRange);//perhaps just set request bit?
+      nb.requesting.range= true;
       return;
     }
     /* no valid values found */
@@ -566,7 +572,7 @@ void NonBlocking::AveragingProcess::onMeasurement(bool successful) {
     nb.endProcess(finish(true));
   } else {
     if (--measurementRemaining > 0) {
-      nb.startMeasurement(forRange);//perhaps just set request bit?
+      nb.requesting.range=true;
       return;
     }
     nb.endProcess(finish(false));
@@ -587,7 +593,7 @@ void NonBlocking::XtalkProcess::alsoSum() {
 }
 
 bool NonBlocking::XtalkProcess::finish(bool successful) {
-  if(!successful){
+  if (!successful) {
     //no special cleanup needed
     return false;
   }
@@ -608,7 +614,7 @@ bool NonBlocking::XtalkProcess::finish(bool successful) {
   /* Round Cal Distance to Whole Number.
    * Note that the cal distance is in mm, therefore no resolution is lost.*/
   unsigned CalDistanceAsInt = CalDistanceMilliMeter.rounded();
-  MegaCps XTalkCompensationRateMegaCps={0.0F};
+  MegaCps XTalkCompensationRateMegaCps = {0.0F};
 
   if (StoredMeanRtnSpadsAsInt != 0 && CalDistanceAsInt != 0 && StoredMeanRange < CalDistanceMilliMeter) {
     /* Apply division by mean spad count early in the calculation to keep the numbers small.
@@ -675,7 +681,7 @@ bool NonBlocking::OffsetProcess::finish(bool passthru) {
 void NonBlocking::CalProcess::onMeasurement(bool successful) {
   if (successful) {
     if (take(doingVhv)) {
-      nb.startMeasurement(forPhase);
+      nb.requesting.phase=true;
     } else {
       nb.agent.arg.refCal = nb.get_ref_calibration();
       nb.endProcess(true);
@@ -709,20 +715,21 @@ NonBlocking::MeasurementProcess::MeasurementProcess(NonBlocking &dev) : nb(dev) 
 void NonBlocking::Waiting::abandonAll() {
   *this = {};//sometimes C++ is wonderful. This sets all fields to their constructor defaults.
 }
-bool NonBlocking::Waiting::forSomething()const {
-  if(tuning){
+
+bool NonBlocking::Waiting::forSomething() const {
+  if (tuning) {
     return true;
   }
-  if(compact.remaining){
+  if (compact.remaining) {
     return true;
   }
-  if(onMeasurement){
+  if (onMeasurement) {
     return true;
   }
-  if(onStart){
+  if (onStart) {
     return true;
   }
-  if(forStop){
+  if (forStop) {
     return false;//todo: review ignoring waiting for stop.
   }
   return false;
@@ -743,7 +750,7 @@ bool NonBlocking::SpadSetupProcess::forEachMeasurement() {
       /* Signal rate still too high after setting the minimum number of APERTURE spads.
          * Can do no more therefore set the min number of aperture spads as the result. */
       sc = {minimumSpadCount, true};//undo changes done by enable_ref_spads
-      //todo: ensure laststage reports success
+      //todo:00 ensure laststage reports success
       return laststage();//save and exit
     }
 
@@ -756,7 +763,6 @@ bool NonBlocking::SpadSetupProcess::forEachMeasurement() {
         nb.requesting.rate = true;
         return true;
       }
-      //todo: process failure
       return false;//attempt to set fewer spads failed
     }
     //we decide whether our "one past" here is better or worse than last below
@@ -782,19 +788,18 @@ bool NonBlocking::SpadSetupProcess::forEachMeasurement() {
         nb.requesting.rate = true;
         return true;
       } else {
-        return false;//todo signal failure
+        return false;
       }
     } else {
-      //todo: signal failure
       return false;
     }
   }
 }
 
 bool NonBlocking::SpadSetupProcess::laststage() {
-//todo: report process success
   nb.VL53L0X_SETDEVICESPECIFICPARAMETER(RefSpadsInitialised, true);
   nb.VL53L0X_SETDEVICESPECIFICPARAMETER(ReferenceSpad, sc);
+  nb.endProcess(true);
   return true;
 }
 
@@ -859,6 +864,7 @@ bool NonBlocking::SpadSetupProcess::setAndCheck() {
   /* Compare spad maps. If not equal report error. */
   return scanner.spadArray != checkSpadArray;
 }
+
 ////////////////////////////////////////////////////////
 NonBlocking::RangeProcess::RangeProcess(NonBlocking &dev) : MeasurementProcess(dev) {
 }
@@ -871,13 +877,14 @@ void NonBlocking::RangeProcess::onMeasurement(bool successful) {
   }
   MeasurementProcess::onMeasurement(successful);
 }
+
 /////////////////////////////////////////////////////////////////
 bool NonBlocking::Waiting::CompactTable::operator()(NonBlocking &nb) {
-  unsigned qty= std::min(remaining,10U);
-  if(qty>0) {
+  unsigned qty = std::min(remaining, 10U);
+  if (qty > 0) {
     nb.load_compact(item, qty);
     item += qty;
     remaining -= qty;
   }
-  return remaining>0;
+  return remaining > 0;
 }
