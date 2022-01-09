@@ -26,8 +26,6 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************/
 
-//#include "vl53l0x_api_calibration.h"
-//still somewhat tangled but at least we can kill this part since apparently the layer violation was to get time tracing:  #include "vl53l0x_api.h"
 #include "vl53l0x_api.h" //private members of the class, split across files due to size of files.
 
 #include "vl53l0x_platform_log.h"

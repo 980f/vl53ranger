@@ -32,6 +32,10 @@
 
 #include "vl53l0x_platform.h" //for Dev_t
 
+#ifdef AVR
+#include "forward.h"
+#endif
+
 namespace VL53L0X {
   //some device independent functions:
   uint8_t encode_vcsel_period(uint8_t vcsel_period_pclks);

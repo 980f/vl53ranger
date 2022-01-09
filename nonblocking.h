@@ -136,7 +136,7 @@ namespace VL53L0X {
        * - any per process requirement not met such as realistic sample distance for xtalk and offset measurements
        * TBD: processEvent(process, reasonForFailure) may be called before this returns false.
        * */
-    bool startProcess(ProcessRequest process);
+    bool startProcess(NonBlocking::ProcessRequest process, uint32_t now);
 
     /** make driver call the agent with some status info */
     bool update();

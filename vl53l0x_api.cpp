@@ -146,7 +146,7 @@ namespace VL53L0X {
   State Api::GetPalState() {
     return PALDevDataGet(PalState);
   }
-
+#if IncludeBlockers
   bool Api::SetPowerMode(PowerModes PowerMode) {
     LOG_FUNCTION_START
 
@@ -168,6 +168,7 @@ namespace VL53L0X {
       return true;
     }
   } // VL53L0X_SetPowerMode
+#endif
 
   PowerModes Api::GetPowerMode() {
     LOG_FUNCTION_START
@@ -1151,7 +1152,7 @@ namespace VL53L0X {
 
       SpadArray lastSpadArray = Data.SpadData.enables;
 
-      uint32_t lastSignalRateDiff = abs(peakSignalRateRef - targetRefRate);
+      uint32_t lastSignalRateDiff =  targetRefRate-peakSignalRateRef ;
       bool complete = false;
       while (!complete) {
         SpadArray::Index nextGoodSpad = Data.SpadData.goodones.nextSet(currentSpadIndex);
@@ -1173,9 +1174,9 @@ namespace VL53L0X {
         if (peakSignalRateRef == 0) {
           return false;
         }
-        uint32_t signalRateDiff = abs(peakSignalRateRef - targetRefRate);
-
+        
         if (peakSignalRateRef > targetRefRate) { /* Select the spad map that provides the measurement closest to the target rate, either above or below it. */
+          uint32_t signalRateDiff = peakSignalRateRef - targetRefRate;
           if (signalRateDiff > lastSignalRateDiff) { /* Previous spad map produced a closer measurement, so choose this. */
             set_ref_spad_map(lastSpadArray);
             Data.SpadData.enables = lastSpadArray;
@@ -1183,7 +1184,7 @@ namespace VL53L0X {
           }
           complete = true;
         } else { /* Continue to add spads */
-          lastSignalRateDiff = signalRateDiff;
+          lastSignalRateDiff =  targetRefRate-peakSignalRateRef ;
           lastSpadArray = Data.SpadData.enables;
         }
       } /* while */

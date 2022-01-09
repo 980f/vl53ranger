@@ -45,9 +45,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * unsigned 8/16/32 bits basic types. \n If stddef.h is not available review and
  * adapt NULL definition .
  */
+
+#if __has_include(<cstdint>)
+#include <cstdint>  //uint8_t in a few places
+#else
+#include "stdint.h"
+#endif
+
+#if __has_include(<cstddef>)
 #include <cstddef>
-#include <cstdint>
+#else
+#include "stddef.h"
+#endif
+
+#if __has_include(<cmath>)
 #include <cmath>
+#else
+#include "math.h"
+#endif
 
 #ifndef NULL
 #error "Error NULL definition should be done. Please add required include "

@@ -26,9 +26,14 @@ Copyright 2021 Andy Heilveil, github/980F via mutation of source
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************/
-
+#if __has_include (<cstring>)
 #include <cstring>  //strcpy
 #include <algorithm> //min
+#else
+#include "string.h"
+#include "numlimits.h"
+#include "minmax.h"
+#endif
 
 #include "vl53l0x_api_core.h"
 
@@ -100,7 +105,7 @@ namespace VL53L0X {
   uint32_t quadrature_sum(uint32_t a, uint32_t b) {
     static constexpr uint32_t toobig = 1 << (std::numeric_limits<decltype(a)>::digits / 2);
     if (a >= toobig || b >= toobig) {//then square overflows 32 bits
-      return std::numeric_limits<uint16_t>::max();//sq root of max 32 bit sum of product.
+      return std::numeric_limits<uint16_t>::max();//sq root of max 32 bit sum of product is 16 bits
     }
     //ick: the sum below can overflow, but that isn't checked
     return isqrt(squared(a) + squared(b));

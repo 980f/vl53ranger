@@ -13,7 +13,11 @@
 #ifndef TRYNESTER_H
 #define TRYNESTER_H
 
+#if __has_include(<csetjmp>)
 #include <csetjmp>
+#else
+#include "setjmp.h"
+#endif
 
 #pragma ide diagnostic ignored "cert-err52-cpp"   //this file exists to manage lomgjmp when exceptions are too expensive to use.
 

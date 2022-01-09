@@ -6,7 +6,7 @@
 
 #include "nonblocking.h"
 
-class VL53Ranger : public VL53L0X::NonBlocking, VL53L0X::NonBlocking::UserAgent{
+class VL53Ranger : public VL53L0X::NonBlocking, public VL53L0X::NonBlocking::UserAgent{
 public:
   VL53Ranger() noexcept;
 

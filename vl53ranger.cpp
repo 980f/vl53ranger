@@ -1,7 +1,7 @@
 /** Example of application for using VST VL53L0x device
  * Copyright 2022 by Andrew Heilveil (github/980f)
 */
-
+#include <Arduino.h>
 #include "nonblocking.h" // the driver
 #include "vl53ranger.h"  // this basic demo application
 #include "vl53l0x_platform_log.h"
@@ -83,7 +83,7 @@ bool VL53Ranger::configSensor(SensorConfiguration vl_config) {
           SetMeasurementTimingBudgetMicroSeconds(33 * 1000);
           SetVcselPulsePeriod(VCSEL_PERIOD_PRE_RANGE, 18);
           SetVcselPulsePeriod(VCSEL_PERIOD_FINAL_RANGE, 14);
-          startProcess(CalVhvPhase);//
+          startProcess(CalVhvPhase, millis());//
           break;
         case SENSE_HIGH_SPEED:
           // Serial.println("  SENSE_HIGH_SPEED");
@@ -105,31 +105,4 @@ bool VL53Ranger::configSensor(SensorConfiguration vl_config) {
       return false;
   }
 
-}
-
-/////////////////////////////
-
-#include "Arduino.h"
-
-void setup() {
-  api.agent.arg.sampleRate_ms = 33;// a leisurely rate. Since it is nonzero continuous measurement will be initiated when the device is capable of it
-  api.agent.arg.gpioPin = 3;//todo: #define near top of file/class
-  VL53L0X::initLogging(); //api doesn't know how logging is configured
-  api.setup(NonBlocking::DataStream);//stream data.
-}
-
-void loop() {
-  //check UI for continuous on/off/powerdown
-  api.loop(millis());
-}
-
-///
-//pretend to be an Arduino for testing compilation.
-#pragma ide diagnostic ignored "EndlessLoop"
-
-int main() {
-  setup();
-  while (true) {
-    loop();
-  }
 }

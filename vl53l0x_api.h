@@ -42,9 +42,7 @@ namespace VL53L0X {
   public:
     /** once the comm member of the Physical interface is given an abstract interface we can build one and pass it in here instead of passing in its constructor args.
      * before that we can make a macro for the arg list so that we don't have to change it at the three levels ...*/
-    explicit Api(Arg &&args) : Core(std::forward<Arg>(args)) {
-      //do nothing so that we may static construct.
-    }
+    explicit Api(Arg &&args);
 
 /** @defgroup cut11_group VL53L0X cut1.1 Function Definition
  *  @brief    VL53L0X cut1.1 Function Definition

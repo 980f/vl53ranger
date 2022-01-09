@@ -5,7 +5,11 @@
 
 #include "nonblocking.h"
 #include "trynester.h"
-#include "algorithm"
+#if __has_include (<algorithm>)
+#include <algorithm>
+#else
+#include "minmax.h"
+#endif
 #include "vl53l0x_interrupt_threshold_settings.h"
 
 //from safely/cppext lib:
@@ -60,7 +64,7 @@ void NonBlocking::endStaticInit() {
   PALDevDataSet(PalState, STATE_IDLE);
   PALDevDataSet(PowerMode, POWERMODE_IDLE_LEVEL1);
   requesting.staticInit = false;
-  startProcess(SetupSpads);
+  startProcess(SetupSpads, 0);
   //todo: what if SetupSpads fails to start?
 }
 
@@ -189,11 +193,11 @@ void NonBlocking::loop(uint32_t millisecondClock) {
         case STATE_POWERDOWN://must do datainit
           //if not initialized and not initializing
           if (agent.arg.operatingMode != Powerdown) {
-            startProcess(InitData);
+            startProcess(InitData, millisecondClock);
           }
           break;
         case STATE_WAIT_STATICINIT://must do static init
-          startProcess(InitStatic);
+          startProcess(InitStatic, millisecondClock);
           break;
         case STATE_STANDBY://power up before doing much of anythng
           //if any user requests are pending wake up
@@ -229,8 +233,8 @@ void NonBlocking::loop(uint32_t millisecondClock) {
 }
 
 void NonBlocking::onStopComplete(bool b) {
-  allowing.measurements=true;
-  allowing.ranging=true;
+  allowing.measurements = true;
+  allowing.ranging = true;
 }
 
 void NonBlocking::doMeasurementComplete(bool successful) {
@@ -270,7 +274,7 @@ bool NonBlocking::startStream(uint32_t now) {
 
   comm.WrByte(REG_SYSRANGE_START, timed ? REG_SYSRANGE_MODE_TIMED : REG_SYSRANGE_MODE_BACKTOBACK);
   measurementInProgress = forRange;
-  waiting.onMeasurement =now+ measurementTime();
+  waiting.onMeasurement = now + measurementTime();
   return true;
 }
 
@@ -306,7 +310,7 @@ bool NonBlocking::startMeasurement(NonBlocking::MeasurementAction action, uint32
   //single shot, continuous mode done elsewhere
   waiting.onStart = VL53L0X_DEFAULT_MAX_LOOP;//legacy, need to tune per platform or convert to uSec and wait on a timer.
   measurementInProgress = action;
-  waiting.onMeasurement=now+ measurementTime();
+  waiting.onMeasurement = now + measurementTime();
   return true;
 }
 
@@ -349,7 +353,7 @@ void NonBlocking::setProcess(NonBlocking::ProcessRequest process) {
 }
 
 /** nominally asynchronous access. All 'real' activity takes place in the loop function. */
-bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
+bool NonBlocking::startProcess(NonBlocking::ProcessRequest process, uint32_t now) {
   if (activeProcess != Idle) { //process block each other
     if (activeProcess == process) {//indicate already running
       agent.processEvent(activeProcess, Busy);
@@ -441,9 +445,12 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process) {
             return endProcess(false);//compares won't work properly
           }
           waiting.compact = {InterruptThresholdSettings, SizeofInterruptThresholdSettings};
-          [[fallthrough]];
+          return startStream(now);
         case DataStream:
-          return startStream(0);
+          if (!allowing.ranging) {
+            return endProcess(false); //not ready to start
+          }
+          return startStream(now);
       }
     }
   }
@@ -530,7 +537,7 @@ bool NonBlocking::update() {
 
 uint32_t NonBlocking::measurementTime() {
   //this implementation trust that someone has after any change which affected measurment called the get..microseconds
-  return binsRequired(VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds),1000);
+  return binsRequired(VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds), 1000);
 }
 
 #endif
@@ -561,7 +568,7 @@ void NonBlocking::AveragingProcess::onMeasurement(bool successful) {
     ++total_count;
     alsoSum();
     if (--measurementRemaining > 0) {
-      nb.requesting.range= true;
+      nb.requesting.range = true;
       return;
     }
     /* no valid values found */
@@ -572,7 +579,7 @@ void NonBlocking::AveragingProcess::onMeasurement(bool successful) {
     nb.endProcess(finish(true));
   } else {
     if (--measurementRemaining > 0) {
-      nb.requesting.range=true;
+      nb.requesting.range = true;
       return;
     }
     nb.endProcess(finish(false));
@@ -681,7 +688,7 @@ bool NonBlocking::OffsetProcess::finish(bool passthru) {
 void NonBlocking::CalProcess::onMeasurement(bool successful) {
   if (successful) {
     if (take(doingVhv)) {
-      nb.requesting.phase=true;
+      nb.requesting.phase = true;
     } else {
       nb.agent.arg.refCal = nb.get_ref_calibration();
       nb.endProcess(true);

@@ -5,32 +5,15 @@
 #pragma once
 
 #include "bitmanipulators.h"
-#include <cstdint>
+#if __has_include(<cstdint>)
+#include <cstdint>  //uint8_t in a few places
+#else
+#include "stdint.h"
+#include "numlimits.h"
+#endif
 
-/** provides type at least large enough for the given bits.
- * This is somewhere in the c++ std library but I am in a hurry
- * */
-template<unsigned size> struct Unsigned {
-  using type =
-  typename std::conditional<size <= 8, uint8_t,
-    typename std::conditional<size <= 16, uint16_t,
-      typename std::conditional<size <= 32, uint32_t,
-        uint64_t
-      >::type
-    >::type
-  >::type;
-};
+#include "intsizer.h"
 
-template<unsigned size> struct Signed {
-  using type =
-  typename std::conditional<size <= 8, int8_t,
-    typename std::conditional<size <= 16, int16_t,
-      typename std::conditional<size <= 32, int32_t,
-        int64_t
-      >::type
-    >::type
-  >::type;
-};
 /////////////////////// utilities
 
 /** @returns value squared, saturated (if greater than or equal to half as many bits then it would overflow)
@@ -45,9 +28,9 @@ template<typename Intish> Intish squared(Intish num) {
 }
 
 /** @returns @param num divided by @param denom, rounded
- *
- * @note: divide by zero returns ZERO  due to frequency of ternaries doing that in first project to use this code.
- * If you  don't like that then add  ,IntishOver dvz=0 */
+
+   @note: divide by zero returns ZERO  due to frequency of ternaries doing that in first project to use this code.
+   If you  don't like that then add  ,IntishOver dvz=0 */
 template<typename IntishOver, typename IntishUnder> IntishOver roundedDivide(IntishOver num, IntishUnder denom) {
   return (denom != 0) ? (num + (denom >> 1)) / denom : 0;//using 0 for divide by zero as a local preference. IE the first places that actually checked for /0 used 0 as the ratio.
 }
@@ -64,7 +47,7 @@ template<typename IntishOver> IntishOver roundedScale(IntishOver num, unsigned p
 }
 
 /** @returns @param num divided by 1000, rounded.
- * this is somewhat the reverse of FixPoint millis which multiplies the nominal value by 1000 and rounds to integer */
+   this is somewhat the reverse of FixPoint millis which multiplies the nominal value by 1000 and rounds to integer */
 template<typename IntishOver> IntishOver kilo(IntishOver num) {
   return roundedDivide(num, 1000);
 }
@@ -92,24 +75,28 @@ template<typename Intish> constexpr void ensure(Intish &value, Intish min) {
 
 /** ceil(num/denom) */
 template<typename IntishOver, typename IntishUnder> IntishOver binsRequired(IntishOver num, IntishUnder denom) {
-  return (num+denom-1)/denom;
+  return (num + denom - 1) / denom;
 }
 
 /** use where fractional values are expected
- * Formerly the gyrations in here were explicitly repeated in very many places, each having to be checked for rogue tile error.
- * Now we know that adding half the denominator before dividing in order to round always uses the same value for that halving, in one spot it did not!
- * Given a floating point value f it's .16 bit point is (int)(f*(1<<16))
+   Formerly the gyrations in here were explicitly repeated in very many places, each having to be checked for rogue tile error.
+   Now we know that adding half the denominator before dividing in order to round always uses the same value for that halving, in one spot it did not!
+   Given a floating point value f it's .16 bit point is (int)(f*(1<<16))
  * */
 template<unsigned whole, unsigned fract> struct FixPoint {
 
   enum {
-    mask = Mask<fract, 0>::shifted   //to extract fraction bits from lsbs
-    , unity = Bitter(fract) //equals 1.0F
-    , half = Bitter(fract - 1)  // 0.5
-    , size = (fract + whole)  //total number of bits needed to represent the value, used to pick the underlying int type.
+    size = (fract + whole)  //total number of bits needed to represent the value, used to pick the underlying int type.
+  };
+  
+  using RawType = typename Unsigned<size>::type; //we use unsigned as very few of the numbers are signed and the math really does not depend upon signedness
+  enum {
+     mask = Mask<fract-1, 0>::places   //to extract fraction bits from lsbs
+    , unity = Bitter<RawType>(fract) //equals 1.0F
+    , half = Bitter<RawType>(fract - 1)  // 0.5
+    
   };
 
-  using RawType = typename Unsigned<size>::type; //we use unsigned as very few of the numbers are signed and the math really does not depend upon signedness
 
   //for rounding to integer:
   using WholeType = typename Unsigned<whole>::type;
@@ -132,10 +119,10 @@ template<unsigned whole, unsigned fract> struct FixPoint {
 
 
   /**
-   * assigning with shifting and truncation or expansion as needed
+     assigning with shifting and truncation or expansion as needed
    * */
   template<unsigned other_whole, unsigned other_fract> FixPoint(FixPoint<other_whole, other_fract> other) {
-//e.g: <16,16>other  to <9,7> this (uint16_t)((Value >> 9) & 0xFFFF)
+    //e.g: <16,16>other  to <9,7> this (uint16_t)((Value >> 9) & 0xFFFF)
     const int bitdiff = fract - other_fract;
     if constexpr (unsigned(size) >= unsigned(other.size)) {//we are expanding so inflate and shrunk
       raw = other.raw;//radix point is still at other_fract position
@@ -260,7 +247,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   }
 
   bool operator>(const FixPoint &rhs) const {
-    return raw>rhs.raw;
+    return raw > rhs.raw;
   }
 
   bool operator<=(const FixPoint &rhs) const {

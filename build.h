@@ -21,5 +21,3 @@
 #ifdef UseEmptyStrings
 #error "the empty strings option is now implemented by setting a file link from vl53l0x.empty.text to vl53l0x.text"
 #endif
-
-

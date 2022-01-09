@@ -4,6 +4,7 @@
 //
 
 #include "vl53l0x_spadarray.h"
+const SpadArray::Index SpadArray::badSpad;//refused to accept init in header despite const and constexpr constructors
 
 SpadCount SpadArray::count_enabled( ) {
   SpadCount sc;//inits to 0 and false.

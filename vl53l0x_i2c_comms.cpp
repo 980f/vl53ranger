@@ -11,8 +11,10 @@
 #include <Wire.h>
 
 #include "trynester.h" //fancier than Exceptor
+#if __has_include (<utility>)
 #include <utility> //forward
-
+#else
+#endif
 
 static TwoWire * const Wires[]={
 #if WIRE_INTERFACES_COUNT > 0

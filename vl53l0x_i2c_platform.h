@@ -5,7 +5,12 @@
  * that is more efficient than reversing the data before calling the driver, likely removing a layer of indirection, and localizes the need so that we can easily quit doing it on bigendian processors
  **/
 
-#include <cstdint>
+#if __has_include(<cstdint>)
+#include <cstdint>  //uint8_t in a few places
+#else
+#include "stdint.h"
+#endif
+
 /**
  * declarations for user supplied interface to i2c or spi bus.
  *
@@ -62,4 +67,3 @@ public:
     return read_multi(index, reinterpret_cast<uint8_t *>(data), sizeof(Scalar) * (swapendians ? -1 : 1));
   }
 };
-
