@@ -18,10 +18,11 @@
 
 /** @returns value squared, saturated (if greater than or equal to half as many bits then it would overflow)
  * */
-template<typename Intish> Intish squared(Intish num) {
+template<typename Intish> Intish squared_s(Intish num) {
   //test for overflow and saturate instead OR extend the return type to twice as many bits
-  if (num >= Intish(1) << (std::numeric_limits<Intish>::digits / 2)) {//32 bit code used >65535 for the check, here we use >=65536
-    //overflowed
+  //todo: below only works for unsigned types, signed can return an unsigned value to hold on to some range
+  if (num >= (Bitter<Intish>(std::numeric_limits<Intish>::digits / 2))) {//32 bit code used >65535 for the check, here we use >=65536
+    //overflows
     return std::numeric_limits<Intish>::max();
   }
   return num * num;
@@ -220,7 +221,7 @@ template<unsigned whole, unsigned fract> struct FixPoint {
   }
 
   RawType squared(unsigned reducebits = 0) const {
-    return roundedScale(::squared(raw), reducebits);
+    return roundedScale(::squared_s(raw), reducebits);
   }
 
   FixPoint &square(unsigned reducebits = 0) {

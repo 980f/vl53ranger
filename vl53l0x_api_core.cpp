@@ -108,7 +108,7 @@ namespace VL53L0X {
       return std::numeric_limits<uint16_t>::max();//sq root of max 32 bit sum of product is 16 bits
     }
     //ick: the sum below can overflow, but that isn't checked
-    return isqrt(squared(a) + squared(b));
+    return isqrt(squared_s(a) + squared_s(b));
   } // VL53L0X_quadrature_sum
 
   bool Core::device_read_strobe(unsigned trials) {
@@ -779,12 +779,12 @@ namespace VL53L0X {
       sigmaEstimateP2.raw *= cAmbEffWidthDMax_ns; //ick: isn't this already computed in sigmaEstP2Tmp?
 
       /* FixPoint1616 >> 16 = uint32 */
-      minSignalNeeded_p3 = squared(sigmaEstimateP2.shrink(16));
+      minSignalNeeded_p3 = squared_s(sigmaEstimateP2.shrink(16));
     }
 
     /* FixPoint1814 / uint32 = FixPoint1814
      * then FixPoint1814 squared = FixPoint3628 := FixPoint0428 */
-    FixPoint1616_t sigmaLimitTmp {squared(roundedDivide(cSigmaLimit << 14, 1000))};
+    FixPoint1616_t sigmaLimitTmp {squared_s(roundedDivide(cSigmaLimit << 14, 1000))};
 
     /* FixPoint1616 * FixPoint1616 = FixPoint3232 */
     FixPoint1616_t sigmaEstSqTmp(cSigmaEstRef.squared());
