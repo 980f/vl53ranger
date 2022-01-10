@@ -1,11 +1,11 @@
 //arduino platform for VL53L0x
 
 #include "vl53l0x_platform_log.h"
-#include <Arduino.h>
 #include "vl53l0x_api_strings.h"
 
 #include "trynester.h"
 
+#include "Arduino.h"
 class MyLogger : public LocationStack::Logger{
 public:
   LocationStack::Ticks stamper() override {

@@ -5,8 +5,9 @@
 
 
 #include "nonblocking.h"
+#include "trynester.h"
 
-class VL53Ranger : public VL53L0X::NonBlocking, public VL53L0X::NonBlocking::UserAgent{
+class VL53Ranger : public VL53L0X::NonBlocking, public VL53L0X::NonBlocking::UserAgent, public LocationStack::Logger {
 public:
   VL53Ranger() noexcept;
 
@@ -22,4 +23,10 @@ public:
   };
 
   bool configSensor(SensorConfiguration vl_config) ;
+
+  LocationStack::Ticks stamper() override;
+  
+  void reportElapsed(const LocationStack::Element &loc, LocationStack::Ticks elapsed) override;
+
+  void exception(int throwncode) override;
 };

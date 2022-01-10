@@ -56,6 +56,7 @@ namespace VL53L0X {
       , CrossTalk   //remove effects of internal reflections and the like.
       , RateTest   //use may wish to evaluate ambient light when evaluating sensor behavior
       , Operate  //see operatingMode
+      , ThrowSomething //test exception logger
     };
 
     /** notification of process progress. Busy only occurs when the application tries to poke the driver. */

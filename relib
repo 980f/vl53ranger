@@ -1,3 +1,4 @@
 ln -sf /r/sketchbook/shared/chainprinter.h
 ln -sf /r/sketchbook/shared/ezcpp/cheaptricks.h
 ln -sf /r/sketchbook/shared/ezcpp/eztypes.h
+ln -sf vl53l0x.en-us.text vl53l0x.text.h 

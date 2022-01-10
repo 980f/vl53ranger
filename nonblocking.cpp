@@ -354,6 +354,7 @@ void NonBlocking::setProcess(NonBlocking::ProcessRequest process) {
 
 /** nominally asynchronous access. All 'real' activity takes place in the loop function. */
 bool NonBlocking::startProcess(NonBlocking::ProcessRequest process, uint32_t now) {
+  TRACE_ENTRY
   if (activeProcess != Idle) { //process block each other
     if (activeProcess == process) {//indicate already running
       agent.processEvent(activeProcess, Busy);
@@ -452,7 +453,10 @@ bool NonBlocking::startProcess(NonBlocking::ProcessRequest process, uint32_t now
           }
           return startStream(now);
       }
-    }
+    } break;
+    case ThrowSomething:
+      THROW(now);
+      break;
   }
   //software defect!
   return false;//not using endProcess() so that we can debug the bad arguments to this method.
@@ -510,6 +514,8 @@ bool NonBlocking::doBlocking(ProcessRequest process) {
   }
   return false;
 }
+#endif
+
 
 NonBlocking::NonBlocking(NonBlocking::UserAgent &agent, uint8_t i2c_addr, uint8_t busNumber) :
   Api({busNumber, i2c_addr, 400})
@@ -540,7 +546,6 @@ uint32_t NonBlocking::measurementTime() {
   return binsRequired(VL53L0X_GETPARAMETERFIELD(MeasurementTimingBudgetMicroSeconds), 1000);
 }
 
-#endif
 ////////////////////////////////////////////
 
 void NonBlocking::MeasurementProcess::onMeasurement(bool successful) {
