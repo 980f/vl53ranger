@@ -15,6 +15,7 @@ VL53Ranger::VL53Ranger() noexcept: NonBlocking(static_cast<NonBlocking::UserAgen
 }
 
 void VL53Ranger::processEvent(NonBlocking::ProcessRequest process, NonBlocking::ProcessResult stage) {
+  dbg("processEvent(",process,',',stage,").");
   switch (process) {
     case Operate: //receives measurements
       switch (stage) {
@@ -123,4 +124,9 @@ void VL53Ranger::reportElapsed(const LocationStack::Element &loc, LocationStack:
     elapsed = roundedDivide(elapsed, 1000);
   }
   dbg(loc.function, '@', loc.file, '.', loc.line, " ", elapsed, showmillis ? "ms" : "us");
+}
+
+void VL53Ranger::moreInfo(const char *info, ...) {
+ //todo:1 var_args printf, someday
+  dbg(info);
 }

@@ -10,6 +10,9 @@ template<> Stacked<LocationStack> *Stacked<LocationStack>::tos = nullptr;
 
 LocationStack::Logger *LocationStack::logger = nullptr;
 
+bool LocationStack::onEntry =true;//be verbose until we get around to turning it off, such as when initLogging is called.
+
+
 void LocationStack::logException(int thrown) {
   logger->exception(thrown);
   auto now = logger->stamper();//read clock just once, roughly the time of the exception.
@@ -17,6 +20,18 @@ void LocationStack::logException(int thrown) {
     logger->reportElapsed(item->element, now - item->timestamp);
     return true;//report full context, not just back to catch point
   });
+}
+
+LocationStack::LocationStack(LocationStack::Element &element) : element(element) {
+  timestamp=0;//logger needs this for starts to print as absolute
+  if(logger){
+    auto stamp = logger->stamper();
+    if(onEntry){
+      logger->reportElapsed(element,stamp);
+    }
+    timestamp=stamp;
+  }
+
 }
 
 void Thrower::operator()(int errorcode) {

@@ -48,7 +48,7 @@ void NonBlocking::abandonTasks() {
 
 //called after tuning settings load.
 void NonBlocking::endStaticInit() {
-
+  TRACE_ENTRY
   VL53L0X_SETDEVICESPECIFICPARAMETER(OscFrequencyMHz, (FFread<FixPoint<4, 12>>(RegSystem(0x84))));//# extra parens required by macro processor.
   /* Disable MSRC and TCC by default */
   SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
@@ -238,6 +238,7 @@ void NonBlocking::onStopComplete(bool b) {
 }
 
 void NonBlocking::doMeasurementComplete(bool successful) {
+  TRACE_ENTRY
   if (measurementInProgress == Abandoned) {
     return;
   }
@@ -258,6 +259,7 @@ void NonBlocking::doMeasurementComplete(bool successful) {
 }
 
 bool NonBlocking::startStream(uint32_t now) {
+  TRACE_ENTRY
   allowing.gpioAsReadyBit = SetGpioConfig(0, {GPIOFUNCTIONALITY_NEW_MEASURE_READY, INTERRUPTPOLARITY_LOW});
   bool timed = agent.arg.sampleRate_ms > 0;
   if (timed) {//maydo: check if time looks like microseconds
@@ -279,7 +281,8 @@ bool NonBlocking::startStream(uint32_t now) {
 }
 
 bool NonBlocking::startMeasurement(NonBlocking::MeasurementAction action, uint32_t now) {
-  //default standard range measurement
+  TRACE_ENTRY
+  //default to standard range measurement
   uint8_t steps {theRangeProcess.sequenceConfig};
   uint8_t startcode {REG_SYSRANGE_MODE_START_STOP};
   switch (action) {
@@ -469,6 +472,7 @@ bool NonBlocking::gpioReady() {
 #if IncludeBlockers
 
 bool NonBlocking::doBlocking(ProcessRequest process) {
+  TRACE_ENTRY
   switch (process) {
     case Idle:
       return StopMeasurement();
@@ -592,11 +596,8 @@ void NonBlocking::AveragingProcess::onMeasurement(bool successful) {
 }
 
 void NonBlocking::XtalkProcess::begin() {
-/* Disable the XTalk compensation */
   nb.SetXTalkCompensationEnable(false);
-  /* Disable the RIT */
   nb.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);
-
   AveragingProcess::begin();
 }
 
@@ -655,16 +656,15 @@ NonBlocking::OffsetProcess::OffsetProcess(NonBlocking &dev) : AveragingProcess(d
 }
 
 void NonBlocking::OffsetProcess::begin() {
-  /* Get the value of the TCC */
+  TRACE_ENTRY
   SequenceStepWasEnabled = nb.GetSequenceStepEnable(SEQUENCESTEP_TCC);
-  /* Disable the TCC */
   nb.SetSequenceStepEnable(SEQUENCESTEP_TCC, false);
-  /* Disable the RIT */
   nb.SetLimitCheckEnable(CHECKENABLE_RANGE_IGNORE_THRESHOLD, false);//ick: why don't we save and restore this?
   AveragingProcess::begin();
 }
 
 bool NonBlocking::OffsetProcess::finish(bool passthru) {
+  TRACE_ENTRY
   if (passthru) {
     /* FixPoint1616_t / uint16_t = FixPoint1616_t */
     FixPoint1616_t StoredMeanRange(sum_ranging + roundedScale(sum_fractions, RangeDatum::epsilon), total_count);
@@ -676,7 +676,6 @@ bool NonBlocking::OffsetProcess::finish(bool passthru) {
     /* Apply the calculated offset */
     nb.Data.CurrentParameters.RangeOffsetMicroMeters = OffsetMicroMeter;//record
     nb.SetOffsetCalibrationDataMicroMeter(OffsetMicroMeter);//send to device
-//  nb.logError(VL53L0X::ERROR_NONE, __FUNCTION__);
     /* Restore the TCC */
     if (SequenceStepWasEnabled) {
       nb.SetSequenceStepEnable(SEQUENCESTEP_TCC, true);
@@ -749,12 +748,14 @@ bool NonBlocking::Waiting::forSomething() const {
 /////////////////////////////////////////////////////////////////////////
 /* called after vhv and phase measurements are successfully completed */
 void NonBlocking::SpadSetupProcess::refreshCalibration() {
+  TRACE_ENTRY
   nb.agent.arg.refCal = nb.get_ref_calibration();
   //process continues at forEachMeasurement
 }
 
 //on rate measurements:
 bool NonBlocking::SpadSetupProcess::forEachMeasurement() {
+  TRACE_ENTRY
   auto peakSignalRateRef = nb.agent.arg.peakSignal; //perform_ref_signal_measurement(0);
 
   if (peakSignalRateRef > targetRefRate) { /* Signal rate measurement too high, switch to APERTURE SPADs */
@@ -844,6 +845,7 @@ NonBlocking::SpadSetupProcess::SpadSetupProcess(NonBlocking &dev) : MeasurementP
 }
 
 bool NonBlocking::SpadSetupProcess::precheck() {
+  TRACE_ENTRY
   scanner.restart();//clear all spad selects and set search pointer to 0th
   /* Enable Minimum NON-APERTURE Spads */
   sc = {minimumSpadCount, false};
@@ -869,6 +871,7 @@ bool NonBlocking::SpadSetupProcess::precheck() {
 }
 
 bool NonBlocking::SpadSetupProcess::setAndCheck() {
+  TRACE_ENTRY
   nb.set_ref_spad_map(scanner.spadArray);
 
   SpadArray checkSpadArray;
@@ -892,6 +895,7 @@ void NonBlocking::RangeProcess::onMeasurement(bool successful) {
 
 /////////////////////////////////////////////////////////////////
 bool NonBlocking::Waiting::CompactTable::operator()(NonBlocking &nb) {
+  TRACE_ENTRY
   unsigned qty = std::min(remaining, 10U);
   if (qty > 0) {
     nb.load_compact(item, qty);

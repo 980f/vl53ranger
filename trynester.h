@@ -116,6 +116,7 @@ class LocationStack : public Stacked<LocationStack> {
     * static construction also allows you to have a per-instance flag to control reporting on function exit and perhaps entrance that you can get to with a debugger.
    * */
 public:
+  static bool onEntry;
   class Element {
     friend class LocationStack;
 
@@ -138,6 +139,7 @@ public:
     virtual void reportElapsed(const Element &, Ticks elapsed) = 0;
     /** this gets called just before reportElapsed gets called on all stack members */
     virtual void exception(int throwncode) = 0;
+    virtual void moreInfo(const char  *info, ...){};
   };
 
   static Logger *logger;
@@ -170,9 +172,7 @@ private:
   }
 
 public:
-  LocationStack(Element &element) : element(element) {
-    timestamp = logger ? logger->stamper() : 0;//todo:2 might make this conditional upon reportOnExit, but the timestamp could be handy when debugging
-  }
+  explicit LocationStack(Element &element);
 
   ~LocationStack() {
     pop();
