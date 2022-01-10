@@ -1,0 +1,3 @@
+ln -sf /r/sketchbook/shared/chainprinter.h
+ln -sf /r/sketchbook/shared/ezcpp/cheaptricks.h
+ln -sf /r/sketchbook/shared/ezcpp/eztypes.h
