@@ -32,6 +32,8 @@ INCLUDE_DIRECTORIES(.
   /home/andyh/.arduino15/packages/adafruit/tools/CMSIS/5.4.0/CMSIS/DSP/Include/
   /home/andyh/.arduino15/packages/adafruit/tools/CMSIS-Atmel/1.2.2/CMSIS/Device/ATMEL/
   /home/andyh/.arduino15/packages/adafruit/hardware/samd/1.7.5/variants/qtpy_m0/
+  /r/sketchbook/shared/
+  /r/sketchbook/shared/ezcpp/
   )
 
 SET(coreSources
@@ -61,8 +63,8 @@ SET(adafruit
   )
 
 SET(newapi
-  nonblocking.cpp
-  trynester.cpp
+  #/r/sketchbook/shared/nonblocking.cpp
+  /r/sketchbook/shared/trynester.cpp
   vl53ranger.cpp
   )
 

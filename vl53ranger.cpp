@@ -6,6 +6,7 @@
 #include "vl53ranger.h"  // this basic demo application
 #include "vl53l0x_api_strings.h"
 #include "chainprinter.h"
+#include "cheaptricks.h"
 
 extern ChainPrinter dbg;
 
